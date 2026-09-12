@@ -1,0 +1,10 @@
+# Build outputs, local credentials, and captured test artifacts must stay out of source control.
+.build/
+.swiftpm/
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+test-results/
+*.session.json

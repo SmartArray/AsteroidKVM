@@ -1,0 +1,547 @@
+// !$*UTF8*$!
+{
+	"archiveVersion" = 1;
+	"classes" = {
+	};
+	"objectVersion" = 60;
+	"objects" = {
+		"F58117D5A5E2E2F07B7A5553" = {
+			"isa" = "XCLocalSwiftPackageReference";
+			"relativePath" = ".";
+		};
+		"3FAA345547E9EB730A282822" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/CometApp/CometApp.swift";
+			"sourceTree" = "<group>";
+		};
+		"CC480C589886A3711D36148B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "3FAA345547E9EB730A282822";
+		};
+		"D73F31A2D8737ABB86C43D35" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/CometApp/ConnectionManagerView.swift";
+			"sourceTree" = "<group>";
+		};
+		"540527F99439D8DDFF771CB5" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "D73F31A2D8737ABB86C43D35";
+		};
+		"91A8936FD9EF20917381D3ED" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/CometApp/JigglerSettingsView.swift";
+			"sourceTree" = "<group>";
+		};
+		"66CE97741507B2C7CF3C87A6" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "91A8936FD9EF20917381D3ED";
+		};
+		"1DCB73069E5B79BFBD4C96F5" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/CometApp/RemoteDisplayView.swift";
+			"sourceTree" = "<group>";
+		};
+		"C268076064B85D2FA0A249BD" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "1DCB73069E5B79BFBD4C96F5";
+		};
+		"E8759855BCFAC9341DD552C9" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/CometApp/SessionView.swift";
+			"sourceTree" = "<group>";
+		};
+		"2A3AF27AEB07BB44729CD918" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E8759855BCFAC9341DD552C9";
+		};
+		"BE9BF2566BB59AA03DF66CF9" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/CometApp/SettingsView.swift";
+			"sourceTree" = "<group>";
+		};
+		"D9D1D533E3D65C5A272EB75F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BE9BF2566BB59AA03DF66CF9";
+		};
+		"20E3D79CC4450B6E7DED7F36" = {
+			"isa" = "PBXGroup";
+			"children" = ("3FAA345547E9EB730A282822", "D73F31A2D8737ABB86C43D35", "91A8936FD9EF20917381D3ED", "1DCB73069E5B79BFBD4C96F5", "E8759855BCFAC9341DD552C9", "BE9BF2566BB59AA03DF66CF9", "F8DE933081D38EA706A53A8D");
+			"name" = "CometKVM";
+			"sourceTree" = "<group>";
+		};
+		"8E09F4E178031165AC3BBAE5" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.application";
+			"path" = "CometKVM.app";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"56F592A9B6D4ADF67F3DF434" = {
+			"isa" = "XCSwiftPackageProductDependency";
+			"package" = "F58117D5A5E2E2F07B7A5553";
+			"productName" = "CometCore";
+		};
+		"01B1F7DAC7C692E860A0C451" = {
+			"isa" = "XCSwiftPackageProductDependency";
+			"package" = "F58117D5A5E2E2F07B7A5553";
+			"productName" = "CometMedia";
+		};
+		"8FF20A77E7A535C1C4CD6F90" = {
+			"isa" = "XCSwiftPackageProductDependency";
+			"package" = "F58117D5A5E2E2F07B7A5553";
+			"productName" = "CometSession";
+		};
+		"D4301510529472BC6F547899" = {
+			"isa" = "PBXBuildFile";
+			"productRef" = "56F592A9B6D4ADF67F3DF434";
+		};
+		"B44DCE02C97DD5462A0C9C6C" = {
+			"isa" = "PBXBuildFile";
+			"productRef" = "01B1F7DAC7C692E860A0C451";
+		};
+		"812323D17ED3F072A04207C4" = {
+			"isa" = "PBXBuildFile";
+			"productRef" = "8FF20A77E7A535C1C4CD6F90";
+		};
+		"F9C01E3D977903D0F76D5D1D" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = ("CC480C589886A3711D36148B", "540527F99439D8DDFF771CB5", "66CE97741507B2C7CF3C87A6", "C268076064B85D2FA0A249BD", "2A3AF27AEB07BB44729CD918", "D9D1D533E3D65C5A272EB75F");
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"2DB1F41994B797A872CFAFF9" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = ("D4301510529472BC6F547899", "B44DCE02C97DD5462A0C9C6C", "812323D17ED3F072A04207C4");
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"F8DE933081D38EA706A53A8D" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text";
+			"path" = "Resources/ThirdPartyNotices.txt";
+			"sourceTree" = "<group>";
+		};
+		"698EABFAA7572B4BC0080605" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "F8DE933081D38EA706A53A8D";
+		};
+		"2AC7AB26953A78AD46B49603" = {
+			"isa" = "PBXResourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = ("698EABFAA7572B4BC0080605");
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"C4505736BE722503090BB76E" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometKVM";
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"SWIFT_VERSION" = "5.0";
+				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
+				"CODE_SIGN_IDENTITY" = "-";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"ENABLE_APP_SANDBOX" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
+				"ENABLE_TESTABILITY" = "YES";
+				"INFOPLIST_FILE" = "Resources/Info.plist";
+				"MARKETING_VERSION" = "1.0.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+				"INFOPLIST_KEY_CFBundleDisplayName" = "Comet KVM";
+				"INFOPLIST_KEY_NSMicrophoneUsageDescription" = "Forward your microphone to the computer connected to Comet when you enable microphone forwarding.";
+				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.utilities";
+				"INFOPLIST_KEY_NSPrincipalClass" = "NSApplication";
+				"INFOPLIST_KEY_NSHighResolutionCapable" = "YES";
+				"INFOPLIST_KEY_NSLocalNetworkUsageDescription" = "Connect to your Comet KVM appliances on the local network.";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
+				"ONLY_ACTIVE_ARCH" = "YES";
+			};
+		};
+		"0084B8B9F20CC7197DE45763" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometKVM";
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"SWIFT_VERSION" = "5.0";
+				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
+				"CODE_SIGN_IDENTITY" = "-";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"ENABLE_APP_SANDBOX" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
+				"ENABLE_TESTABILITY" = "YES";
+				"INFOPLIST_FILE" = "Resources/Info.plist";
+				"MARKETING_VERSION" = "1.0.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+				"INFOPLIST_KEY_CFBundleDisplayName" = "Comet KVM";
+				"INFOPLIST_KEY_NSMicrophoneUsageDescription" = "Forward your microphone to the computer connected to Comet when you enable microphone forwarding.";
+				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.utilities";
+				"INFOPLIST_KEY_NSPrincipalClass" = "NSApplication";
+				"INFOPLIST_KEY_NSHighResolutionCapable" = "YES";
+				"INFOPLIST_KEY_NSLocalNetworkUsageDescription" = "Connect to your Comet KVM appliances on the local network.";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+			};
+		};
+		"3F74AB8A9F352669C2D832DC" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("C4505736BE722503090BB76E", "0084B8B9F20CC7197DE45763");
+			"defaultConfigurationIsVisible" = 0;
+			"defaultConfigurationName" = "Release";
+		};
+		"8A90A6BDD02FC1C2F95C3016" = {
+			"isa" = "PBXNativeTarget";
+			"buildConfigurationList" = "3F74AB8A9F352669C2D832DC";
+			"buildPhases" = ("F9C01E3D977903D0F76D5D1D", "2DB1F41994B797A872CFAFF9", "2AC7AB26953A78AD46B49603");
+			"buildRules" = ();
+			"dependencies" = ();
+			"name" = "CometKVM";
+			"packageProductDependencies" = ("56F592A9B6D4ADF67F3DF434", "01B1F7DAC7C692E860A0C451", "8FF20A77E7A535C1C4CD6F90");
+			"productName" = "CometKVM";
+			"productReference" = "8E09F4E178031165AC3BBAE5";
+			"productType" = "com.apple.product-type.application";
+		};
+		"1605437A1DACB178CC2D93AC" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/CometCoreTests/GeometryAndStorageTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"9D67465B26D0CEB9D0D43C90" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "1605437A1DACB178CC2D93AC";
+		};
+		"011F0AD834BD13AC45DD47A0" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/CometCoreTests/HardwareE2ETests.swift";
+			"sourceTree" = "<group>";
+		};
+		"708493E5A1A19E159C9D640C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "011F0AD834BD13AC45DD47A0";
+		};
+		"0A7710DD58150DFD07D0D709" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/CometCoreTests/InputTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"A8CD2DD8D8ED47F974763207" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "0A7710DD58150DFD07D0D709";
+		};
+		"0EA6ACF9FA671A8EF8A12B4B" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/CometCoreTests/LocalWebRTCPeer.swift";
+			"sourceTree" = "<group>";
+		};
+		"B3D2C87A4BCF866CBA426B3D" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "0EA6ACF9FA671A8EF8A12B4B";
+		};
+		"F37FCBB48859E6A34A05BAA1" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/CometCoreTests/MediaTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"AA8455D52500A523F584997A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "F37FCBB48859E6A34A05BAA1";
+		};
+		"6A576CCD5BCC2125E70C835D" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/CometCoreTests/ProtocolE2ETests.swift";
+			"sourceTree" = "<group>";
+		};
+		"D06E837A7E1E427D6D8DCCB0" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "6A576CCD5BCC2125E70C835D";
+		};
+		"E3BB084A8F47D9F0FA322CDC" = {
+			"isa" = "PBXGroup";
+			"children" = ("1605437A1DACB178CC2D93AC", "011F0AD834BD13AC45DD47A0", "0A7710DD58150DFD07D0D709", "0EA6ACF9FA671A8EF8A12B4B", "F37FCBB48859E6A34A05BAA1", "6A576CCD5BCC2125E70C835D");
+			"name" = "CometCoreTests";
+			"sourceTree" = "<group>";
+		};
+		"3306C52EF298082E5CD44520" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.cfbundle";
+			"path" = "CometCoreTests.xctest";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"2F762487D7F20DB3730DFFE0" = {
+			"isa" = "XCSwiftPackageProductDependency";
+			"package" = "F58117D5A5E2E2F07B7A5553";
+			"productName" = "CometCore";
+		};
+		"FE261D9E7B9626DAFD0A7B70" = {
+			"isa" = "XCSwiftPackageProductDependency";
+			"package" = "F58117D5A5E2E2F07B7A5553";
+			"productName" = "CometMedia";
+		};
+		"8229954DF04343C1F9974F05" = {
+			"isa" = "XCSwiftPackageProductDependency";
+			"package" = "F58117D5A5E2E2F07B7A5553";
+			"productName" = "CometSession";
+		};
+		"B2F6F7E6522A91DA7E982DB2" = {
+			"isa" = "PBXBuildFile";
+			"productRef" = "2F762487D7F20DB3730DFFE0";
+		};
+		"AFF45CE76A7F8820EC8A94CE" = {
+			"isa" = "PBXBuildFile";
+			"productRef" = "FE261D9E7B9626DAFD0A7B70";
+		};
+		"48B80CA69D509E99D0C99894" = {
+			"isa" = "PBXBuildFile";
+			"productRef" = "8229954DF04343C1F9974F05";
+		};
+		"C2819A4D681BABCB713B32FD" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = ("9D67465B26D0CEB9D0D43C90", "708493E5A1A19E159C9D640C", "A8CD2DD8D8ED47F974763207", "B3D2C87A4BCF866CBA426B3D", "AA8455D52500A523F584997A", "D06E837A7E1E427D6D8DCCB0");
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"3EAB9C0B9DFF7D8DB4727074" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = ("B2F6F7E6522A91DA7E982DB2", "AFF45CE76A7F8820EC8A94CE", "48B80CA69D509E99D0C99894");
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"0961EE524A6C7B08E315E92B" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometCoreTests";
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"SWIFT_VERSION" = "5.0";
+				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
+				"CODE_SIGN_IDENTITY" = "-";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"ENABLE_APP_SANDBOX" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
+				"ENABLE_TESTABILITY" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
+				"ONLY_ACTIVE_ARCH" = "YES";
+			};
+		};
+		"ECFB78E667413205D149CC86" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometCoreTests";
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"SWIFT_VERSION" = "5.0";
+				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
+				"CODE_SIGN_IDENTITY" = "-";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"ENABLE_APP_SANDBOX" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
+				"ENABLE_TESTABILITY" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+			};
+		};
+		"260135341E6AB05F5FDDFD0D" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("0961EE524A6C7B08E315E92B", "ECFB78E667413205D149CC86");
+			"defaultConfigurationIsVisible" = 0;
+			"defaultConfigurationName" = "Release";
+		};
+		"6CDED899A448D11B6D183FE7" = {
+			"isa" = "PBXNativeTarget";
+			"buildConfigurationList" = "260135341E6AB05F5FDDFD0D";
+			"buildPhases" = ("C2819A4D681BABCB713B32FD", "3EAB9C0B9DFF7D8DB4727074");
+			"buildRules" = ();
+			"dependencies" = ();
+			"name" = "CometCoreTests";
+			"packageProductDependencies" = ("2F762487D7F20DB3730DFFE0", "FE261D9E7B9626DAFD0A7B70", "8229954DF04343C1F9974F05");
+			"productName" = "CometCoreTests";
+			"productReference" = "3306C52EF298082E5CD44520";
+			"productType" = "com.apple.product-type.bundle.unit-test";
+		};
+		"909A6CAA5D8AB54BA54C82E0" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/CometUITests/CometUITests.swift";
+			"sourceTree" = "<group>";
+		};
+		"D6899BC00912180654BFB5CB" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "909A6CAA5D8AB54BA54C82E0";
+		};
+		"1079D3C6B18A3688440D356B" = {
+			"isa" = "PBXGroup";
+			"children" = ("909A6CAA5D8AB54BA54C82E0");
+			"name" = "CometUITests";
+			"sourceTree" = "<group>";
+		};
+		"55B25D524564D682F32A7413" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.cfbundle";
+			"path" = "CometUITests.xctest";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"EBE31B9853B606BECD752A71" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = ("D6899BC00912180654BFB5CB");
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"3D2CB904993ACF537C04B963" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = ();
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"3DDD014B50A4CB7CB4B4C5A6" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "F6F4DA8D93E88A08220E03B7";
+			"proxyType" = 1;
+			"remoteGlobalIDString" = "8A90A6BDD02FC1C2F95C3016";
+			"remoteInfo" = "CometKVM";
+		};
+		"6176B977F600F04EFDE7793A" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "8A90A6BDD02FC1C2F95C3016";
+			"targetProxy" = "3DDD014B50A4CB7CB4B4C5A6";
+		};
+		"A836CF036C2CDCA4E73ABE74" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometUITests";
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"SWIFT_VERSION" = "5.0";
+				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
+				"CODE_SIGN_IDENTITY" = "-";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"ENABLE_APP_SANDBOX" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
+				"ENABLE_TESTABILITY" = "YES";
+				"TEST_TARGET_NAME" = "CometKVM";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
+				"ONLY_ACTIVE_ARCH" = "YES";
+			};
+		};
+		"3E06A32C844542C8761AE452" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometUITests";
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"SWIFT_VERSION" = "5.0";
+				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
+				"CODE_SIGN_IDENTITY" = "-";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"ENABLE_APP_SANDBOX" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
+				"ENABLE_TESTABILITY" = "YES";
+				"TEST_TARGET_NAME" = "CometKVM";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+			};
+		};
+		"598C01279302D824988E67FE" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("A836CF036C2CDCA4E73ABE74", "3E06A32C844542C8761AE452");
+			"defaultConfigurationIsVisible" = 0;
+			"defaultConfigurationName" = "Release";
+		};
+		"BF2162B6D9AC0A0956C4E115" = {
+			"isa" = "PBXNativeTarget";
+			"buildConfigurationList" = "598C01279302D824988E67FE";
+			"buildPhases" = ("EBE31B9853B606BECD752A71", "3D2CB904993ACF537C04B963");
+			"buildRules" = ();
+			"dependencies" = ("6176B977F600F04EFDE7793A");
+			"name" = "CometUITests";
+			"packageProductDependencies" = ();
+			"productName" = "CometUITests";
+			"productReference" = "55B25D524564D682F32A7413";
+			"productType" = "com.apple.product-type.bundle.ui-testing";
+		};
+		"FE0A091FDBFB3E9C31B7A1BD" = {
+			"isa" = "PBXGroup";
+			"children" = ("8E09F4E178031165AC3BBAE5", "3306C52EF298082E5CD44520", "55B25D524564D682F32A7413");
+			"name" = "Products";
+			"sourceTree" = "<group>";
+		};
+		"2EB2D8158FC6EF9EB19CB439" = {
+			"isa" = "PBXGroup";
+			"children" = ("20E3D79CC4450B6E7DED7F36", "E3BB084A8F47D9F0FA322CDC", "1079D3C6B18A3688440D356B", "FE0A091FDBFB3E9C31B7A1BD");
+			"sourceTree" = "<group>";
+		};
+		"BFD315016DE16320F7E2120C" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"SDKROOT" = "macosx";
+				"CLANG_ENABLE_MODULES" = "YES";
+				"SWIFT_VERSION" = "5.0";
+				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
+				"ONLY_ACTIVE_ARCH" = "YES";
+			};
+		};
+		"1D8C0C6B1D22EA8C7669B263" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"SDKROOT" = "macosx";
+				"CLANG_ENABLE_MODULES" = "YES";
+				"SWIFT_VERSION" = "5.0";
+				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+			};
+		};
+		"5D7731714D3E69D68AA8D7ED" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("BFD315016DE16320F7E2120C", "1D8C0C6B1D22EA8C7669B263");
+			"defaultConfigurationIsVisible" = 0;
+			"defaultConfigurationName" = "Release";
+		};
+		"F6F4DA8D93E88A08220E03B7" = {
+			"isa" = "PBXProject";
+			"attributes" = {
+				"LastUpgradeCheck" = "2660";
+				"BuildIndependentTargetsInParallel" = "YES";
+			};
+			"buildConfigurationList" = "5D7731714D3E69D68AA8D7ED";
+			"compatibilityVersion" = "Xcode 15.0";
+			"developmentRegion" = "en";
+			"hasScannedForEncodings" = 0;
+			"knownRegions" = ("en", "Base");
+			"mainGroup" = "2EB2D8158FC6EF9EB19CB439";
+			"packageReferences" = ("F58117D5A5E2E2F07B7A5553");
+			"productRefGroup" = "FE0A091FDBFB3E9C31B7A1BD";
+			"projectDirPath" = "";
+			"projectRoot" = "";
+			"targets" = ("8A90A6BDD02FC1C2F95C3016", "6CDED899A448D11B6D183FE7", "BF2162B6D9AC0A0956C4E115");
+		};
+	};
+	"rootObject" = "F6F4DA8D93E88A08220E03B7";
+}
