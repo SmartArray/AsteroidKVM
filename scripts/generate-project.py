@@ -139,12 +139,23 @@ for name, source, kind, dependencies in [
         )
         objects[groups[-1]]["children"].append(notice)
         notice_build = obj("ThirdPartyNoticesBuild", "PBXBuildFile", fileRef=notice)
+
+        # Bundle the generated native icon; retain its master PNG outside the shipped app for future exports.
+        icon = obj(
+            "AppIcon",
+            "PBXFileReference",
+            lastKnownFileType="image.icns",
+            path="Resources/AppIcon.icns",
+            sourceTree="<group>",
+        )
+        objects[groups[-1]]["children"].append(icon)
+        icon_build = obj("AppIconBuild", "PBXBuildFile", fileRef=icon)
         phases.append(
             obj(
                 "AppResources",
                 "PBXResourcesBuildPhase",
                 buildActionMask=2147483647,
-                files=[notice_build],
+                files=[notice_build, icon_build],
                 runOnlyForDeploymentPostprocessing=0,
             )
         )

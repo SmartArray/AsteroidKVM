@@ -13,13 +13,15 @@ Control a remote computer yourself, or give Codex a task and watch it work.
 
 </div>
 
-![Comet KVM displaying a remote Windows lock screen in native macOS fullscreen, with a compact connection status bar](docs/screenshots/fullscreen.jpg)
+![Asteroid KVM displaying a remote Windows desktop with a browser and PowerShell, native toolbar controls, and connection status](docs/screenshots/remote-display.png)
 
-*The real client in native fullscreen. The remote display fills the window; connection status stays within reach.*
+*The real client connected to a Windows desktop. Keyboard, display, text recognition, and Agent controls stay within reach.*
 
 | 🤖 Agent | ⌨️ Native keys | ⚡ Fast rendering |
 | :--- | :--- | :--- |
 | Describe a task. Codex reads the screen, clicks, types, and checks the result. Pause or take over whenever you need. | Use the characters resolved by your Mac’s keyboard layout, including umlauts and symbols, with supported Comet firmware. | Native WebRTC, VideoToolbox H.264 decoding, and Metal presentation keep the video path short and frame queues bounded. |
+
+**🌙 Dark mode:** follow your Mac’s appearance or choose Light or Dark in **Settings → Appearance**. Native windows, controls, and Agent chat adapt to your preference.
 
 <a id="agent-give-your-remote-machine-a-task"></a>
 
