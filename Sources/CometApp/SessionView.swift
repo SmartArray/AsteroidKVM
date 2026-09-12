@@ -209,8 +209,9 @@ struct KeyboardPopover: View {
           set: { value in session.updateProfile { $0.nativeLayout = value } })
       )
       .disabled(!session.state.mappedText).accessibilityIdentifier("native-layout-toggle")
+      // Link the optional daemon patch beside its requirement so users can inspect native typing support.
       Text(
-        "Requires the GLKVM Layout-Aware Typing daemon patch. Standard keyboard input and paste work without it."
+        "Requires the GLKVM Layout-Aware Typing daemon patch. Standard keyboard input and paste work without it. [See here](https://github.com/gl-inet/glkvm/pull/158)."
       ).font(.caption).foregroundStyle(.secondary)
       Toggle(
         "Enable Paste with ⌘V",
