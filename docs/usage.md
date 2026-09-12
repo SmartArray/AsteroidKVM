@@ -48,6 +48,7 @@ The agent can observe, click/double-click, press balanced key chords, type, scro
 ## Tests
 
 ```sh
+./scripts/test.sh --unit      # CI unit selection: no hardware, GPU, interactive UI, or Codex account
 ./scripts/test.sh             # Unit, real HTTP/WebSocket, AppKit lifecycle, native WebRTC/Metal, and Vision tests
 ./scripts/test.sh --video     # Genuine local H.264 sender → Janus signaling → decoder → Metal
 ./scripts/test.sh --hardware  # Real appliance; requires a valid supplied session

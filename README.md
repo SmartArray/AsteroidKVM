@@ -125,6 +125,12 @@ The test suite covers actual HTTP/WebSocket traffic, a native H.264 sender and r
 
 **Acceptance:** 31 tests passed in the combined local/model/hardware run; the separate real-agent hardware task also passed. All three native UI tests passed. Hardware tests require a valid session; UI automation requires an unlocked Mac desktop. The [usage guide](docs/usage.md#tests) documents the opt-ins for remote typing and the unsaved-document agent task.
 
+### GitHub Actions
+
+[macOS CI](.github/workflows/macos.yml) runs deterministic unit tests on new pull requests, PR updates, and pushes to **`main`**. Only a push to `main` builds the universal release app, after the tests pass. Download `AsteroidKVM-macOS-universal-<commit>` from the successful run’s **Artifacts** section; it contains the zipped app and a SHA-256 checksum. Builds are ad-hoc signed and retained for 14 days.
+
+Run the same unit selection locally with `./scripts/test.sh --unit`. Hardware, native GPU/video integration, interactive UI, and real Codex tests remain explicit local test commands. The workflow uses macOS 26 and Xcode 26.6; pushes to other branches do not trigger it.
+
 ## Built to stay understandable
 
 | Module | Responsibility |

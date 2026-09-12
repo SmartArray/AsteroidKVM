@@ -6,6 +6,11 @@ case "${1:-local}" in
   local)
     swift test
     ;;
+  --unit)
+    # Keep hosted CI deterministic: these suites use local fixtures and never require GPU, UI, or account access.
+    swift test --filter 'CometCoreTests\.(InputTests|GeometryAndStorageTests|AgentTests)/' \
+      --skip 'AgentTests/testInstalledCodexVisionAndDynamicToolEndToEnd'
+    ;;
   --hardware)
     export COMET_E2E_SESSION="${COMET_E2E_SESSION:-$HOME/.cache/qrx/comet-session.json}"
     test -r "$COMET_E2E_SESSION"
@@ -37,7 +42,7 @@ case "${1:-local}" in
     swift test --filter ProtocolE2ETests/testNativeWebRTCVideoEndToEndThroughJanusAndMetal
     ;;
   *)
-    printf 'Usage: scripts/test.sh [local|--hardware|--ui|--ui-hardware|--video|--agent|--agent-hardware]\n' >&2
+    printf 'Usage: scripts/test.sh [local|--unit|--hardware|--ui|--ui-hardware|--video|--agent|--agent-hardware]\n' >&2
     exit 2
     ;;
 esac

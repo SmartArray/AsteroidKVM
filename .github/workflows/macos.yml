@@ -1,0 +1,89 @@
+# Test pull requests and main pushes; produce release artifacts only from main pushes.
+name: macOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# Neither fork pull requests nor release builds need repository write access or stored credentials.
+permissions:
+  contents: read
+
+# Replace outdated runs for the same pull request or branch without interrupting unrelated work.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Match the validated toolchain explicitly instead of inheriting future runner defaults.
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Exercise deterministic input, geometry, storage, and agent tests without a Comet, GPU, or Codex account.
+  unit-tests:
+    name: Unit tests
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      # Pin the official checkout action and discard its credentials before executing repository code.
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # Print tool versions to make failures caused by runner-image changes diagnosable.
+      - name: Check toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          python3 --version
+
+      # The explicit unit-test selection excludes hardware, native video, UI, and paid model inference.
+      - name: Run unit tests
+        run: ./scripts/test.sh --unit
+
+  # An explicit event/ref guard prevents PRs, tags, and other branches from publishing a build artifact.
+  build:
+    name: Build universal macOS app
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: unit-tests
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      # Build the same checked-in project used locally, without granting Git push credentials.
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # The production build script creates the ad-hoc signed arm64/x86_64 application bundle.
+      - name: Build release app
+        run: ./scripts/build.sh
+
+      # Check signing and both architectures before wrapping the bundle to preserve permissions and symlinks.
+      - name: Verify and package app
+        run: |
+          app_path="build/DerivedData/Build/Products/Release/CometKVM.app"
+          codesign --verify --deep --strict "$app_path"
+          lipo "$app_path/Contents/MacOS/CometKVM" -verify_arch arm64 x86_64
+          lipo "$app_path/Contents/Frameworks/WebRTC.framework/WebRTC" -verify_arch arm64 x86_64
+          mkdir -p build/artifacts
+          ditto -c -k --sequesterRsrc --keepParent "$app_path" build/artifacts/AsteroidKVM-macOS-universal.zip
+          cd build/artifacts
+          shasum -a 256 AsteroidKVM-macOS-universal.zip > SHA256SUMS.txt
+
+      # Retain a downloadable CI build; Developer ID signing, notarization, and GitHub Releases remain separate.
+      - name: Upload app artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: AsteroidKVM-macOS-universal-${{ github.sha }}
+          path: build/artifacts/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
