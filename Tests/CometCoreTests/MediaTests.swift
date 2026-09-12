@@ -1,5 +1,6 @@
 import CometCore
 import CometMedia
+import CometSession
 import CoreText
 import MetalKit
 import WebRTC
@@ -7,6 +8,47 @@ import WebRTC
 import XCTest
 
 final class MediaTests: XCTestCase {
+  // Keep live-video admission strict while distinguishing temporary startup, stalled video, and paste failures.
+  @MainActor func testAgentReadinessReportsTheActualFailedPrerequisite() async throws {
+    let session = SessionController(
+      profile: ConnectionProfile(name: "Readiness", host: "fixture.invalid"))
+    let adapter = SessionAgentComputer(session: session)
+    func rejects(_ message: String) {
+      XCTAssertThrowsError(try adapter.acquire()) { error in
+        XCTAssertTrue(error.localizedDescription.contains(message), error.localizedDescription)
+      }
+      XCTAssertFalse(session.agentOwnsInput)
+    }
+    rejects("Disconnected")
+    session.phase = .connected
+    rejects("no video frame")
+
+    // A real mailbox frame makes the connected session eligible, unless clipboard typing still owns input.
+    let pixelBuffer = try buffer()
+    func receive() {
+      session.mailbox.renderFrame(
+        RTCVideoFrame(
+          buffer: RTCCVPixelBuffer(pixelBuffer: pixelBuffer), rotation: ._0, timeStampNs: 1))
+    }
+    receive()
+    session.pasting = true
+    rejects("Clipboard text")
+    session.pasting = false
+    try adapter.acquire()
+    XCTAssertTrue(session.agentOwnsInput)
+    adapter.release()
+
+    // Seeing the retained image must never authorize control after reception stops; a new arrival restores it.
+    try await Task.sleep(for: .milliseconds(3100))
+    XCTAssertNotNil(session.mailbox.snapshot())
+    rejects("over 3 seconds old")
+    receive()
+    try adapter.acquire()
+    adapter.release()
+    session.phase = .noSignal
+    rejects("No HDMI signal")
+  }
+
   private func buffer(width: Int = 640, height: Int = 240) throws -> CVPixelBuffer {
     var buffer: CVPixelBuffer?
     XCTAssertEqual(

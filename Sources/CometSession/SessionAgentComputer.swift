@@ -24,9 +24,27 @@ import UniformTypeIdentifiers
 
   // Require a live absolute-pointer session and exclusive ownership before any observation or action.
   public func acquire() throws {
-    guard let session, available, !session.pasting else {
+    // Report the failed prerequisite precisely; a connected display can still be waiting on video or paste.
+    guard let session else {
       throw AgentError(
-        "Connect the remote display and wait for live video before starting the agent.")
+        "This agent's connection was closed. Open Agent from the current remote display.")
+    }
+    guard session.phase == .connected else {
+      throw AgentError(
+        "The remote display is \(session.phase.rawValue). Connect it before starting the agent.")
+    }
+    guard session.mailbox.snapshot() != nil else {
+      throw AgentError(
+        "Connected, but no video frame has arrived yet. Wait for the remote picture and retry.")
+    }
+    guard session.mailbox.frameAge < 3 else {
+      throw AgentError(
+        "Connected, but the last video frame is over 3 seconds old. Wait for live video and retry.")
+    }
+    guard !session.pasting else {
+      throw AgentError(
+        "Clipboard text is still being typed on the remote computer. Wait for paste to finish and retry."
+      )
     }
     guard session.profile.keyboardEnabled, session.profile.mouseEnabled,
       session.state.system["absolute_mouse"].bool != false

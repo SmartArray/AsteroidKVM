@@ -142,11 +142,17 @@ final class CometUITests: XCTestCase {
     XCTAssertTrue(remote.waitForExistence(timeout: 15))
     let trust = remote.sheets.buttons.matching(identifier: "Trust This Device").firstMatch
     if trust.waitForExistence(timeout: 10) { trust.click() }
+    // A newly built macOS app can lose its initial request while local-network authorization settles.
+    let reconnect = remote.buttons.matching(identifier: "session-connect").firstMatch
+    if reconnect.exists && reconnect.isEnabled { reconnect.click() }
     let connected = XCTNSPredicateExpectation(
       predicate: NSPredicate { _, _ in
         (remote.staticTexts["connection-status"].value as? String) == "Connected"
       }, object: remote)
-    XCTAssertEqual(XCTWaiter.wait(for: [connected], timeout: 25), .completed)
+    guard XCTWaiter.wait(for: [connected], timeout: 25) == .completed else {
+      XCTFail("Agent UI setup could not connect to Comet: " + remote.debugDescription)
+      return
+    }
     remote.buttons.matching(identifier: "agent-toolbar").firstMatch.click()
     let chat = app.windows["Agent — Comet Test Session"]
     XCTAssertTrue(chat.waitForExistence(timeout: 8))

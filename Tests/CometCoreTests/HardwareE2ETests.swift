@@ -1,5 +1,7 @@
+import CometAgent
 import CometCore
 import CometMedia
+import CometSession
 import CoreImage
 import ImageIO
 import MetalKit
@@ -8,6 +10,55 @@ import UniformTypeIdentifiers
 import XCTest
 
 final class HardwareE2ETests: XCTestCase {
+  // Exercise agent readiness and screenshot capture against real video without Codex or remote input actions.
+  @MainActor func testRealCometAgentCanReadLiveVideo() async throws {
+    guard let path = ProcessInfo.processInfo.environment["COMET_E2E_SESSION"] else {
+      throw XCTSkip("Set COMET_E2E_SESSION to verify agent readiness against real Comet video.")
+    }
+    let credentials = try JSONValue.decode(Data(contentsOf: URL(fileURLWithPath: path)))
+    let raw = credentials["host"].text
+    let url = try XCTUnwrap(URL(string: raw.contains("://") ? raw : "https://" + raw))
+    let profile = ConnectionProfile(
+      name: "Agent readiness", host: try XCTUnwrap(url.host),
+      port: url.port ?? (url.scheme == "http" ? 80 : 443), scheme: url.scheme ?? "https",
+      username: credentials["username"].text)
+    let session = SessionController(profile: profile, token: credentials["token"].string)
+    let adapter = SessionAgentComputer(session: session)
+    session.connect()
+
+    // Pin only the test device when its session file explicitly permits trusting the observed certificate.
+    do {
+      let deadline = Date().addingTimeInterval(40)
+      while !session.active || session.mailbox.snapshot() == nil, Date() < deadline {
+        if session.pendingCertificate != nil, credentials["insecure"].bool == true {
+          session.approveCertificate()
+        }
+        try await Task.sleep(for: .milliseconds(100))
+      }
+      XCTAssertTrue(session.active, session.message ?? session.phase.rawValue)
+
+      // Repeat the same acquisition and image encoding used by chat while native WebRTC receives frames.
+      for _ in 0..<10 {
+        print(
+          "AGENT_READINESS phase=\(session.phase.rawValue) frameAge=\(session.mailbox.frameAge) pasting=\(session.pasting) available=\(adapter.available)"
+        )
+        try adapter.acquire()
+        let screen = try await adapter.screen()
+        XCTAssertGreaterThan(screen.width, 0)
+        XCTAssertGreaterThan(screen.height, 0)
+        XCTAssertTrue(screen.imageURL.hasPrefix("data:image/jpeg;base64,"))
+        adapter.release()
+        try await Task.sleep(for: .milliseconds(500))
+      }
+      XCTAssertEqual(session.mediaConnectionsStarted, 1)
+      await session.disconnect()
+    } catch {
+      adapter.release()
+      await session.disconnect()
+      throw error
+    }
+  }
+
   @MainActor func testRealCometAuthenticationStateHIDVideoAndRendering() async throws {
     guard let path = ProcessInfo.processInfo.environment["COMET_E2E_SESSION"] else {
       throw XCTSkip("Set COMET_E2E_SESSION to opt into real Comet hardware tests.")
