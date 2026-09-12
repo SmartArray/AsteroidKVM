@@ -1,6 +1,6 @@
 <div align="center">
 
-# ☄️ Comet KVM
+# ☄️ Asteroid KVM
 
 **🤖 Agent automation · ⌨️ Native keys · ⚡ Fast rendering**
 
