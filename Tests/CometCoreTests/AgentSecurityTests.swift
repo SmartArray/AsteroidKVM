@@ -4,6 +4,66 @@ import CometCore
 import XCTest
 
 @MainActor final class AgentSecurityTests: XCTestCase {
+  // Automatic approval still gives the human a full second to inspect the target before any click occurs.
+  func testFullControlClickPreviewDelaysInputAndCanBeDisabled() async throws {
+    let computer = SecurityComputer()
+    let transport = SecurityTransport()
+    let agent = AgentController(computer: computer, transportFactory: { transport })
+    defer { agent.stop() }
+    XCTAssertTrue(agent.clickPreviewsEnabled)
+    agent.setControlMode(.fullControl)
+    agent.send("Click the target")
+    try await wait { transport.started }
+    try await observe(transport)
+    transport.action(.object(["action": .string("click"), "x": .number(25), "y": .number(30)]))
+    try await wait { computer.preview != nil }
+    let started = try XCTUnwrap(computer.previewStarted)
+    XCTAssertEqual(try XCTUnwrap(computer.preview).x, 25.0 / 99, accuracy: 0.0001)
+    XCTAssertEqual(try XCTUnwrap(computer.preview).y, 30.0 / 79, accuracy: 0.0001)
+    try await Task.sleep(for: .milliseconds(700))
+    XCTAssertTrue(computer.actions.isEmpty)
+    try await wait { computer.actions.count == 1 && computer.preview == nil }
+    XCTAssertGreaterThanOrEqual(
+      started.duration(to: try XCTUnwrap(computer.actionStarted)), .seconds(1))
+
+    // Disabled previews skip the visual delay without changing the full-control permission.
+    agent.setClickPreviewsEnabled(false)
+    try await observe(transport)
+    let disabledStart = ContinuousClock.now
+    transport.action(.object(["action": .string("click"), "x": .number(20), "y": .number(10)]))
+    try await wait { computer.actions.count == 2 }
+    XCTAssertNil(computer.preview)
+    XCTAssertLessThan(
+      disabledStart.duration(to: try XCTUnwrap(computer.actionStarted)), .seconds(1))
+  }
+
+  // Review previews are visible before approval; toggling them cannot approve, and pausing removes them immediately.
+  func testPendingClickPreviewTogglesAndPauseCancelsDelayedInput() async throws {
+    for pauseAfterApproval in [false, true] {
+      let computer = SecurityComputer()
+      let transport = SecurityTransport()
+      let agent = AgentController(computer: computer, transportFactory: { transport })
+      defer { agent.stop() }
+      agent.send("Review a click")
+      try await wait { transport.started }
+      try await observe(transport)
+      transport.action(.object(["action": .string("click"), "x": .number(1), "y": .number(1)]))
+      try await wait { agent.pendingApproval != nil }
+      XCTAssertNotNil(computer.preview)
+      agent.setClickPreviewsEnabled(false)
+      XCTAssertNil(computer.preview)
+      agent.setClickPreviewsEnabled(true)
+      XCTAssertNotNil(computer.preview)
+      XCTAssertTrue(computer.actions.isEmpty)
+      if pauseAfterApproval { agent.approveAction(id: try XCTUnwrap(agent.pendingApproval).id) }
+      agent.pause()
+      XCTAssertNil(computer.preview)
+      try await Task.sleep(for: .milliseconds(1200))
+      XCTAssertTrue(computer.actions.isEmpty)
+      XCTAssertNil(agent.pendingApproval)
+    }
+  }
+
   // Observation mode rejects every action type, even when the model has a fresh valid screen identifier.
   func testObservationOnlyRejectsEveryAction() async throws {
     let computer = SecurityComputer()
@@ -202,6 +262,14 @@ import XCTest
   var owned = false
   var actions: [AgentAction] = []
   var capturedAt = Date()
+  var preview: AgentClickPreview?
+  var previewStarted: ContinuousClock.Instant?
+  var actionStarted: ContinuousClock.Instant?
+  // Record presentation and execution independently so tests can verify the human-visible delay.
+  func showClickPreview(_ value: AgentClickPreview?) {
+    preview = value
+    if value != nil { previewStarted = .now }
+  }
   func acquire() throws { owned = true }
   func release() { owned = false }
   func screen() async throws -> AgentScreen {
@@ -209,7 +277,10 @@ import XCTest
       imageURL: "data:image/png;base64,", width: 100, height: 80, id: "screen",
       capturedAt: capturedAt)
   }
-  func perform(_ action: AgentAction) async throws { actions.append(action) }
+  func perform(_ action: AgentAction) async throws {
+    actionStarted = .now
+    actions.append(action)
+  }
 }
 
 // Send production-shaped events directly to the controller, including deliberately invalid model behavior.

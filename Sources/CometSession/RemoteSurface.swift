@@ -10,6 +10,7 @@ import MetalKit
   private var metalView: MTKView?
   private var renderer: MetalVideoRenderer?
   private let selectionLayer = CAShapeLayer()
+  private let clickPreviewView = ClickPreviewView()
   private var geometry: DisplayGeometry?
   private var frozen: VideoFrame?
   private var selectionStart: CGPoint?
@@ -63,6 +64,9 @@ import MetalKit
       selectionLayer.frame = bounds
       selectionLayer.actions = ["path": NSNull(), "bounds": NSNull(), "position": NSNull()]
       layer?.addSublayer(selectionLayer)
+
+      // Composite agent hints above video without touching decoded frames or screenshots sent to Codex.
+      addSubview(clickPreviewView)
     } catch { session.message = error.localizedDescription }
   }
   public required init?(coder: NSCoder) {
@@ -179,6 +183,7 @@ import MetalKit
 
   // A frozen frame and fixed geometry make OCR selection deterministic while the stream continues receiving.
   public func synchronize() {
+    updateClickPreview()
     renderer?.scaleMode = session.profile.scaleMode
     renderer?.rotation = session.profile.rotation
     if session.ocrSelecting && frozen == nil {
@@ -195,6 +200,22 @@ import MetalKit
   private func geometryChanged(_ new: DisplayGeometry) {
     if let selectionGeometry, selectionGeometry != new { cancelSelection() }
     geometry = new
+    updateClickPreview()
+  }
+
+  // Apply the same rotation, pixel aspect, and letterboxing used for the video and human pointer input.
+  private func updateClickPreview() {
+    guard let preview = session.agentClickPreview, let geometry, geometry.valid else {
+      clickPreviewView.show(at: nil)
+      return
+    }
+    let point = geometry.displayPoint(CGPoint(x: preview.x, y: preview.y))
+    let visible = geometry.visibleRect
+    // Include the last source row and column; their normalized coordinates land on the rectangle's maximum edges.
+    let inside =
+      point.x >= visible.minX && point.x <= visible.maxX
+      && point.y >= visible.minY && point.y <= visible.maxY
+    clickPreviewView.show(at: inside ? point : nil)
   }
 
   // Discard the retained selection frame and restore ordinary pointer behavior.
@@ -463,5 +484,54 @@ import MetalKit
     willUseFullScreenPresentationOptions proposedOptions: NSApplication.PresentationOptions
   ) -> NSApplication.PresentationOptions {
     proposedOptions.union([.autoHideToolbar, .autoHideMenuBar, .autoHideDock])
+  }
+}
+
+// Keep the local click marker accessible to UI tests and passive to mouse input above the Metal view.
+@MainActor private final class ClickPreviewView: NSView {
+  override init(frame: NSRect) {
+    super.init(frame: frame)
+    wantsLayer = true
+    let ring = CAShapeLayer()
+    ring.path = CGPath(ellipseIn: CGRect(x: 5, y: 5, width: 34, height: 34), transform: nil)
+    ring.strokeColor = NSColor.systemPurple.cgColor
+    ring.fillColor = NSColor.systemPurple.withAlphaComponent(0.18).cgColor
+    ring.lineWidth = 3
+    ring.shadowColor = NSColor.systemPurple.cgColor
+    ring.shadowOpacity = 0.6
+    ring.shadowRadius = 5
+    ring.shadowOffset = .zero
+    ring.zPosition = 2
+    ring.actions = ["position": NSNull(), "bounds": NSNull()]
+    layer = ring
+    isHidden = true
+    setAccessibilityElement(true)
+    setAccessibilityRole(.image)
+    setAccessibilityLabel("Proposed agent click")
+    setAccessibilityIdentifier("agent-click-preview")
+  }
+
+  // This overlay is constructed only by the remote display and never participates in hit testing.
+  convenience init() { self.init(frame: CGRect(x: 0, y: 0, width: 44, height: 44)) }
+  required init?(coder: NSCoder) { fatalError("ClickPreviewView is constructed programmatically") }
+  override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+  // Animate in Core Animation so pulsing stays smooth without publishing state on every video frame.
+  func show(at point: CGPoint?) {
+    guard let point else {
+      isHidden = true
+      layer?.removeAnimation(forKey: "pulse")
+      return
+    }
+    setFrameOrigin(CGPoint(x: point.x - 22, y: point.y - 22))
+    isHidden = false
+    guard layer?.animation(forKey: "pulse") == nil else { return }
+    let pulse = CABasicAnimation(keyPath: "opacity")
+    pulse.fromValue = 0.4
+    pulse.toValue = 1
+    pulse.duration = 0.55
+    pulse.autoreverses = true
+    pulse.repeatCount = .infinity
+    layer?.add(pulse, forKey: "pulse")
   }
 }

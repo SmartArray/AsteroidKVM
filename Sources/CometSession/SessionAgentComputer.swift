@@ -22,6 +22,11 @@ import UniformTypeIdentifiers
   // Hold a weak session reference so closing the connection releases both media and the agent adapter.
   public init(session: SessionController) { self.session = session }
 
+  // Publish only a local overlay; previewing a proposal must never move the remote cursor.
+  public func showClickPreview(_ preview: AgentClickPreview?) {
+    session?.agentClickPreview = preview
+  }
+
   // Require a live absolute-pointer session and exclusive ownership before any observation or action.
   public func acquire() throws {
     // Report the failed prerequisite precisely; a connected display can still be waiting on video or paste.
@@ -61,6 +66,7 @@ import UniformTypeIdentifiers
 
   // Invalidating the lease stops the next character or transition even if Codex interruption is delayed.
   public func release() {
+    session?.agentClickPreview = nil
     lease = nil
     leasedIdentity = nil
     screenSize = nil

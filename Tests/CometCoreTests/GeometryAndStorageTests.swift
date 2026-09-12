@@ -3,6 +3,22 @@ import CometCore
 import XCTest
 
 final class GeometryAndStorageTests: XCTestCase {
+  // Click previews must map back to the exact source location across rotation, cropping, Retina, and pixel aspect.
+  func testClickPreviewUsesTheInversePointerTransform() {
+    for rotation in [0, 90, 180, 270] {
+      for mode in ScaleMode.allCases {
+        let geometry = DisplayGeometry(
+          source: CGSize(width: 1920, height: 1080), viewport: CGSize(width: 800, height: 600),
+          mode: mode, rotation: rotation, backingScale: 2, pixelAspect: 1.2)
+        let source = CGPoint(x: 0.45, y: 0.55)
+        let displayed = geometry.displayPoint(source)
+        let recovered = geometry.sourcePoint(displayed)
+        XCTAssertEqual(recovered.x, source.x, accuracy: 0.0001)
+        XCTAssertEqual(recovered.y, source.y, accuracy: 0.0001)
+      }
+    }
+  }
+
   func testFitLetterboxAndOCRClamp() {
     let geometry = DisplayGeometry(
       source: CGSize(width: 1920, height: 1080), viewport: CGSize(width: 1000, height: 1000))

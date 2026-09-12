@@ -10,6 +10,7 @@ struct AgentChatView: View {
   @State private var consent = false
   @State private var settingsOpen = false
   @State private var proposedURL: URL?
+  @AppStorage("agentClickPreviewsEnabled") private var clickPreviewsEnabled = true
   @FocusState private var composerFocused: Bool
 
   // Starting explicitly grants this chat control and discloses that Codex receives the remote screen.
@@ -39,11 +40,15 @@ struct AgentChatView: View {
           .disabled(agent.status == .idle && agent.messages.isEmpty).accessibilityIdentifier(
             "agent-stop")
         Menu {
+          // A native menu toggle shows its checkmark and persists the user's preview preference.
+          Toggle("Show Click Preview", isOn: $clickPreviewsEnabled)
+            .accessibilityIdentifier("agent-click-preview-toggle")
+          Divider()
           Button("New Conversation") { agent.clear() }
           Button("Agent Settings…") { settingsOpen = true }
         } label: {
           Image(systemName: "ellipsis")
-        }.menuIndicator(.hidden).fixedSize()
+        }.menuIndicator(.hidden).fixedSize().accessibilityIdentifier("agent-menu")
       }.padding(16).background(.bar)
       Divider()
       ScrollViewReader { proxy in
@@ -89,11 +94,14 @@ struct AgentChatView: View {
           VStack(alignment: .leading, spacing: 8) {
             Text("Approve action on \(session.profile.host):\(session.profile.port)").font(
               .headline)
-            ScrollView {
-              Text(approval.action.reviewText).font(.system(.body, design: .monospaced))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }.frame(maxHeight: 120)
+            // Short actions get their full intrinsic height; long typing proposals have a bounded readable viewport.
+            if case .type = approval.action {
+              ScrollView {
+                approvalText(approval.action.reviewText)
+              }.frame(height: 100)
+            } else {
+              approvalText(approval.action.reviewText)
+            }
             Text(
               "Review the remote display. This approval expires 60 seconds after its screenshot."
             ).font(.caption)
@@ -104,6 +112,7 @@ struct AgentChatView: View {
                 .buttonStyle(.borderedProminent).accessibilityIdentifier("agent-approve-action")
             }
           }.padding(12).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+            .fixedSize(horizontal: false, vertical: true).layoutPriority(2)
         }
 
         Text(agent.detail).font(.caption).foregroundStyle(
@@ -123,7 +132,7 @@ struct AgentChatView: View {
         }
         HStack(alignment: .bottom, spacing: 12) {
           TextEditor(text: $prompt).font(.body).scrollContentBackground(.hidden)
-            .frame(minHeight: 48, maxHeight: 120).focused($composerFocused)
+            .frame(height: agent.pendingApproval == nil ? 88 : 48).focused($composerFocused)
             .overlay(alignment: .topLeading) {
               if prompt.isEmpty {
                 Text("Ask Codex to do something…").foregroundStyle(.tertiary).padding(.leading, 5)
@@ -142,7 +151,7 @@ struct AgentChatView: View {
         }.padding(10).background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 12))
         Text("⌘Return to send · Control stays with this Comet · Closing this chat pauses the agent")
           .font(.caption2).foregroundStyle(.secondary)
-      }.padding(16)
+      }.padding(16).fixedSize(horizontal: false, vertical: true).layoutPriority(1)
     }
     .frame(minWidth: 520, minHeight: 540)
     .navigationTitle("Agent — \(session.profile.name)")
@@ -150,6 +159,10 @@ struct AgentChatView: View {
       AgentWindowObserver { agent.pause(reason: "Paused because the agent chat was closed.") }
     )
     .sheet(isPresented: $settingsOpen) { AgentSettingsView() }
+    // Update the controller even during a pending approval so toggling the menu immediately changes the marker.
+    .onChange(of: clickPreviewsEnabled, initial: true) { _, enabled in
+      agent.setClickPreviewsEnabled(enabled)
+    }
     .onDisappear { agent.pause(reason: "Paused because the agent chat was closed.") }
     // Screen-derived Markdown never invokes local URL handlers; even web links reveal their destination first.
     .environment(
@@ -176,6 +189,14 @@ struct AgentChatView: View {
       consent = false
       proposedURL = nil
     }
+  }
+
+  // Preserve readable, wrapping action text even when the transcript and composer compete for vertical space.
+  private func approvalText(_ text: String) -> some View {
+    Text(text).font(.system(.body, design: .monospaced)).foregroundStyle(.primary)
+      .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .accessibilityIdentifier("agent-approval-description")
   }
 
   // Consume the draft only after an explicit Send; chat text never reaches the local shell or clipboard.

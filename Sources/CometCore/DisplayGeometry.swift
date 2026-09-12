@@ -67,6 +67,21 @@ public struct DisplayGeometry: Equatable, Sendable {
     }
   }
 
+  // Project normalized source coordinates into the same rotated viewport used by video presentation.
+  public func displayPoint(_ normalizedSource: CGPoint) -> CGPoint {
+    let x = normalizedSource.x
+    let y = normalizedSource.y
+    let rotated: CGPoint
+    switch rotation {
+    case 90: rotated = CGPoint(x: 1 - y, y: x)
+    case 180: rotated = CGPoint(x: 1 - x, y: 1 - y)
+    case 270: rotated = CGPoint(x: y, y: 1 - x)
+    default: rotated = normalizedSource
+    }
+    let rect = imageRect
+    return CGPoint(x: rect.minX + rotated.x * rect.width, y: rect.minY + rotated.y * rect.height)
+  }
+
   // Clamp a selection to the displayed image before mapping its corners to source pixels.
   public func sourceCrop(from start: CGPoint, to end: CGPoint) -> CGRect {
     let a = sourcePoint(start)

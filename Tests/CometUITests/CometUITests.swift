@@ -197,6 +197,39 @@ final class CometUITests: XCTestCase {
       }, object: chat)
     XCTAssertEqual(XCTWaiter.wait(for: [approved], timeout: 15), .completed)
 
+    // Exercise the reported short-window layout with a real pending click, without approving remote input.
+    let corner = chat.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 1))
+      .withOffset(CGVector(dx: -3, dy: -3))
+    corner.click(
+      forDuration: 0.1, thenDragTo: corner.withOffset(CGVector(dx: 0, dy: 580 - chat.frame.height)))
+    composer.click()
+    composer.typeText("Click preview fixture: propose a click for review only.")
+    chat.buttons.matching(identifier: "agent-send").firstMatch.click()
+    XCTAssertTrue(approve.waitForExistence(timeout: 15))
+    let description = chat.staticTexts.matching(identifier: "agent-approval-description").firstMatch
+    XCTAssertTrue(description.exists)
+    XCTAssertGreaterThanOrEqual(description.frame.height, 16)
+    XCTAssertTrue(
+      chat.frame.contains(description.frame), "The complete action must fit in a short chat window")
+    XCTAssertTrue(approve.isHittable)
+    let marker = remote.images.matching(identifier: "agent-click-preview").firstMatch
+    XCTAssertTrue(marker.waitForExistence(timeout: 5))
+
+    // The checkmarked native menu controls the pending marker immediately and restores it on reenable.
+    let menu = chat.descendants(matching: .any).matching(identifier: "agent-menu").firstMatch
+    menu.click()
+    app.menuItems["Show Click Preview"].click()
+    XCTAssertTrue(marker.waitForNonExistence(timeout: 5))
+    menu.click()
+    app.menuItems["Show Click Preview"].click()
+    XCTAssertTrue(marker.waitForExistence(timeout: 5))
+    let preview = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    preview.name = "Readable click approval with purple remote-display preview"
+    preview.lifetime = .keepAlways
+    add(preview)
+    chat.buttons.matching(identifier: "agent-reject-action").firstMatch.click()
+    XCTAssertTrue(marker.waitForNonExistence(timeout: 5))
+
     let attachment = XCTAttachment(screenshot: chat.screenshot())
     attachment.name = "Agent chat after screen observation and pause-resume"
     attachment.lifetime = .keepAlways

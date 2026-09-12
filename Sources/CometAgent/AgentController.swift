@@ -11,6 +11,9 @@ import Foundation
   @Published public private(set) var actionCount = 0
   @Published public private(set) var controlMode: AgentControlMode = .review
   @Published public private(set) var pendingApproval: AgentApproval?
+  @Published public private(set) var clickPreviewsEnabled = true
+  private var proposedClick: AgentClickPreview?
+  private var previewStarted: ContinuousClock.Instant?
   private var approvalContinuation: CheckedContinuation<Void, Error>?
   private var approvalDeadline: Task<Void, Never>?
   private var contextIdentity: String?
@@ -190,6 +193,7 @@ import Foundation
     status = .pausing
     detail = reason
     latestScreen = nil
+    clearClickPreview()
     cancelApproval()
     toolTask?.cancel()
     computer.release()
@@ -229,6 +233,7 @@ import Foundation
 
   // Stop is immediate and final for the subprocess; chat remains visible until explicitly cleared.
   public func stop() {
+    clearClickPreview()
     generation = UUID()
     connectionID = UUID()
     cancelApproval()
@@ -333,6 +338,7 @@ import Foundation
       guard let self else { return }
       defer {
         if toolID == callID {
+          clearClickPreview()
           toolTask = nil
           objectWillChange.send()
         }
@@ -352,7 +358,15 @@ import Foundation
           }
           // Consume the observation before waiting so a parallel call cannot reuse pending approval.
           latestScreen = nil
+          // Show a valid proposed click throughout review, including when the user enables previews mid-review.
+          if controlMode != .observe, Date().timeIntervalSince(screen.capturedAt) <= 60,
+            case .click(let x, let y, _, _) = action
+          {
+            proposedClick = AgentClickPreview(x: x, y: y, screen: screen)
+            refreshClickPreview()
+          }
           try await authorize(action, screen: screen)
+          try await waitForClickPreview()
           try Task.checkCancellation()
           guard generation == ticket, status == .running, contextIdentity == computer.identity,
             Date().timeIntervalSince(screen.capturedAt) <= 60
@@ -435,6 +449,37 @@ import Foundation
   // Ordinary timeline entries use the same budget as streamed assistant deltas and completions.
   @discardableResult private func append(_ kind: AgentMessage.Kind, _ text: String) -> Bool {
     storeMessage(.init(kind: kind, text: text))
+  }
+
+  // Preview visibility is independent of permission and can change while the current proposal is awaiting review.
+  public func setClickPreviewsEnabled(_ enabled: Bool) {
+    guard enabled != clickPreviewsEnabled else { return }
+    clickPreviewsEnabled = enabled
+    refreshClickPreview()
+  }
+
+  // Changing visibility never approves or rejects an action; reenabling starts a fresh preview interval.
+  private func refreshClickPreview() {
+    let preview = clickPreviewsEnabled ? proposedClick : nil
+    computer.showClickPreview(preview)
+    previewStarted = preview == nil ? nil : ContinuousClock.now
+  }
+
+  // Full control and rapid manual approval both leave at least one second to inspect the click target.
+  private func waitForClickPreview() async throws {
+    while let started = previewStarted, clickPreviewsEnabled,
+      started.duration(to: .now) < .milliseconds(1100)
+    {
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    try Task.checkCancellation()
+  }
+
+  // Every completion and cancellation removes the local marker before another action can reuse the surface.
+  private func clearClickPreview() {
+    proposedClick = nil
+    previewStarted = nil
+    computer.showClickPreview(nil)
   }
 
   // Changing permission is an explicit local action and invalidates any in-flight action or conversation turn.

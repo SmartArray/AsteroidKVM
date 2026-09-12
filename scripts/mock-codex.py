@@ -8,6 +8,7 @@ import time
 turn = 0
 stage = 0
 approval_test = False
+click_preview_test = False
 screen_id = None
 read_only = os.environ.get("COMET_MOCK_CODEX_READ_ONLY") == "1"
 
@@ -96,6 +97,8 @@ for line in sys.stdin:
         assert message["params"]["ephemeral"] is True
         send({"id": request_id, "result": {"thread": {"id": "fixture-thread"}}})
     elif method == "turn/start":
+        # This proposal is rejected by the native UI test; it verifies preview placement without remote clicks.
+        click_preview_test = os.environ.get("COMET_MOCK_CODEX_REVIEW_TEST") == "1" and "Click preview fixture" in message["params"]["input"][0]["text"]
         approval_test = os.environ.get("COMET_MOCK_CODEX_REVIEW_TEST") == "1" and "Approval fixture" in message["params"]["input"][0]["text"]
         read_only = read_only or "Read only" in message["params"]["input"][0]["text"]
         turn += 1
@@ -117,7 +120,12 @@ for line in sys.stdin:
         assert items[1]["imageUrl"].startswith("data:image/")
         screen_id = items[0]["text"].split("screenId: ")[1]
         stage += 1
-        if approval_test:
+        if click_preview_test:
+            if stage == 1:
+                tool("comet_action", {"screenId": screen_id, "action": "click", "x": 480, "y": 17})
+            else:
+                complete()
+        elif approval_test:
             # A wait has no HID effects but passes through the same immutable approval boundary as typing.
             if stage == 1:
                 tool("comet_action", {"screenId": screen_id, "action": "wait", "milliseconds": 0})

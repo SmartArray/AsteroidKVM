@@ -25,11 +25,24 @@ public struct AgentScreen: Sendable {
   func release()
   func screen() async throws -> AgentScreen
   func perform(_ action: AgentAction) async throws
+  func showClickPreview(_ preview: AgentClickPreview?)
 }
 
 // Fixture computers have stable instance identity; production adapters supply endpoint/account/trust identity.
 extension AgentComputer {
   public var identity: String { String(describing: ObjectIdentifier(self)) }
+  // Headless computers need no overlay; native adapters forward previews without generating remote input.
+  public func showClickPreview(_ preview: AgentClickPreview?) {}
+}
+
+// Store normalized source coordinates so the native renderer can apply its current scale and rotation.
+public struct AgentClickPreview: Equatable, Sendable {
+  public let x: Double
+  public let y: Double
+  public init(x: Int, y: Int, screen: AgentScreen) {
+    self.x = Double(x) / Double(max(1, screen.width - 1))
+    self.y = Double(y) / Double(max(1, screen.height - 1))
+  }
 }
 
 // Actions use screenshot pixel coordinates and balanced key chords, never raw unpaired key presses.

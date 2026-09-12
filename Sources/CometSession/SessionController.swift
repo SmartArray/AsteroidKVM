@@ -37,6 +37,8 @@ import CometMedia
   public var onProfileChanged: ((ConnectionProfile) -> Void)?
   // Agent ownership is independent of window focus; manual capture explicitly interrupts it.
   @Published public var agentOwnsInput = false
+  // Preview coordinates are local presentation state and never enter screenshots or the HID queue.
+  @Published public var agentClickPreview: AgentClickPreview?
   public var onAgentInterruption: (() -> Void)?
   public var onAgentIdentityChanged: (() -> Void)?
   public var onCapture: ((UUID) -> Void)?

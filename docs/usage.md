@@ -47,6 +47,8 @@ The chat streams Markdown replies and a visible action history. Choose **Remote 
 
 Changing permission stops the current turn. Changing host, port, scheme, account, or certificate identity clears the conversation and restores approval mode. Endpoint edits also discard the old certificate exception. Screenshots older than 60 seconds cannot authorize actions in any mode.
 
+**Click preview** is enabled by default. A pulsing purple circle on the remote display marks the proposed click while you review it. Clicks wait for at least one second of preview, including in Full control mode. Use **⋯ → Show Click Preview** in the chat header to toggle the checkmark; the preference is remembered. The marker is drawn locally and is excluded from screenshots sent to Codex. Rejecting, pausing, or stopping clears it.
+
 Enable the remote-control/screenshot toggle, enter a task such as “Create a new text document and write a poem about apples,” and press **Send** or **⌘Return**. Screenshots and chat go to your configured Codex provider using your existing account and usage limits. This is not local model inference; device credentials remain inside the KVM client.
 
 **Pause / Resume** stays in the chat header and appears beside the remote video while active. Clicking the remote display takes manual control and pauses the agent. Closing chat, disconnecting, changing input configuration, or sleeping also interrupts automation. **⌃⌥⌘Escape** pauses agents and releases input. Resume starts from a fresh screen and preserves the task, including a prompt paused before Codex finished connecting. **Stop** ends the Codex process; **New Conversation** also clears the visible history.
