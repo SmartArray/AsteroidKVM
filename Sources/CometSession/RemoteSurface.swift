@@ -1,11 +1,18 @@
 // Adapt AppKit events to the ordered input engine and retain a stable native Metal surface.
 import AppKit
+import Combine
 import CometCore
 import CometMedia
 import IOKit.hidsystem
 import MetalKit
 
-@MainActor public final class RemoteSurface: NSView {
+@MainActor public final class RemoteSurface: NSView, @preconcurrency NSTextInputClient {
+  // AppKit keeps unfinished text local; only insertText commits enter the ordered HID queue.
+  private var markedInput = NSAttributedString(string: "")
+  private var markedSelection = NSRange(location: 0, length: 0)
+  private var interpretingEvent: NSEvent?
+  private var captureObservation: AnyCancellable?
+  private let compositionLabel = NSTextField(labelWithString: "")
   private let session: SessionController
   private var metalView: MTKView?
   private var renderer: MetalVideoRenderer?
@@ -32,9 +39,21 @@ import MetalKit
     super.init(frame: .zero)
     wantsLayer = true
     layer?.backgroundColor = NSColor.black.cgColor
+    setAccessibilityElement(true)
     setAccessibilityIdentifier("remote-display")
     setAccessibilityLabel("Remote display")
     setAccessibilityRole(.group)
+
+    // A local preedit indicator makes dead keys visible without modifying remote pixels or screenshots.
+    compositionLabel.font = .systemFont(ofSize: 16)
+    compositionLabel.textColor = .labelColor
+    compositionLabel.backgroundColor = .windowBackgroundColor
+    compositionLabel.drawsBackground = true
+    compositionLabel.isHidden = true
+    compositionLabel.setAccessibilityIdentifier("native-composition")
+    captureObservation = session.$captured.sink { [weak self] captured in
+      if !captured { self?.cancelComposition() }
+    }
     guard let device = MTLCreateSystemDefaultDevice() else {
       session.message = "This Mac has no available Metal device."
       return
@@ -67,6 +86,7 @@ import MetalKit
 
       // Composite agent hints above video without touching decoded frames or screenshots sent to Codex.
       addSubview(clickPreviewView)
+      addSubview(compositionLabel)
     } catch { session.message = error.localizedDescription }
   }
   public required init?(coder: NSCoder) {
@@ -90,6 +110,7 @@ import MetalKit
     super.viewDidMoveToWindow()
     observers.forEach(NotificationCenter.default.removeObserver)
     observers.removeAll()
+    cancelComposition()
     guard let window else { return }
     window.acceptsMouseMovedEvents = true
     window.collectionBehavior.insert(.fullScreenPrimary)
@@ -183,6 +204,9 @@ import MetalKit
 
   // A frozen frame and fixed geometry make OCR selection deterministic while the stream continues receiving.
   public func synchronize() {
+    if !canSend || !session.input.nativeLayout || !session.input.mappedTextSupported {
+      cancelComposition()
+    }
     updateClickPreview()
     renderer?.scaleMode = session.profile.scaleMode
     renderer?.rotation = session.profile.rotation
@@ -408,15 +432,34 @@ import MetalKit
     if localCommand(event) { return }
     guard canSend, session.profile.keyboardEnabled, let code = PhysicalKey.codes[event.keyCode]
     else { return }
+    let flags = modifiers(event)
+    let composing =
+      hasMarkedText() && session.input.nativeLayout && session.input.mappedTextSupported
+      && flags.intersection([.control, .command]).isEmpty
+    if composing && code == "Escape" {
+      cancelComposition()
+      return
+    }
+    if session.input.usesNativeText(code: code, modifiers: flags) || composing {
+      session.output?.enqueue(session.input.beginNativeKey(code: code))
+      interpretingEvent = event
+      if inputContext?.handleEvent(event) != true { interpretKeyEvents([event]) }
+      interpretingEvent = nil
+      return
+    }
+
+    // A shortcut ends preedit without committing it; ordinary physical keys keep their existing behavior.
+    cancelComposition()
+    forwardKey(event, code: code)
+  }
+
+  // AppKit command callbacks reuse physical input handling without recursively interpreting the same event.
+  private func forwardKey(_ event: NSEvent, code: String) {
     let result = session.input.keyDown(
       code: code, characters: event.characters, modifiers: modifiers(event),
       isRepeat: event.isARepeat)
     session.output?.enqueue(result.events)
     if result.paste { session.paste() }
-    if result.compositionUnsupported {
-      session.message =
-        "Dead keys and IME composition are not supported in Native Keyboard Layout. Use Paste for composed text."
-    }
   }
 
   // Consume translated releases and balance only keys whose physical presses were forwarded.
@@ -533,5 +576,80 @@ import MetalKit
     pulse.autoreverses = true
     pulse.repeatCount = .infinity
     layer?.add(pulse, forKey: "pulse")
+  }
+}
+
+// Implement AppKit's text-input contract on the actual first responder, preserving system keyboard-layout behavior.
+extension RemoteSurface {
+  // Cancel both AppKit's pending dead key and the local preedit when focus, capture, or mode changes.
+  private func cancelComposition() {
+    inputContext?.discardMarkedText()
+    unmarkText()
+  }
+
+  // Only committed text reaches the device; preedit updates never enqueue HID events.
+  public func insertText(_ string: Any, replacementRange: NSRange) {
+    let text = (string as? NSAttributedString)?.string ?? string as? String ?? ""
+    unmarkText()
+    guard canSend, session.profile.keyboardEnabled else { return }
+    session.output?.enqueue(session.input.commitText(text))
+  }
+
+  // Store AppKit's UTF-16 selection and show a small local composition preview near the display's lower edge.
+  public func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
+    guard canSend, session.profile.keyboardEnabled, session.input.nativeLayout,
+      session.input.mappedTextSupported
+    else {
+      cancelComposition()
+      return
+    }
+    markedInput =
+      (string as? NSAttributedString) ?? NSAttributedString(string: string as? String ?? "")
+    markedSelection = selectedRange
+    compositionLabel.stringValue = markedInput.string
+    compositionLabel.sizeToFit()
+    compositionLabel.setFrameOrigin(
+      NSPoint(x: 12, y: max(12, bounds.height - compositionLabel.frame.height - 12)))
+    compositionLabel.isHidden = markedInput.length == 0
+  }
+
+  // Clear local preedit without sending or replaying any pending text.
+  public func unmarkText() {
+    markedInput = NSAttributedString(string: "")
+    markedSelection = NSRange(location: 0, length: 0)
+    compositionLabel.isHidden = true
+  }
+
+  // Report local composition ranges only: remote document contents and caret positions are not accessible.
+  public func hasMarkedText() -> Bool { markedInput.length > 0 }
+  public func markedRange() -> NSRange {
+    NSRange(location: hasMarkedText() ? 0 : NSNotFound, length: markedInput.length)
+  }
+  public func selectedRange() -> NSRange { markedSelection }
+  public func validAttributesForMarkedText() -> [NSAttributedString.Key] { [] }
+  public func attributedSubstring(forProposedRange range: NSRange, actualRange: NSRangePointer?)
+    -> NSAttributedString?
+  {
+    guard range.location != NSNotFound, range.location <= markedInput.length,
+      range.length <= markedInput.length - range.location
+    else { return nil }
+    actualRange?.pointee = range
+    return markedInput.attributedSubstring(from: range)
+  }
+
+  // Anchor input-method candidate windows to the local preview rather than guessing the remote caret location.
+  public func firstRect(forCharacterRange range: NSRange, actualRange: NSRangePointer?) -> NSRect {
+    actualRange?.pointee = markedRange()
+    let rect = convert(compositionLabel.frame, to: nil)
+    return window?.convertToScreen(rect) ?? .zero
+  }
+  public func characterIndex(for point: NSPoint) -> Int { NSNotFound }
+
+  // Let the input method consume editing keys; unhandled commands still reach the remote physical keyboard.
+  public override func doCommand(by selector: Selector) {
+    guard let event = interpretingEvent, canSend, let code = PhysicalKey.codes[event.keyCode] else {
+      return
+    }
+    forwardKey(event, code: code)
   }
 }

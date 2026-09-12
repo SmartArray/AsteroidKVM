@@ -1,4 +1,5 @@
 // Exercise the shipped AppKit/SwiftUI application through macOS accessibility and native windows.
+import Carbon
 import XCTest
 
 final class CometUITests: XCTestCase {
@@ -118,6 +119,73 @@ final class CometUITests: XCTestCase {
       result.waitForExistence(timeout: 15), "Re-entering must leave OCR ready to select")
     XCTAssertEqual(selection.value as? String, "Off")
     window.sheets.buttons.matching(identifier: "Done").firstMatch.click()
+  }
+
+  // Verify real WindowServer dead keys on live video without committing text to the remote machine.
+  @MainActor func testNativeDeadKeyPreviewAndCancellationWithLiveVideo() throws {
+    guard let path = ProcessInfo.processInfo.environment["COMET_UI_SESSION_FILE"] else {
+      throw XCTSkip(
+        "Enable hardware UI verification to test native dead keys on the remote display.")
+    }
+    let original = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
+    let sources =
+      TISCreateInputSourceList(
+        [kTISPropertyInputSourceID: "com.apple.keylayout.German"] as CFDictionary, true
+      ).takeRetainedValue() as! [TISInputSource]
+    let german = try XCTUnwrap(sources.first)
+    defer { TISSelectInputSource(original) }
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "--ui-testing", "-ApplePersistenceIgnoreState", "YES", "--session-file", path,
+    ]
+    app.launch()
+    defer { app.terminate() }
+    app.typeKey("n", modifierFlags: .command)
+    let remote = app.windows["Comet Test Session"]
+    XCTAssertTrue(remote.waitForExistence(timeout: 15))
+    let trust = remote.sheets.buttons["Trust This Device"]
+    if trust.waitForExistence(timeout: 5) { trust.click() }
+    let reconnect = remote.buttons["session-connect"].firstMatch
+    if reconnect.exists && reconnect.isEnabled { reconnect.click() }
+    let connected = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in
+        let status = remote.staticTexts["connection-status"]
+        return status.exists && (status.value as? String ?? status.label) == "Connected"
+      }, object: remote)
+    guard XCTWaiter.wait(for: [connected], timeout: 25) == .completed else {
+      XCTFail("The live display must connect before keyboard verification")
+      return
+    }
+
+    // Enable only the native typing preference; the pending dead key never leaves this Mac.
+    remote.buttons["keyboard-toolbar"].firstMatch.click()
+    let native = app.checkBoxes["native-layout-toggle"].firstMatch
+    XCTAssertTrue(native.waitForExistence(timeout: 5))
+    guard native.isEnabled else {
+      XCTFail("The test Comet must support mapped_text")
+      return
+    }
+    if native.value as? String != "1" { native.click() }
+    app.typeKey(.escape, modifierFlags: [])
+    let display = remote.descendants(matching: .any).matching(identifier: "remote-display")
+      .firstMatch
+    display.click()
+    XCTAssertEqual(TISSelectInputSource(german), noErr)
+    app.typeKey("n", modifierFlags: .option)
+    let preview = remote.staticTexts["native-composition"].firstMatch
+    XCTAssertTrue(preview.waitForExistence(timeout: 5))
+    let attachment = XCTAttachment(screenshot: remote.screenshot())
+    attachment.name = "Local tilde composition on live Comet video"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    app.typeKey(.escape, modifierFlags: [])
+    XCTAssertFalse(preview.exists, "Escape must discard the unfinished accent")
+
+    // Opening another native control releases capture and must clear pending composition immediately.
+    app.typeKey("n", modifierFlags: .option)
+    XCTAssertTrue(preview.waitForExistence(timeout: 5))
+    remote.buttons["keyboard-toolbar"].firstMatch.click()
+    XCTAssertFalse(preview.exists, "Losing display focus must discard the unfinished accent")
   }
 
   // Drive the shipped chat against live Comet video and a deterministic read-only Codex protocol fixture.

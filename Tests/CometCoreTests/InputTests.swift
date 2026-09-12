@@ -80,15 +80,33 @@ final class InputTests: XCTestCase {
     XCTAssertEqual(result.events.last?.type, "mapped_text")
   }
 
-  func testMultiScalarGraphemesSplitAndDeadKeysAreExplicit() {
+  func testComposedScalarsNormalizeAndUnfinishedKeysRemainLocal() {
     var input = InputEngine()
     input.nativeLayout = true
     input.mappedTextSupported = true
     let result = input.keyDown(code: "KeyA", characters: "a\u{0308}", modifiers: [])
-    XCTAssertEqual(result.events.count, 2)
+    XCTAssertEqual(result.events.count, 1)
     XCTAssertTrue(result.events.allSatisfy { $0.payload["text"].string?.unicodeScalars.count == 1 })
     XCTAssertTrue(
-      input.keyDown(code: "KeyE", characters: "", modifiers: .option).compositionUnsupported)
+      input.keyDown(code: "KeyE", characters: "", modifiers: .option).events.isEmpty)
+  }
+
+  // Composed text is normalized and does not leak Option, Shift, or a matching physical release.
+  func testCommittedNativeCompositionAndRouting() {
+    var input = InputEngine()
+    input.nativeLayout = true
+    input.mappedTextSupported = true
+    input.keymap = "de"
+    XCTAssertTrue(input.usesNativeText(code: "KeyN", modifiers: .option))
+    XCTAssertFalse(input.usesNativeText(code: "KeyN", modifiers: .command))
+    XCTAssertFalse(input.usesNativeText(code: "ArrowLeft", modifiers: []))
+    XCTAssertTrue(input.beginNativeKey(code: "KeyN").isEmpty)
+    XCTAssertTrue(input.keyUp(code: "KeyN").isEmpty)
+    let committed = input.commitText("~n\u{0303}a\u{0308}\n")
+    XCTAssertEqual(committed.map { $0.payload["text"].text }, ["~", "ñ", "ä"])
+    XCTAssertTrue(committed.allSatisfy { $0.payload["keymap"].text == "de" })
+    input.mappedTextSupported = false
+    XCTAssertTrue(input.commitText("~").isEmpty)
   }
 
   // Awaited transport work must not let subsequent HID events overtake a paste barrier.

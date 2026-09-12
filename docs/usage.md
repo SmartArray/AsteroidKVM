@@ -82,7 +82,9 @@ See [verification and performance](verification.md) for measured results and out
 ## Current limitations
 
 - HEVC decoding, direct-stream transport, and FEC transport are explicitly unavailable. H.264 is the primary supported Comet path; other negotiated WebRTC codecs may use software decoding.
-- Native-layout typing requires the `mapped_text` capability. Dead keys and IME composition should use Paste. The client sends one Unicode scalar per mapped event and does not contain a character-layout translation table.
+- Native-layout typing requires the `mapped_text` capability. Dead keys compose locally: Option+N then Space types `~`, and Option+N then N composes `ñ`. A local preview shows unfinished text; Escape or losing capture cancels it. Committed text is normalized and must be supported by the target keymap; arbitrary IME characters are not guaranteed. The client sends one Unicode scalar per mapped event and does not contain a character-layout translation table.
 - Mapped characters are paced at 120 ms after each event because bursts lost USB modifier transitions on the test appliance. Paste uses the daemon's `slow=true` mode for the same reason. Neither path retries text.
 - Paste sends UTF-8 and an explicit scalar limit, up to 16,384 scalars. Actual character coverage depends on the daemon's target keymap. Failed or interrupted paste is never automatically retried; already queued device input may finish.
 - System identity editing is intentionally reserved, with a provider contract for future preview, validation, apply, and restore operations.
+
+Native composition can be checked locally with `scripts/test.sh --text-input` on an unlocked Mac. It temporarily selects the German input source and restores it, exercising AppKit through the HID queue with a test window supplying focus. The hardware UI suite additionally checks the local preedit indicator and cancellation on live video without committing remote text.

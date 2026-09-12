@@ -235,7 +235,7 @@ struct KeyboardPopover: View {
       shortcut("Task Manager", keys: "⌃ ⇧ Esc", codes: ["ControlLeft", "ShiftLeft", "Escape"])
       shortcut("Windows / Super", keys: "⌘", codes: ["MetaLeft"])
       Text(
-        "⌃⌥⌘Esc releases input. ⌃⌘F toggles fullscreen. Escape otherwise goes to the remote computer."
+        "⌃⌥⌘Esc releases input. ⌃⌘F toggles fullscreen. Escape cancels unfinished native text; otherwise it goes to the remote computer."
       ).font(.caption).foregroundStyle(.secondary)
     }.padding(20).frame(width: 350)
   }

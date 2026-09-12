@@ -28,6 +28,11 @@ case "${1:-local}" in
       -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath .build/xcode-packages \
       -only-testing:CometUITests test
     ;;
+  --text-input)
+    # Interpret German dead keys through AppKit and the real HID queue, restoring the prior input source.
+    export COMET_TEXT_INPUT_E2E=1
+    swift test --filter NativeCompositionTests
+    ;;
   --agent)
     export COMET_CODEX_E2E=1
     swift test --filter AgentTests
@@ -42,7 +47,7 @@ case "${1:-local}" in
     swift test --filter ProtocolE2ETests/testNativeWebRTCVideoEndToEndThroughJanusAndMetal
     ;;
   *)
-    printf 'Usage: scripts/test.sh [local|--unit|--hardware|--ui|--ui-hardware|--video|--agent|--agent-hardware]\n' >&2
+    printf 'Usage: scripts/test.sh [local|--unit|--hardware|--ui|--ui-hardware|--video|--agent|--agent-hardware|--text-input]\n' >&2
     exit 2
     ;;
 esac

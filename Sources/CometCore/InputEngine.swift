@@ -34,7 +34,6 @@ public struct KeyModifiers: OptionSet, Sendable {
 public struct InputResult: Sendable {
   public var events: [HIDEvent] = []
   public var paste = false
-  public var compositionUnsupported = false
   public init() {}
 }
 
@@ -78,6 +77,37 @@ public struct InputEngine: Sendable {
     return events
   }
 
+  // AppKit owns composition only for native text; shortcuts and navigation retain physical HID semantics.
+  public func usesNativeText(code: String, modifiers: KeyModifiers) -> Bool {
+    nativeLayout && mappedTextSupported
+      && modifiers.intersection([.control, .command]).isEmpty
+      && !Self.isPhysicalKey(code)
+  }
+
+  // Share the routing boundary with the AppKit adapter so neither layer invents a character layout.
+  private static func isPhysicalKey(_ code: String) -> Bool {
+    code.hasPrefix("Arrow") || code.hasPrefix("F") && Int(code.dropFirst()) != nil
+      || [
+        "Escape", "Tab", "Enter", "Backspace", "Delete", "Home", "End", "PageUp", "PageDown",
+        "CapsLock",
+      ].contains(code)
+  }
+
+  // Swallow the matching release and remove remote modifiers before local composition begins.
+  public mutating func beginNativeKey(code: String) -> [HIDEvent] {
+    translated.insert(code)
+    return releaseSentModifiers()
+  }
+
+  // Normalize completed accents before mapping: target layouts commonly contain ä, not a combining diaeresis.
+  public mutating func commitText(_ text: String) -> [HIDEvent] {
+    guard nativeLayout, mappedTextSupported else { return [] }
+    return releaseSentModifiers()
+      + text.precomposedStringWithCanonicalMapping.unicodeScalars
+      .filter { !CharacterSet.controlCharacters.contains($0) }
+      .map { HIDEvent("mapped_text", ["text": .string(String($0)), "keymap": .string(keymap)]) }
+  }
+
   // macOS supplies characters; this engine never translates Mac characters into target layout keys.
   public mutating func keyDown(
     code: String, characters: String?, modifiers: KeyModifiers, isRepeat: Bool = false
@@ -89,27 +119,9 @@ public struct InputEngine: Sendable {
       result.paste = !isRepeat
       return result
     }
-    let physicalOnly =
-      code.hasPrefix("Arrow") || code.hasPrefix("F") && Int(code.dropFirst()) != nil
-      || [
-        "Escape", "Tab", "Enter", "Backspace", "Delete", "Home", "End", "PageUp", "PageDown",
-        "CapsLock",
-      ].contains(code)
-    if nativeLayout && mappedTextSupported && !physicalOnly
-      && modifiers.intersection([.control, .command]).isEmpty
-    {
-      result.events = releaseSentModifiers()
-      translated.insert(code)
-      let scalars =
-        characters?.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) } ?? []
-      if scalars.isEmpty {
-        result.compositionUnsupported = true
-        return result
-      }
-      for scalar in scalars {
-        result.events.append(
-          HIDEvent("mapped_text", ["text": .string(String(scalar)), "keymap": .string(keymap)]))
-      }
+    if usesNativeText(code: code, modifiers: modifiers) {
+      result.events = beginNativeKey(code: code)
+      result.events += commitText(characters ?? "")
       return result
     }
 

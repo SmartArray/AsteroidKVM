@@ -45,7 +45,7 @@ struct SettingsView: View {
               "Target layouts, Native Keyboard Layout, and paste are configured per connection using the Keyboard toolbar."
             )
             Text(
-              "Physical key input works without the daemon patch. Native typing requires the mapped_text capability. Dead-key and IME composition should use Paste."
+              "Physical key input works without the daemon patch. Native typing requires the mapped_text capability. Dead keys compose locally; Option+N then Space types ~. Committed text must be supported by the target keymap."
             ).foregroundStyle(.secondary)
             Text(
               "Clipboard content is never stored. Paste operations send at most 16,384 Unicode scalars and are never automatically retried."
