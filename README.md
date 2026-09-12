@@ -2,14 +2,14 @@
 
 # Comet KVM
 
-**Agent automation. Native keys. Fast rendering.**
+**🤖 Agent automation · ⌨️ Native keys · ⚡ Fast rendering**
 
 A native macOS client for GL.iNet Comet / GLKVM.<br>
 Control a remote computer yourself, or give Codex a task and watch it work.
 
 **macOS 14+** · **Apple Silicon & Intel builds** · **SwiftUI + AppKit** · **WebRTC + Metal**
 
-[Get started](#get-started) · [Agent](#agent-give-your-remote-machine-a-task) · [Native keys](#native-keys-type-with-your-macs-layout) · [Fast rendering](#fast-rendering-keep-the-remote-screen-moving) · [Verification](docs/verification.md)
+[Get started](#get-started) · [🤖 Agent](#agent-give-your-remote-machine-a-task) · [⌨️ Native keys](#native-keys-type-with-your-macs-layout) · [⚡ Fast rendering](#fast-rendering-keep-the-remote-screen-moving) · [Verification](docs/verification.md)
 
 </div>
 
@@ -17,11 +17,13 @@ Control a remote computer yourself, or give Codex a task and watch it work.
 
 *The real client in native fullscreen. The remote display fills the window; connection status stays within reach.*
 
-| Agent | Native keys | Fast rendering |
+| 🤖 Agent | ⌨️ Native keys | ⚡ Fast rendering |
 | :--- | :--- | :--- |
 | Describe a task. Codex reads the screen, clicks, types, and checks the result. Pause or take over whenever you need. | Use the characters resolved by your Mac’s keyboard layout, including umlauts and symbols, with supported Comet firmware. | Native WebRTC, VideoToolbox H.264 decoding, and Metal presentation keep the video path short and frame queues bounded. |
 
-## Agent: give your remote machine a task
+<a id="agent-give-your-remote-machine-a-task"></a>
+
+## 🤖 Agent: give your remote machine a task
 
 > Create a new text document and write a poem about apples.
 
@@ -44,7 +46,9 @@ Open **Agent**, enter a prompt, and follow the work in a native chat window. Cod
 
 Agent input supports clicks, double-clicks, key chords, text, scrolling, and waits. Typing is sent character by character, so pausing stops further text; a character already sent may finish. A turn pauses after 150 actions or 15 minutes. [Setup and behavior →](docs/usage.md#experimental-codex-agent)
 
-## Native keys: type with your Mac’s layout
+<a id="native-keys-type-with-your-macs-layout"></a>
+
+## ⌨️ Native keys: type with your Mac’s layout
 
 Your Mac already knows what you meant to type. **Use Native Keyboard Layout** forwards those resolved characters to a compatible Comet daemon, with the remote operating system’s keymap selected in **Keyboard**.
 
@@ -58,7 +62,9 @@ The client also includes clipboard text paste, remote keyboard shortcuts, and **
 
 **Firmware support matters.** Native-layout typing requires the daemon’s `mapped_text` capability and the GLKVM Layout-Aware Typing patch. Standard physical input and paste remain available without it. Choose the keymap that matches the remote OS; use Paste for dead keys and composed text. [Keyboard details →](docs/usage.md#controls)
 
-## Fast rendering: keep the remote screen moving
+<a id="fast-rendering-keep-the-remote-screen-moving"></a>
+
+## ⚡ Fast rendering: keep the remote screen moving
 
 Video travels through native WebRTC into a decoder-backed pixel buffer, then into Metal textures for GPU presentation. The supported H.264 path uses VideoToolbox. The mailbox keeps the newest frame, and GPU submissions are bounded so old frames cannot accumulate into a long presentation queue.
 
