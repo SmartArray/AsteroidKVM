@@ -1,73 +1,136 @@
+<div align="center">
+
 # Comet KVM
 
-A native macOS client for GL.iNet Comet / GLKVM, built with SwiftUI, AppKit, native WebRTC, Metal, and Apple Vision. Requires macOS 14 or later. The WebRTC dependency is pinned to **153.0.0** and includes Apple Silicon and Intel binaries.
+**Agent automation. Native keys. Fast rendering.**
 
-## Build and run
+A native macOS client for GL.iNet Comet / GLKVM.<br>
+Control a remote computer yourself, or give Codex a task and watch it work.
 
-Open **CometKVM.xcodeproj**, select **CometKVM → My Mac**, and run. Xcode resolves the pinned package on the first build. No Homebrew dependencies are required; tests also use the system Python 3.
+**macOS 14+** · **Apple Silicon & Intel builds** · **SwiftUI + AppKit** · **WebRTC + Metal**
+
+[Get started](#get-started) · [Agent](#agent-give-your-remote-machine-a-task) · [Native keys](#native-keys-type-with-your-macs-layout) · [Fast rendering](#fast-rendering-keep-the-remote-screen-moving) · [Verification](docs/verification.md)
+
+</div>
+
+![Comet KVM displaying a remote Windows lock screen in native macOS fullscreen, with a compact connection status bar](docs/screenshots/fullscreen.jpg)
+
+*The real client in native fullscreen. The remote display fills the window; connection status stays within reach.*
+
+| Agent | Native keys | Fast rendering |
+| :--- | :--- | :--- |
+| Describe a task. Codex reads the screen, clicks, types, and checks the result. Pause or take over whenever you need. | Use the characters resolved by your Mac’s keyboard layout, including umlauts and symbols, with supported Comet firmware. | Native WebRTC, VideoToolbox H.264 decoding, and Metal presentation keep the video path short and frame queues bounded. |
+
+## Agent: give your remote machine a task
+
+> Create a new text document and write a poem about apples.
+
+Open **Agent**, enter a prompt, and follow the work in a native chat window. Codex sees screenshots from the connected Comet and operates the remote machine through its keyboard and mouse input. Each action returns a fresh screenshot so the next step can respond to what actually happened.
+
+- **See the work:** streamed Markdown replies, code blocks, and a visible action history.
+- **Stay in control:** Pause/Resume and Stop remain in the chat header. Pause/Resume also appears beside the remote video while the agent is active.
+- **Take over naturally:** click the remote display to pause the agent and capture manual input.
+- **Resume with context:** Codex reads the current screen before continuing. Closing chat, disconnecting, or sleeping interrupts automation.
+
+**Verified on real hardware:** Codex created a new unsaved Windows Notepad document, wrote a four-line apple poem, and inspected the result. Independent OCR confirmed the test marker in the returned video. [Read the acceptance results →](docs/verification.md#experimental-agent-verification)
+
+<p align="center">
+  <img src="docs/screenshots/agent-chat.png" width="560" alt="Comet KVM agent chat showing screen observations, a pause and resume, and a completed response, with Pause and Stop controls always visible">
+</p>
+
+*Actual app capture from the live-screen UI test. This repeatable pause/resume test uses a deterministic agent fixture; real Codex inference is verified separately on the remote computer.*
+
+> **Experimental:** requires an installed, signed-in [Codex CLI](https://developers.openai.com/codex/cli), tested with **0.154.0**. Screenshots and chat go to your configured Codex provider using your existing account and usage limits. Device credentials stay in the KVM client. Enable screen sharing and remote control before the first request.
+
+Agent input supports clicks, double-clicks, key chords, text, scrolling, and waits. Typing is sent character by character, so pausing stops further text; a character already sent may finish. A turn pauses after 150 actions or 15 minutes. [Setup and behavior →](docs/usage.md#experimental-codex-agent)
+
+## Native keys: type with your Mac’s layout
+
+Your Mac already knows what you meant to type. **Use Native Keyboard Layout** forwards those resolved characters to a compatible Comet daemon, with the remote operating system’s keymap selected in **Keyboard**.
+
+```text
+ä ö ü Ä Ö Ü ß    @ €    [ ] { }    \ |
+```
+
+Those characters were verified in a real Windows editor using the German target layout. Physical shortcuts retain their USB key identities, including left/right modifiers; physical key repeat remains owned by the remote OS.
+
+The client also includes clipboard text paste, remote keyboard shortcuts, and **local text recognition**: select an area of the remote screen and extract its text with Apple Vision on your Mac.
+
+**Firmware support matters.** Native-layout typing requires the daemon’s `mapped_text` capability and the GLKVM Layout-Aware Typing patch. Standard physical input and paste remain available without it. Choose the keymap that matches the remote OS; use Paste for dead keys and composed text. [Keyboard details →](docs/usage.md#controls)
+
+## Fast rendering: keep the remote screen moving
+
+Video travels through native WebRTC into a decoder-backed pixel buffer, then into Metal textures for GPU presentation. The supported H.264 path uses VideoToolbox. The mailbox keeps the newest frame, and GPU submissions are bounded so old frames cannot accumulate into a long presentation queue.
+
+| Real Comet sample · 1920 × 1080 | Observed |
+| :--- | ---: |
+| Received frames per second | **60.45** |
+| Presented frames per second | **58.04** |
+| Counted CPU frame copies | **0** |
+| Decoder | **VideoToolbox** |
+
+*Measured on the test Apple Silicon Mac with a mostly static remote screen. These are observed results, not a throughput or input-latency guarantee. Unsupported buffers can require a counted copy fallback. [Methodology and limits →](docs/verification.md#hardware-measurements)*
+
+Native fullscreen preserves the existing media connection. Fit, Fill, Actual Size, rotation, and Retina-aware input mapping let you choose how the remote desktop occupies your display. Agent screenshots are captured on demand, outside the continuous Metal rendering path.
+
+## Get started
+
+You need **macOS 14 or later**, a reachable **Comet / GLKVM appliance**, and **Xcode** to build. Development and verification used Xcode 26.6. Codex is optional and only needed for Agent.
 
 ```sh
+# Build the universal, locally signed app.
 ./scripts/build.sh
+
+# Launch the client.
 open build/DerivedData/Build/Products/Release/CometKVM.app
 ```
 
-The generated app is locally ad-hoc signed. Developer ID signing and notarization are separate distribution steps. The checked-in project can be regenerated with `python3 scripts/generate-project.py` after adding source files.
+You can also open `CometKVM.xcodeproj`, select **CometKVM → My Mac**, and run. Xcode resolves the pinned WebRTC package automatically.
 
-Add a connection using its hostname, scheme, port, and account. Passwords are stored only in memory unless **Remember password in Keychain** is selected. A self-signed certificate requires approval of its SHA-256 fingerprint for that specific host and port. Logout does not delete saved passwords.
+1. **Add your Comet** with its hostname, port, and account.
+2. **Connect and click the display** to capture input. The first click captures; subsequent clicks reach the remote machine.
+3. **Choose the target keymap** in Keyboard. Enable native-layout typing when supported.
+4. **Try Agent:** run `codex login` in Terminal, open Agent in the toolbar, enable remote control and screenshot sharing, and send a task with **⌘Return**.
 
-For an explicitly supplied, ephemeral test session:
+Passwords stay in memory unless you explicitly choose **Remember password in Keychain**. Self-signed certificates require approval of a fingerprint scoped to that device. Each connection owns its credentials, media, and input state.
 
-```sh
-open build/DerivedData/Build/Products/Release/CometKVM.app --args \
-  --session-file "$HOME/.cache/qrx/comet-session.json"
-```
+| Shortcut | Action |
+| :--- | :--- |
+| **⌃⌥⌘Escape** | Pause agents and release remote input |
+| **⌃⌘F** | Toggle native fullscreen |
+| **⌘V** | Type clipboard text remotely when paste is enabled |
+| **⌘Return** in chat | Send an agent request |
+| **⌘Q / ⌘W / ⌘,** | Quit, close, and Settings stay local |
 
-The app does not import that file automatically. Its token is never added to saved connection profiles. The app still requires device-specific certificate approval; the file's `insecure` flag is used only by the opt-in hardware test harness.
+## Tested beyond the happy path
 
-## Controls
-
-- Click the display to capture remote input. The first click captures; subsequent clicks are forwarded.
-- **⌃⌥⌘Escape** releases remote input. **⌃⌘F** toggles native fullscreen.
-- Escape cancels OCR selection first, and otherwise reaches the remote computer while captured.
-- **⌘Q**, **⌘W**, and **⌘,** remain local. Other captured Command shortcuts go to the remote computer, except enabled **⌘V** paste.
-- Use **Keyboard** to choose the target OS keymap, paste, send shortcuts, or enable native-layout typing when the daemon advertises it.
-- Use **Display** for advertised encoder controls and local Fit, Fill, Actual Size, and rotation.
-- Use **Settings → Devices** for the selected Comet's USB functions, audio, mouse, and keyboard settings.
-- **Text Recognition** freezes a received frame and runs OCR on the Mac. Drag within the image; Escape cancels.
-
-## Experimental Codex agent
-
-Open a connected remote display and click **Agent** in its toolbar. Install and sign in to [Codex CLI](https://developers.openai.com/codex/cli) first (`codex login`); the integration is tested with version **0.154.0**. The ordinary KVM client does not require Codex. Agent Settings accepts a custom executable path if automatic detection does not find it.
-
-The chat streams Markdown replies and a visible action history. Enable the remote-control/screenshot toggle, enter a task such as “Create a new text document and write a poem about apples,” and press **Send** or **⌘Return**. Screenshots and chat go to your configured Codex provider using your existing account and usage limits. This is not local model inference; device credentials remain inside the KVM client.
-
-**Pause / Resume** stays in the chat header and appears beside the remote video while active. Clicking the remote display takes manual control and pauses the agent. Closing chat, disconnecting, changing input configuration, or sleeping also interrupts automation. **⌃⌥⌘Escape** pauses agents and releases input. Resume starts from a fresh screen and preserves the task, including a prompt paused before Codex finished connecting. **Stop** ends the Codex process; **New Conversation** also clears the visible history.
-
-The agent can observe, click/double-click, press balanced key chords, type, scroll, and wait. Text is sent character by character, so Pause stops further typing; a character already sent to the appliance may finish. It requires live video and absolute mouse mode. Each turn pauses after 150 actions or 15 minutes. Conversations remain in app memory and use ephemeral Codex threads. The app-server dynamic-tool API is experimental and may require adaptation after a Codex upgrade.
-
-## Tests
+The test suite covers actual HTTP/WebSocket traffic, a native H.264 sender and receiver, Metal presentation, keyboard ordering, local OCR, session isolation, and agent cancellation. Native UI tests exercise the shipped app. Hardware tests use an explicitly supplied session.
 
 ```sh
-./scripts/test.sh             # Unit, real HTTP/WebSocket, AppKit lifecycle, native WebRTC/Metal, and Vision tests
-./scripts/test.sh --video     # Genuine local H.264 sender → Janus signaling → decoder → Metal
-./scripts/test.sh --hardware  # Real appliance; requires a valid supplied session
-./scripts/test.sh --ui        # Xcode UI automation; requires an unlocked interactive macOS desktop
-./scripts/test.sh --ui-hardware # Native UI, agent pause/resume with read-only fixture, and live fullscreen
-./scripts/test.sh --agent      # Real Codex model against a generated, isolated screen
-# With an unlocked remote Windows desktop; creates a NEW unsaved scratch document:
-./scripts/test.sh --agent-hardware
-# Only with an empty editor focused on the remote computer and its OS layout set to German:
-COMET_E2E_TYPING=1 ./scripts/test.sh --hardware
+# Local unit and integration tests; hardware/model tests require explicit opt-in.
+./scripts/test.sh
+
+# Native macOS UI, including live video and agent pause/resume.
+./scripts/test.sh --ui-hardware
+
+# Real Codex against an isolated, generated desktop.
+./scripts/test.sh --agent
 ```
 
-Local protocol tests start a loopback server on a random port. The video E2E uses a genuine native WebRTC sender and production receiver; the fixture implements the Janus envelope. Session tests substitute only media lifecycle when testing focus and reconnection. Hardware tests do not reboot or log out the supplied token. The baseline hardware test does not type text. `COMET_E2E_TYPING=1` writes test lines to the focused remote editor; `--agent-hardware` separately authorizes the real Codex scratch-document task. The UI agent fixture is constrained to screenshots and waits independently of the chat prompt.
+**Acceptance:** 31 tests passed in the combined local/model/hardware run; the separate real-agent hardware task also passed. All three native UI tests passed. Hardware tests require a valid session; UI automation requires an unlocked Mac desktop. The [usage guide](docs/usage.md#tests) documents the opt-ins for remote typing and the unsaved-document agent task.
 
-See [verification and performance](docs/verification.md) for measured results and outstanding hardware/manual checks, [API compatibility](docs/api-compatibility.md) for endpoint provenance, and [architecture](docs/architecture.md) for ownership and rendering details.
+## Built to stay understandable
 
-## Current limitations
+| Module | Responsibility |
+| :--- | :--- |
+| `CometCore` | Device protocol, profiles, credentials, input ordering, and geometry |
+| `CometMedia` | WebRTC, decoder frames, Metal rendering, and local OCR |
+| `CometAgent` | Codex transport, conversation state, and bounded remote actions |
+| `CometSession` | Per-device lifecycle and the adapter connecting agent actions to KVM input |
+| `CometApp` | Native windows, settings, remote display, and chat |
 
-- HEVC decoding, direct-stream transport, and FEC transport are explicitly unavailable. H.264 is the primary supported Comet path; other negotiated WebRTC codecs may use software decoding.
-- Native-layout typing requires the `mapped_text` capability. Dead keys and IME composition should use Paste. The client sends one Unicode scalar per mapped event and does not contain a character-layout translation table.
-- Mapped characters are paced at 120 ms after each event because bursts lost USB modifier transitions on the test appliance. Paste uses the daemon's `slow=true` mode for the same reason. Neither path retries text.
-- Paste sends UTF-8 and an explicit scalar limit, up to 16,384 scalars. Actual character coverage depends on the daemon's target keymap. Failed or interrupted paste is never automatically retried; already queued device input may finish.
-- System identity editing is intentionally reserved, with a provider contract for future preview, validation, apply, and restore operations.
+[Architecture](docs/architecture.md) · [Usage guide](docs/usage.md) · [API compatibility](docs/api-compatibility.md) · [Verification](docs/verification.md) · [Specification](docs/spec.md)
+
+### Current boundaries
+
+H.264 is the primary supported video path; HEVC decoding, direct-stream transport, and FEC are unavailable. Native mapped typing is paced for reliable USB delivery on the tested firmware. Intel binaries build, but hardware acceptance was performed on Apple Silicon. Agent behavior depends on the model and an experimental Codex protocol. Local builds are ad-hoc signed; Developer ID signing and notarization are separate distribution steps.
