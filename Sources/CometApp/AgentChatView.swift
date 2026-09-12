@@ -85,6 +85,7 @@ struct AgentChatView: View {
             set: { model in
               agent.selectModel(model)
               UserDefaults.standard.set(model, forKey: "agentModel")
+              UserDefaults.standard.set(agent.selectedThinkingLevel, forKey: "agentThinkingLevel")
             })
         ) {
           Text("Codex default").tag("")
@@ -102,6 +103,27 @@ struct AgentChatView: View {
           Text("Could not load models: \(error) Use ⋯ → Refresh Models to retry.")
             .font(.caption).foregroundStyle(.secondary)
         }
+
+        // Expose only runtime-supported effort levels and persist the preference without editing Codex configuration.
+        Picker(
+          "Thinking",
+          selection: Binding(
+            get: { agent.selectedThinkingLevel },
+            set: { level in
+              agent.selectThinkingLevel(level)
+              UserDefaults.standard.set(agent.selectedThinkingLevel, forKey: "agentThinkingLevel")
+            })
+        ) {
+          Text("Automatic (\(agent.automaticThinkingLevel.capitalized))").tag("")
+          ForEach(agent.thinkingLevels, id: \.self) { level in
+            Text(level == "xhigh" ? "Extra High" : level.capitalized).tag(level)
+          }
+        }
+        .disabled(agent.loadingModels || agent.thinkingLevels.isEmpty)
+        .accessibilityIdentifier("agent-thinking-selector")
+        .help(
+          "Higher thinking levels can take longer. Changing the level starts a fresh Codex conversation."
+        )
 
         // Permission changes stop the current turn; prompts cannot select or silently broaden this setting.
         Picker(

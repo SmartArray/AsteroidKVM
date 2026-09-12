@@ -88,17 +88,20 @@ for line in sys.stdin:
         send(
             {
                 "id": request_id,
-                "result": {"config": {"mcp_servers": {"unrelated": {"enabled": True}}}},
+                "result": {"config": {"model": "gpt-5.6-luna", "mcp_servers": {"unrelated": {"enabled": True}}}},
             }
         )
     elif method == "model/list":
         # Return deterministic image-capable choices so native tests can select Luna before starting a turn.
         send({"id": request_id, "result": {"data": [
-            {"id": "astra", "model": "gpt-6-astra", "displayName": "GPT-6-Astra", "inputModalities": ["text", "image"]},
-            {"id": "luna", "model": "gpt-5.6-luna", "displayName": "GPT-5.6-Luna", "inputModalities": ["text", "image"]},
+            {"id": "astra", "model": "gpt-6-astra", "displayName": "GPT-6-Astra", "inputModalities": ["text", "image"], "supportedReasoningEfforts": [{"reasoningEffort": level} for level in ["low", "medium", "high"]]},
+            {"id": "luna", "model": "gpt-5.6-luna", "displayName": "GPT-5.6-Luna", "inputModalities": ["text", "image"], "supportedReasoningEfforts": [{"reasoningEffort": level} for level in ["low", "medium", "high"]]},
         ], "nextCursor": None}})
     elif method == "thread/start":
         # Native UI tests select a model explicitly; fail if the selection never reaches the protocol boundary.
+        expected_effort = os.environ.get("COMET_MOCK_CODEX_EXPECT_EFFORT")
+        if expected_effort:
+            assert message["params"]["config"]["model_reasoning_effort"] == expected_effort
         expected_model = os.environ.get("COMET_MOCK_CODEX_EXPECT_MODEL")
         if expected_model:
             assert message["params"].get("model") == expected_model

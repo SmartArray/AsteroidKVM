@@ -39,6 +39,8 @@ The app does not import that file automatically. Its token is never added to sav
 
 Use the chat's **Model** selector to choose an image-capable model reported by your installed Codex, including **GPT-5.6-Luna** when available. **Codex default** follows your Codex configuration. The app remembers your choice without editing Codex's configuration. Changing models stops active work and starts a fresh Codex conversation on the next prompt; visible chat history remains. Use **⋯ → Refresh Models** to reload the catalog after changing your Codex installation or account.
 
+The **Thinking** selector offers the effort levels supported by the selected model, including Luna. **Automatic** keeps the app’s medium effort where supported, otherwise using the model’s supported default. Higher levels can take longer. Your choice is remembered for new chats; switching to a model that does not support it resets to Automatic. Changing the level stops active work and starts a fresh conversation on the next prompt, keeping visible history.
+
 Open a connected remote display and click **Agent** in its toolbar. Install and sign in to [Codex CLI](https://developers.openai.com/codex/cli) first (`codex login`); the integration is tested with version **0.154.0**. The ordinary KVM client does not require Codex. Agent Settings accepts a custom executable path if automatic detection does not find it.
 
 The chat streams Markdown replies and a visible action history. Choose **Remote permission** before starting:

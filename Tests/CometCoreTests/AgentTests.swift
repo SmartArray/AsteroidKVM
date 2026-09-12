@@ -15,6 +15,10 @@ import XCTest
     await agent.refreshModels()
     XCTAssertNil(agent.modelListError)
     XCTAssertTrue(agent.models.contains { $0.id == "gpt-5.6-luna" }, "Luna must be selectable")
+    // The account's real catalog must expose selectable effort levels for Luna, without starting inference.
+    agent.selectModel("gpt-5.6-luna")
+    XCTAssertFalse(agent.thinkingLevels.isEmpty)
+    XCTAssertTrue(agent.thinkingLevels.contains(agent.automaticThinkingLevel))
     XCTAssertEqual(computer.screens, 0)
     XCTAssertFalse(computer.owned)
   }

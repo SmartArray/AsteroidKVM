@@ -200,6 +200,7 @@ final class CometUITests: XCTestCase {
     app.launchEnvironment["COMET_MOCK_CODEX_READ_ONLY"] = "1"
     app.launchEnvironment["COMET_MOCK_CODEX_REVIEW_TEST"] = "1"
     app.launchEnvironment["COMET_MOCK_CODEX_EXPECT_MODEL"] = "gpt-5.6-luna"
+    app.launchEnvironment["COMET_MOCK_CODEX_EXPECT_EFFORT"] = "high"
     app.launchArguments = [
       "--ui-testing", "-ApplePersistenceIgnoreState", "YES", "--session-file", path,
       "-agentCodexPath", root.appendingPathComponent("scripts/mock-codex.py").path,
@@ -232,10 +233,16 @@ final class CometUITests: XCTestCase {
       predicate: NSPredicate { _, _ in model.isEnabled }, object: model)
     XCTAssertEqual(XCTWaiter.wait(for: [modelsLoaded], timeout: 10), .completed)
     let previousModel = model.value as? String ?? "Codex default"
+    let thinking = chat.popUpButtons["agent-thinking-selector"].firstMatch
+    let previousThinking = thinking.value as? String ?? "Automatic (Medium)"
     model.click()
     let luna = app.menuItems["GPT-5.6-Luna"]
     XCTAssertTrue(luna.waitForExistence(timeout: 10))
     luna.click()
+    // Confirm the visible effort choice reaches the real subprocess protocol, not just saved UI state.
+    XCTAssertTrue(thinking.isEnabled)
+    thinking.click()
+    app.menuItems["High"].click()
     let pause = chat.buttons.matching(identifier: "agent-pause").firstMatch
     XCTAssertTrue(pause.exists)
     XCTAssertFalse(pause.isEnabled)
@@ -318,6 +325,8 @@ final class CometUITests: XCTestCase {
     // Restore the preceding preference so UI verification does not change the user's chosen model.
     model.click()
     app.menuItems[previousModel].click()
+    thinking.click()
+    app.menuItems[previousThinking].click()
   }
 
   @MainActor func testConnectionCreationWindowKeyboardSettingsAndFullscreen() throws {

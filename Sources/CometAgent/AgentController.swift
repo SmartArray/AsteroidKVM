@@ -14,6 +14,8 @@ import Foundation
   @Published public private(set) var clickPreviewsEnabled = true
   @Published public private(set) var models: [AgentModel] = []
   @Published public private(set) var selectedModel = ""
+  @Published public private(set) var selectedThinkingLevel = ""
+  @Published public private(set) var configuredModel = ""
   @Published public private(set) var loadingModels = false
   @Published public private(set) var modelListError: String?
   private var proposedClick: AgentClickPreview?
@@ -61,7 +63,34 @@ import Foundation
     guard id != selectedModel, id.utf8.count <= 200 else { return }
     stop()
     selectedModel = id
+    resetUnsupportedThinkingLevel()
     detail = "Model changed. Your next prompt starts a new Codex conversation."
+  }
+
+  // Resolve Codex default through its configuration so effort choices match the model that actually runs.
+  public var currentModel: AgentModel? {
+    models.first { $0.id == (selectedModel.isEmpty ? configuredModel : selectedModel) }
+  }
+  public var thinkingLevels: [String] { currentModel?.supportedReasoningEfforts ?? [] }
+  public var automaticThinkingLevel: String { currentModel?.reasoningEffort ?? "medium" }
+
+  // Start a fresh thread when effort changes, releasing input and keeping the visible transcript intact.
+  public func selectThinkingLevel(_ level: String) {
+    guard level != selectedThinkingLevel, level.utf8.count <= 32,
+      level.isEmpty || models.isEmpty || thinkingLevels.contains(level)
+    else { return }
+    stop()
+    selectedThinkingLevel = level
+    detail = "Thinking level changed. Your next prompt starts a new Codex conversation."
+  }
+
+  // A choice that belongs to another model must never reach the new model's protocol request.
+  private func resetUnsupportedThinkingLevel() {
+    if !models.isEmpty && !selectedThinkingLevel.isEmpty
+      && !thinkingLevels.contains(selectedThinkingLevel)
+    {
+      selectThinkingLevel("")
+    }
   }
 
   // Discover models in a separate short-lived process without acquiring input, reading screens, or starting inference.
@@ -83,6 +112,9 @@ import Foundation
             ])
           ]))
         try connection.notify("initialized", .object([:]))
+        let configuration = try await connection.request(
+          "config/read", .object(["includeLayers": .bool(false)]))
+        let defaultModel = configuration["config"]["model"].string ?? ""
         var result: [AgentModel] = []
         var cursor: String?
         var cursors = Set<String>()
@@ -101,7 +133,9 @@ import Foundation
           cursor = page["nextCursor"].string
           guard let cursor else {
             try Task.checkCancellation()
+            configuredModel = defaultModel
             models = result
+            resetUnsupportedThinkingLevel()
             return
           }
           guard cursors.insert(cursor).inserted else { break }
@@ -190,9 +224,11 @@ import Foundation
             "config/read", .object(["includeLayers": .bool(false)]))
           var overrides = CodexTransport.configuration
           // Respect each model's supported effort levels while retaining medium where it is available.
-          if let model = models.first(where: { $0.id == selectedModel }) {
-            overrides["model_reasoning_effort"] = .string(model.reasoningEffort)
-          }
+          // Validate against the selected model's catalog again before sending a saved preference.
+          let effort =
+            thinkingLevels.contains(selectedThinkingLevel)
+            ? selectedThinkingLevel : automaticThinkingLevel
+          overrides["model_reasoning_effort"] = .string(effort)
           for name in config["config"]["mcp_servers"].object.keys {
             overrides["mcp_servers.\(name).enabled"] = .bool(false)
           }

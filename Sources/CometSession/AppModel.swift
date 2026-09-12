@@ -107,6 +107,7 @@ import CometMedia
     let agent = AgentController(computer: SessionAgentComputer(session: session))
     // New conversations inherit the saved model; changing one chat must not interrupt another connection's agent.
     agent.selectModel(UserDefaults.standard.string(forKey: "agentModel") ?? "")
+    agent.selectThinkingLevel(UserDefaults.standard.string(forKey: "agentThinkingLevel") ?? "")
     session.onAgentInterruption = { [weak agent] in
       agent?.pause(reason: "Paused for manual input or a connection change.")
     }

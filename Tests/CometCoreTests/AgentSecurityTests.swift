@@ -54,6 +54,62 @@ import XCTest
     XCTAssertEqual(transport.threadParameters.last?["model"], .null)
   }
 
+  // Effort follows the resolved model, survives supported switches, and cannot leak an invalid level to Codex.
+  func testThinkingLevelReachesThreadAndResetsForUnsupportedModel() async throws {
+    let computer = SecurityComputer()
+    let transport = SecurityTransport()
+    transport.defaultModel = "luna"
+    func model(_ id: String, _ levels: [String]) -> JSONValue {
+      .object([
+        "model": .string(id),
+        "supportedReasoningEfforts": .array(
+          levels.map {
+            .object(["reasoningEffort": .string($0)])
+          }), "defaultReasoningEffort": .string("invalid-default"),
+      ])
+    }
+    transport.modelPages = [
+      .object([
+        "data": .array([
+          model("luna", ["low", "medium", "high", "high"]), model("limited", ["low"]),
+        ])
+      ])
+    ]
+    let agent = AgentController(computer: computer, transportFactory: { transport })
+    defer { agent.stop() }
+    // Restore a saved preference before asynchronous discovery, as a newly opened chat does.
+    agent.selectThinkingLevel("high")
+    await agent.refreshModels()
+    XCTAssertEqual(agent.thinkingLevels, ["low", "medium", "high"])
+    XCTAssertEqual(agent.automaticThinkingLevel, "medium")
+    agent.selectThinkingLevel("high")
+    agent.send("Inspect carefully")
+    try await wait { transport.started }
+    XCTAssertEqual(
+      transport.threadParameters.last?["config"]["model_reasoning_effort"].string, "high")
+    XCTAssertEqual(transport.threadParameters.last?["model"], .null)
+
+    // Changing effort releases remote ownership and starts a new context without erasing visible history.
+    agent.selectThinkingLevel("low")
+    XCTAssertFalse(computer.owned)
+    XCTAssertFalse(agent.messages.isEmpty)
+    agent.send("Inspect quickly")
+    try await wait { transport.threadStarts == 2 }
+    XCTAssertEqual(
+      transport.threadParameters.last?["config"]["model_reasoning_effort"].string, "low")
+    agent.selectThinkingLevel("impossible")
+    XCTAssertEqual(agent.selectedThinkingLevel, "low")
+    XCTAssertTrue(computer.owned)
+    agent.selectThinkingLevel("high")
+    agent.selectModel("limited")
+    XCTAssertEqual(agent.selectedThinkingLevel, "")
+    XCTAssertEqual(agent.automaticThinkingLevel, "low")
+    agent.send("Use the supported fallback")
+    try await wait { transport.threadStarts == 3 }
+    XCTAssertEqual(
+      transport.threadParameters.last?["config"]["model_reasoning_effort"].string, "low")
+  }
+
   // Automatic approval still gives the human a full second to inspect the target before any click occurs.
   func testFullControlClickPreviewDelaysInputAndCanBeDisabled() async throws {
     let computer = SecurityComputer()
@@ -340,6 +396,7 @@ import XCTest
   var started = false
   var threadStarts = 0
   var responses: [JSONValue] = []
+  var defaultModel = ""
   var modelPages: [JSONValue] = []
   var modelRequests: [JSONValue] = []
   var threadParameters: [JSONValue] = []
@@ -350,6 +407,7 @@ import XCTest
   func reject(id: JSONValue, message: String) throws {}
   func request(_ method: String, _ params: JSONValue) async throws -> JSONValue {
     switch method {
+    case "config/read": return .object(["config": .object(["model": .string(defaultModel)])])
     case "model/list":
       modelRequests.append(params)
       return modelPages.removeFirst()

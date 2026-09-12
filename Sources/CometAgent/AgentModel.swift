@@ -6,6 +6,7 @@ public struct AgentModel: Identifiable, Equatable, Sendable {
   public let id: String
   public let name: String
   public let reasoningEffort: String
+  public let supportedReasoningEfforts: [String]
 
   // Use the wire model identifier, excluding hidden and text-only models that cannot inspect the remote screen.
   public init?(_ value: JSONValue) {
@@ -18,8 +19,16 @@ public struct AgentModel: Identifiable, Equatable, Sendable {
     let efforts = value["supportedReasoningEfforts"].array.compactMap {
       $0["reasoningEffort"].string
     }
+    // Deduplicate bounded wire values and never use a default outside the advertised choices.
+    supportedReasoningEfforts = efforts.reduce(into: []) { result, effort in
+      if !effort.isEmpty && effort.utf8.count <= 32 && !result.contains(effort) {
+        result.append(effort)
+      }
+    }
+    let preferred = value["defaultReasoningEffort"].string ?? ""
     reasoningEffort =
-      efforts.isEmpty || efforts.contains("medium")
-      ? "medium" : value["defaultReasoningEffort"].string ?? efforts[0]
+      supportedReasoningEfforts.isEmpty || supportedReasoningEfforts.contains("medium")
+      ? "medium"
+      : supportedReasoningEfforts.contains(preferred) ? preferred : supportedReasoningEfforts[0]
   }
 }
