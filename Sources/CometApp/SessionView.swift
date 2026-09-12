@@ -78,11 +78,18 @@ struct SessionView: View {
         }
         .popover(isPresented: $displayOpen) { DisplayPopover(session: session) }
         .accessibilityIdentifier("display-toolbar")
-        Button {
-          session.startOCR()
-        } label: {
+        // Bind the native toggle to OCR state so Escape, completion, and another click clear its highlight.
+        Toggle(
+          isOn: Binding(
+            get: { session.ocrSelecting },
+            set: { selecting in
+              if selecting { session.startOCR() } else { session.cancelOCR() }
+            })
+        ) {
           Label("Text Recognition", systemImage: "text.viewfinder")
         }
+        .toggleStyle(.button)
+        .accessibilityValue(session.ocrSelecting ? "On" : "Off")
         .disabled(!session.active || session.ocrBusy).help("Select text in the remote display")
         .accessibilityIdentifier("ocr-toolbar")
         Button {

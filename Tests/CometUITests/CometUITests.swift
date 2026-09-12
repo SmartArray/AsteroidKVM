@@ -81,6 +81,43 @@ final class CometUITests: XCTestCase {
     XCTAssertGreaterThan(after.0, before.0, "Live frames must continue across both transitions")
     XCTAssertEqual(before.1, 1)
     XCTAssertEqual(after.1, before.1, "Fullscreen must preserve the existing WebRTC connection")
+
+    // The native selection toggle must survive leaving the window and follow Escape and repeated clicks.
+    let selection = window.descendants(matching: .any).matching(identifier: "ocr-toolbar")
+      .firstMatch
+    let display = window.descendants(matching: .any).matching(identifier: "remote-display")
+      .firstMatch
+    XCTAssertEqual(selection.value as? String, "Off")
+    selection.click()
+    XCTAssertEqual(selection.value as? String, "On")
+    let outside = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1))
+      .withOffset(CGVector(dx: 0, dy: 20))
+    outside.hover()
+    display.hover()
+    XCTAssertEqual(selection.value as? String, "On", "Pointer exit must not untoggle selection")
+    let armed = XCTAttachment(screenshot: window.screenshot())
+    armed.name = "Text selection remains highlighted after pointer re-entry"
+    armed.lifetime = .keepAlways
+    add(armed)
+    app.typeKey(.escape, modifierFlags: [])
+    XCTAssertEqual(selection.value as? String, "Off")
+    selection.click()
+    XCTAssertEqual(selection.value as? String, "On")
+    selection.click()
+    XCTAssertEqual(selection.value as? String, "Off")
+
+    // A drag after re-entry must reach local Vision and reset the toggle when its result is presented.
+    selection.click()
+    outside.hover()
+    let start = display.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.2))
+    let end = display.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.8))
+    start.hover()
+    start.click(forDuration: 0.2, thenDragTo: end)
+    let result = window.sheets.staticTexts["Recognized Text"]
+    XCTAssertTrue(
+      result.waitForExistence(timeout: 15), "Re-entering must leave OCR ready to select")
+    XCTAssertEqual(selection.value as? String, "Off")
+    window.sheets.buttons.matching(identifier: "Done").firstMatch.click()
   }
 
   // Drive the shipped chat against live Comet video and a deterministic read-only Codex protocol fixture.
@@ -202,7 +239,8 @@ final class CometUITests: XCTestCase {
       object: session)
     XCTAssertEqual(XCTWaiter.wait(for: [entered], timeout: 8), .completed)
     XCTAssertTrue(
-      session.buttons.matching(identifier: "ocr-toolbar").firstMatch.waitForExistence(timeout: 5))
+      session.descendants(matching: .any).matching(identifier: "ocr-toolbar").firstMatch
+        .waitForExistence(timeout: 5))
     app.typeKey("f", modifierFlags: [.control, .command])
     let exited = XCTNSPredicateExpectation(
       predicate: NSPredicate { _, _ in abs(session.frame.height - originalFrame.height) < 5 },

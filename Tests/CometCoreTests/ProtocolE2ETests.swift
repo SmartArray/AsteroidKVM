@@ -382,6 +382,92 @@ final class ProtocolE2ETests: XCTestCase {
     await session.disconnect()
   }
 
+  // Reproduce pointer exit before a drag and inspect the live outline above the production Metal surface.
+  @MainActor func testOCRSelectionSurvivesPointerExitAndCancelsWithEscape() async throws {
+    let session = SessionController(
+      profile: ConnectionProfile(name: "Selection", host: "127.0.0.1", port: port, scheme: "http"),
+      password: "test-password", mediaFactory: { _, _ in FixtureMedia() })
+    session.connect()
+    try await waitUntil { session.active }
+    let surface = RemoteSurface(session: session)
+    let window = FocusedFixtureWindow(
+      contentRect: CGRect(x: 0, y: 0, width: 800, height: 600),
+      styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    window.contentView = surface
+    defer {
+      surface.teardown()
+      window.contentView = nil
+    }
+
+    // Feed a native buffer through the actual renderer to establish the same geometry as a received frame.
+    var pixelBuffer: CVPixelBuffer?
+    XCTAssertEqual(
+      CVPixelBufferCreate(
+        kCFAllocatorDefault, 800, 600, kCVPixelFormatType_32BGRA,
+        [kCVPixelBufferMetalCompatibilityKey: true, kCVPixelBufferIOSurfacePropertiesKey: [:]]
+          as CFDictionary, &pixelBuffer), kCVReturnSuccess)
+    session.mailbox.renderFrame(
+      RTCVideoFrame(
+        buffer: RTCCVPixelBuffer(pixelBuffer: try XCTUnwrap(pixelBuffer)), rotation: ._0,
+        timeStampNs: 1))
+    surface.layoutSubtreeIfNeeded()
+    let metal = try XCTUnwrap(surface.subviews.compactMap { $0 as? MTKView }.first)
+    metal.isPaused = true
+    metal.draw()
+    session.startOCR()
+    surface.synchronize()
+    XCTAssertTrue(session.ocrSelecting)
+    XCTAssertFalse(session.captured)
+
+    // Deliver window-space events through AppKit, including leaving before the first mouse press.
+    func mouse(_ type: NSEvent.EventType, _ point: CGPoint) throws -> NSEvent {
+      try XCTUnwrap(
+        NSEvent.mouseEvent(
+          with: type, location: surface.convert(point, to: nil), modifierFlags: [], timestamp: 1,
+          windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1,
+          pressure: 1))
+    }
+    let crossing = try XCTUnwrap(
+      NSEvent.enterExitEvent(
+        with: .mouseExited, location: .zero, modifierFlags: [], timestamp: 1,
+        windowNumber: window.windowNumber, context: nil, eventNumber: 0, trackingNumber: 0,
+        userData: nil))
+    surface.mouseExited(with: crossing)
+    surface.mouseEntered(with: crossing)
+    XCTAssertTrue(session.ocrSelecting, "Leaving and returning must preserve the armed tool")
+    try surface.mouseDown(with: mouse(.leftMouseDown, CGPoint(x: 120, y: 80)))
+    try surface.mouseDragged(with: mouse(.leftMouseDragged, CGPoint(x: 380, y: 230)))
+
+    // The crop outline must remain transparent, correctly positioned, and above the video during layout.
+    let outline = try XCTUnwrap(surface.layer?.sublayers?.compactMap { $0 as? CAShapeLayer }.first)
+    let expected = CGRect(x: 120, y: 80, width: 260, height: 150)
+    XCTAssertEqual(outline.path?.boundingBoxOfPath, expected)
+    XCTAssertEqual(outline.frame, surface.bounds)
+    XCTAssertEqual(outline.fillColor?.alpha, 0)
+    XCTAssertEqual(outline.strokeColor, NSColor.gray.cgColor)
+    XCTAssertGreaterThan(outline.zPosition, try XCTUnwrap(metal.layer).zPosition)
+    surface.layout()
+    surface.mouseExited(with: crossing)
+    XCTAssertTrue(session.ocrSelecting)
+    XCTAssertEqual(outline.path?.boundingBoxOfPath, expected)
+
+    // Escape clears both the published toggle and its overlay before the pending mouse release can send HID.
+    let escape = try XCTUnwrap(
+      NSEvent.keyEvent(
+        with: .keyDown, location: .zero, modifierFlags: [], timestamp: 2,
+        windowNumber: window.windowNumber, context: nil, characters: "\u{1b}",
+        charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53))
+    surface.keyDown(with: escape)
+    XCTAssertFalse(session.ocrSelecting)
+    XCTAssertNil(outline.path)
+    try surface.mouseUp(with: mouse(.leftMouseUp, CGPoint(x: 380, y: 230)))
+    await session.output?.flush()
+    let events = try await session.api!.call("/test/state")["events"].array
+    XCTAssertFalse(events.contains { $0["event"]["state"].bool == true })
+    XCTAssertFalse(session.ocrBusy)
+    await session.disconnect()
+  }
+
   // Wait on observable session state with a deadline instead of relying on fixed test sleeps.
   @MainActor private func waitUntil(_ condition: () -> Bool) async throws {
     let deadline = Date().addingTimeInterval(12)

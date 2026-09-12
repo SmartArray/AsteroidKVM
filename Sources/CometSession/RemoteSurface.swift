@@ -54,9 +54,14 @@ import MetalKit
       view.preferredFramesPerSecond = 60
       view.autoresizingMask = [.width, .height]
       addSubview(view)
-      selectionLayer.strokeColor = NSColor.white.cgColor
-      selectionLayer.fillColor = NSColor.controlAccentColor.withAlphaComponent(0.18).cgColor
+
+      // Keep an unfilled gray outline above Metal's backing layer so the selected text stays visible.
+      selectionLayer.strokeColor = NSColor.gray.cgColor
+      selectionLayer.fillColor = NSColor.clear.cgColor
       selectionLayer.lineWidth = 1.5
+      selectionLayer.zPosition = 1
+      selectionLayer.frame = bounds
+      selectionLayer.actions = ["path": NSNull(), "bounds": NSNull(), "position": NSNull()]
       layer?.addSublayer(selectionLayer)
     } catch { session.message = error.localizedDescription }
   }
@@ -68,7 +73,12 @@ import MetalKit
   public override func layout() {
     super.layout()
     metalView?.frame = bounds
-    if selectionStart != nil { cancelSelection() }
+
+    // Only a real bounds change invalidates a drag; ordinary SwiftUI layout passes must preserve it.
+    if selectionLayer.frame != bounds {
+      if selectionStart != nil { cancelSelection() }
+      selectionLayer.frame = bounds
+    }
   }
 
   // Install window-scoped lifecycle observers and native fullscreen behavior.
@@ -146,9 +156,15 @@ import MetalKit
     return true
   }
 
-  // Suspend capture when the pointer leaves video, while allowing an OCR drag to finish at its edge.
+  // OCR already released remote input; preserve its armed state and any drag when the pointer leaves.
   public override func mouseExited(with event: NSEvent) {
-    if selectionStart == nil { session.releaseCapture() }
+    if !session.ocrSelecting { session.releaseCapture() }
+    NSCursor.arrow.set()
+  }
+
+  // Restore the selection cursor on re-entry without requiring another toolbar click.
+  public override func mouseEntered(with event: NSEvent) {
+    cursorUpdate(with: event)
   }
 
   // Remove observers and selection resources when the surface is no longer presented.
