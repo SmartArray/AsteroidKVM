@@ -27,8 +27,11 @@ import SwiftUI
       CommandGroup(after: .windowArrangement) {
         Button("Enter Full Screen") { NSApp.keyWindow?.toggleFullScreen(nil) }.keyboardShortcut(
           "f", modifiers: [.control, .command])
-        Button("Release Remote Input") { model.sessions.values.forEach { $0.releaseCapture() } }
-          .keyboardShortcut(.escape, modifiers: [.control, .option, .command])
+        Button("Release Remote Input") {
+          model.agents.values.forEach { $0.pause() }
+          model.sessions.values.forEach { $0.releaseCapture() }
+        }
+        .keyboardShortcut(.escape, modifiers: [.control, .option, .command])
       }
     }
     WindowGroup("Comet", for: UUID.self) { $id in
@@ -46,6 +49,14 @@ import SwiftUI
       }
     }
     .defaultSize(width: 1200, height: 760)
+    // Give each connection its own chat window while retaining conversation state in the app registry.
+    WindowGroup("Agent", id: "agent", for: UUID.self) { $id in
+      if let id, let session = model.session(for: id) {
+        AgentChatView(agent: model.agent(for: session), session: session)
+      } else {
+        Text("Open a Comet connection to use the agent.").padding()
+      }
+    }.defaultSize(width: 640, height: 760)
     Settings { SettingsView().environmentObject(model) }
   }
 }
@@ -58,6 +69,7 @@ import SwiftUI
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard let model else { return .terminateNow }
     Task {
+      model.agents.values.forEach { $0.stop() }
       for session in model.sessions.values { await session.disconnect() }
       sender.reply(toApplicationShouldTerminate: true)
     }

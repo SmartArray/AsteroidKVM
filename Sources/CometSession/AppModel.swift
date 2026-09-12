@@ -1,12 +1,14 @@
 // Own saved profiles and coordinate focus across otherwise independent sessions.
 import AppKit
 import Combine
+import CometAgent
 import CometCore
 import CometMedia
 
 @MainActor public final class AppModel: ObservableObject {
   @Published public var profiles: [ConnectionProfile] = []
   @Published public var sessions: [UUID: SessionController] = [:]
+  @Published public private(set) var agents: [UUID: AgentController] = [:]
   @Published public var error: String?
   @Published public var selectedDevice: UUID?
   private let store: ProfileStore
@@ -61,6 +63,7 @@ import CometMedia
 
   // Disconnect the selected session before removing its saved profile; password removal stays explicit.
   public func remove(_ profile: ConnectionProfile) async {
+    agents.removeValue(forKey: profile.id)?.stop()
     await sessions[profile.id]?.disconnect()
     sessions.removeValue(forKey: profile.id)
     profiles.removeAll { $0.id == profile.id }
@@ -91,6 +94,17 @@ import CometMedia
     sessions[profile.id] = session
     selectedDevice = profile.id
     return session
+  }
+
+  // Keep one conversation per remote connection and pause it before manual input or lifecycle changes.
+  public func agent(for session: SessionController) -> AgentController {
+    if let agent = agents[session.id] { return agent }
+    let agent = AgentController(computer: SessionAgentComputer(session: session))
+    session.onAgentInterruption = { [weak agent] in
+      agent?.pause(reason: "Paused for manual input or a connection change.")
+    }
+    agents[session.id] = agent
+    return agent
   }
 
   // An explicit command-line session is ephemeral and useful for repeatable real-device E2E runs.

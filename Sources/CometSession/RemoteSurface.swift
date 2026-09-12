@@ -350,6 +350,7 @@ import MetalKit
       return true
     }
     if event.keyCode == 53 && flags.isSuperset(of: [.control, .option, .command]) {
+      session.onAgentInterruption?()
       session.releaseCapture()
       return true
     }

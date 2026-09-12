@@ -2,7 +2,26 @@
 
 Verified on 12 September 2026 using Xcode 26.6, macOS SDK 26.5, and an Apple Silicon Mac. The project targets macOS 14 and later. The real Comet was accessed only through the explicitly supplied session file; the token is absent from source, logs, and saved profiles.
 
-## Automated results
+## Experimental agent verification
+
+The feature uses the installed Codex CLI **0.154.0**, its existing account, and the real app-server dynamic-tool protocol. It is implemented through [Codex app-server](https://developers.openai.com/codex/app-server); no API credentials or device tokens are copied into the integration.
+
+| Run | Result | Coverage |
+| --- | --- | --- |
+| Full suite with `COMET_CODEX_E2E=1` and `COMET_E2E_SESSION` | 31 passed, 0 failed; the separately authorized agent hardware task skipped, 50.0 seconds | Real Codex model on a generated scratch screen, fragmented subprocess protocol, startup pause, action pause/resume, manual takeover, native WebRTC → screenshot → HID, repeated decoder timestamps, and all baseline hardware/local checks |
+| `COMET_AGENT_HARDWARE_E2E=1` with the supplied session | 1 passed, 0 failed, 46.4 seconds | Real Codex created a NEW unsaved Notepad document, entered a four-line apple poem and a unique marker, then inspected the result; independent Vision OCR confirmed the document |
+| Native UI with hardware | 3 passed, 0 failed, 85.6 seconds | Streaming chat, explicit screen-sharing/control opt-in, Pause/Resume in chat and beside video, read-only live-screen tool loop, profile/settings workflow, and native fullscreen without reconnecting |
+| Final controller/AppKit check | 6 passed, 0 failed; live-model test explicitly skipped in this targeted run | Emergency release shortcut interrupts automation, including when human capture is already released; pause/resume and startup prompt preservation regressions |
+
+The live poem run used two tool actions and received 2,704 frames. Its screenshot is `test-results/agent-hardware-poem.png`; the visible final line is `COMET APPLES 3235`. The new document was left unsaved and existing Notepad tabs were preserved. Screenshot review and independent OCR supplement the model's completion claim. This verifies a concrete task on this Windows/Comet setup, not general autonomous-task reliability.
+
+The hardware UI agent uses a deterministic Codex protocol subprocess constrained to observation and waits by its launch environment, independently of the prompt. Real Codex inference is verified separately on both the generated desktop and the physical remote machine. The latest combined UI bundle is `build/DerivedData/Logs/Test/Test-CometKVM-2026.09.12_08-48-56-+0200.xcresult`.
+
+Hardware testing revealed repeated decoder timestamps despite continuing frame delivery. The mailbox now assigns each received frame a distinct identity, and automation checks arrival age rather than assuming timestamps uniquely identify frames. A focused test reproduces this condition. Agent snapshots are compressed on demand; they do not add CPU copies to the continuous Metal video path.
+
+Long-running autonomous tasks, alternate Codex versions/providers, Intel runtime, and other remote operating systems remain outside this acceptance run. The integration is intentionally marked experimental. No destructive action, file save, external message, or publication was performed by the agent acceptance task.
+
+## Baseline client verification
 
 | Run | Result | Coverage |
 | --- | --- | --- |

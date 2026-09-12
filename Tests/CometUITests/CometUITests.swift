@@ -83,6 +83,69 @@ final class CometUITests: XCTestCase {
     XCTAssertEqual(after.1, before.1, "Fullscreen must preserve the existing WebRTC connection")
   }
 
+  // Drive the shipped chat against live Comet video and a deterministic read-only Codex protocol fixture.
+  @MainActor func testAgentChatPauseResumeWithLiveScreen() throws {
+    guard let path = ProcessInfo.processInfo.environment["COMET_UI_SESSION_FILE"] else {
+      throw XCTSkip(
+        "Enable the hardware UI suite to verify agent screen observation and native controls.")
+    }
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent()
+    let app = XCUIApplication()
+    app.launchEnvironment["COMET_MOCK_CODEX_READ_ONLY"] = "1"
+    app.launchArguments = [
+      "--ui-testing", "-ApplePersistenceIgnoreState", "YES", "--session-file", path,
+      "-agentCodexPath", root.appendingPathComponent("scripts/mock-codex.py").path,
+    ]
+    app.launch()
+    defer { app.terminate() }
+    app.typeKey("n", modifierFlags: .command)
+    let remote = app.windows["Comet Test Session"]
+    XCTAssertTrue(remote.waitForExistence(timeout: 15))
+    let trust = remote.sheets.buttons.matching(identifier: "Trust This Device").firstMatch
+    if trust.waitForExistence(timeout: 10) { trust.click() }
+    let connected = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in
+        (remote.staticTexts["connection-status"].value as? String) == "Connected"
+      }, object: remote)
+    XCTAssertEqual(XCTWaiter.wait(for: [connected], timeout: 25), .completed)
+    remote.buttons.matching(identifier: "agent-toolbar").firstMatch.click()
+    let chat = app.windows["Agent — Comet Test Session"]
+    XCTAssertTrue(chat.waitForExistence(timeout: 8))
+    let pause = chat.buttons.matching(identifier: "agent-pause").firstMatch
+    XCTAssertTrue(pause.exists)
+    XCTAssertFalse(pause.isEnabled)
+    chat.checkBoxes.matching(identifier: "agent-consent").firstMatch.click()
+    let composer = chat.textViews.matching(identifier: "agent-composer").firstMatch
+    composer.click()
+    composer.typeText("Read only: inspect this screen without clicking or typing.")
+    chat.buttons.matching(identifier: "agent-send").firstMatch.click()
+    let running = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in pause.isEnabled }, object: chat)
+    XCTAssertEqual(XCTWaiter.wait(for: [running], timeout: 15), .completed)
+    pause.click()
+    let paused = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in
+        (chat.staticTexts["agent-status"].value as? String) == "Paused" && pause.isEnabled
+      }, object: chat)
+    XCTAssertEqual(XCTWaiter.wait(for: [paused], timeout: 10), .completed)
+    XCTAssertTrue(remote.buttons.matching(identifier: "agent-session-pause").firstMatch.exists)
+    pause.click()
+    let completed = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in
+        chat.staticTexts.matching(
+          NSPredicate(format: "value CONTAINS %@", "Remote screen inspected.")
+        ).count > 0
+      }, object: chat)
+    XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 30), .completed)
+    XCTAssertEqual(chat.staticTexts["agent-status"].value as? String, "Ready")
+    let attachment = XCTAttachment(screenshot: chat.screenshot())
+    attachment.name = "Agent chat after screen observation and pause-resume"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    chat.buttons.matching(identifier: "agent-stop").firstMatch.click()
+  }
+
   @MainActor func testConnectionCreationWindowKeyboardSettingsAndFullscreen() throws {
     let app = XCUIApplication()
     // Ignore restored windows so every run starts with the isolated, empty connection store.

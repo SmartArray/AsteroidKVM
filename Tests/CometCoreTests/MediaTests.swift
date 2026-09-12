@@ -36,6 +36,21 @@ final class MediaTests: XCTestCase {
     XCTAssertNil(mailbox.snapshot())
   }
 
+  // Live decoder callbacks with repeated timestamps must still produce new displayed and observed frames.
+  func testRepeatedDecoderTimestampsDoNotFreezeTheMailbox() throws {
+    let mailbox = FrameMailbox()
+    let buffer = try buffer()
+    mailbox.renderFrame(
+      RTCVideoFrame(buffer: RTCCVPixelBuffer(pixelBuffer: buffer), rotation: ._0, timeStampNs: 0))
+    let first = try XCTUnwrap(mailbox.next())
+    mailbox.renderFrame(
+      RTCVideoFrame(buffer: RTCCVPixelBuffer(pixelBuffer: buffer), rotation: ._0, timeStampNs: 0))
+    let second = try XCTUnwrap(mailbox.next())
+    XCTAssertNotEqual(first.id, second.id)
+    XCTAssertEqual(first.timestamp, second.timestamp)
+    XCTAssertLessThan(mailbox.frameAge, 1)
+  }
+
   @MainActor func testMetalPipelineCompilesAndPresentsSharedBuffer() async throws {
     let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
     let mailbox = FrameMailbox()

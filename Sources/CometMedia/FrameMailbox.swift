@@ -23,6 +23,8 @@ public struct VideoMetrics: Sendable {
 
 // The frame owns its pixel buffer through presentation and any one-time OCR snapshot.
 public final class VideoFrame: @unchecked Sendable {
+  // Decoder timestamps may repeat; arrival identity remains unique for presentation and agent freshness.
+  public let id = UUID()
   public let buffer: CVPixelBuffer
   public let rotation: Int
   public let timestamp: Int64
@@ -49,7 +51,8 @@ public final class VideoFrame: @unchecked Sendable {
 public final class FrameMailbox: NSObject, RTCVideoRenderer, @unchecked Sendable {
   private let lock = NSLock()
   private var latest: VideoFrame?
-  private var consumedTimestamp: Int64?
+  private var latestReceivedAt = Date.distantPast
+  private var consumedID: UUID?
   private var metrics = VideoMetrics()
   private var forceCopy = false
   private let copyQueue = DispatchQueue(
@@ -83,7 +86,8 @@ public final class FrameMailbox: NSObject, RTCVideoRenderer, @unchecked Sendable
     }
     lock.lock()
     defer { lock.unlock() }
-    if let latest, latest.timestamp != consumedTimestamp { metrics.replaced += 1 }
+    if let latest, latest.id != consumedID { metrics.replaced += 1 }
+    latestReceivedAt = Date()
     latest = video
     if metrics.received == 0 { metrics.started = Date() }
     metrics.received += 1
@@ -92,6 +96,13 @@ public final class FrameMailbox: NSObject, RTCVideoRenderer, @unchecked Sendable
     if video.copied { metrics.copied += 1 }
     metrics.texturePath =
       video.copied ? "I420 → NV12 CPU copy → Metal" : "CVPixelBuffer → CVMetalTextureCache"
+  }
+
+  // Automation needs wall-clock freshness because decoder timestamps alone cannot reveal a stopped stream.
+  public var frameAge: TimeInterval {
+    lock.lock()
+    defer { lock.unlock() }
+    return Date().timeIntervalSince(latestReceivedAt)
   }
 
   // Copy planar decoder output into an IOSurface-backed NV12 buffer only when sharing is unavailable.
@@ -148,7 +159,7 @@ public final class FrameMailbox: NSObject, RTCVideoRenderer, @unchecked Sendable
       self.metrics.texturePath = "I420 → NV12 CPU copy → Metal"
       if self.latest?.timestamp == frame.timestamp {
         self.latest = copy
-        self.consumedTimestamp = nil
+        self.consumedID = nil
       }
     }
   }
@@ -160,12 +171,12 @@ public final class FrameMailbox: NSObject, RTCVideoRenderer, @unchecked Sendable
     return latest
   }
 
-  // Consume each timestamp once while retaining the latest frame for redraw and OCR.
+  // Consume each received frame once while retaining the latest frame for redraw and OCR.
   public func next() -> VideoFrame? {
     lock.lock()
     defer { lock.unlock() }
-    guard let latest, latest.timestamp != consumedTimestamp else { return nil }
-    consumedTimestamp = latest.timestamp
+    guard let latest, latest.id != consumedID else { return nil }
+    consumedID = latest.id
     return latest
   }
 
@@ -208,7 +219,7 @@ public final class FrameMailbox: NSObject, RTCVideoRenderer, @unchecked Sendable
     lock.lock()
     defer { lock.unlock() }
     latest = nil
-    consumedTimestamp = nil
+    consumedID = nil
   }
 }
 

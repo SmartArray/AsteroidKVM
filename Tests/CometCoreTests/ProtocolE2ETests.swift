@@ -1,4 +1,5 @@
 import AppKit
+import CometAgent
 import CometCore
 import CometMedia
 import CometSession
@@ -231,6 +232,105 @@ final class ProtocolE2ETests: XCTestCase {
     await api.close()
   }
 
+  // The agent's real subprocess reads native WebRTC frames and sends balanced input through the live Comet protocol.
+  @MainActor func testAgentThroughNativeVideoAndCometHIDEndToEnd() async throws {
+    let api = api()
+    try await api.login(password: "test-password")
+    let sender = LocalWebRTCPeer()
+    let offer = try await sender.offer()
+    try await api.call(
+      "/test/offer", method: "POST",
+      body: JSONValue.object(["type": .string("offer"), "sdp": .string(offer)]).data(),
+      contentType: "application/json")
+    let session = SessionController(
+      profile: ConnectionProfile(
+        name: "Agent fixture", host: "127.0.0.1", port: port, scheme: "http"),
+      password: "test-password")
+    session.connect()
+    try await waitUntil { session.active }
+    let deadline = Date().addingTimeInterval(15)
+    var answer: String?
+    while answer == nil && Date() < deadline {
+      answer = try await api.call("/test/state")["answer"]["sdp"].string
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    try await sender.peer.setRemoteDescription(
+      RTCSessionDescription(type: .answer, sdp: try XCTUnwrap(answer)))
+    let frames = Task {
+      var number = 0
+      var candidatesAdded = 0
+      while !Task.isCancelled {
+        if number % 5 == 0 {
+          let candidates = try await api.call("/test/state")["candidates"].array
+          for candidate in candidates.dropFirst(candidatesAdded) {
+            if let sdp = candidate["candidate"].string {
+              try await sender.peer.add(
+                RTCIceCandidate(
+                  sdp: sdp,
+                  sdpMLineIndex: Int32(candidate["sdpMLineIndex"].number ?? 0),
+                  sdpMid: candidate["sdpMid"].string))
+            }
+          }
+          candidatesAdded = candidates.count
+        }
+        try sender.frame(number)
+        number += 1
+        try await Task.sleep(for: .milliseconds(30))
+      }
+    }
+    defer { frames.cancel() }
+    try await waitUntil { session.mailbox.snapshot() != nil }
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent()
+    let adapter = SessionAgentComputer(session: session)
+    let agent = AgentController(
+      computer: adapter,
+      transportFactory: {
+        CodexTransport(
+          executable: URL(fileURLWithPath: "/usr/bin/env"),
+          arguments: ["python3", root.appendingPathComponent("scripts/mock-codex.py").path])
+      })
+    session.onAgentInterruption = { [weak agent] in agent?.pause() }
+    defer {
+      agent.stop()
+      sender.peer.close()
+    }
+    agent.send("Create a poem about apples")
+    try await waitUntil { agent.status == .idle || agent.status == .failed }
+    XCTAssertEqual(agent.status, .idle, agent.detail)
+    let events = try await api.call("/test/state")["events"].array
+    let text = events.filter { $0["event_type"].string == "mapped_text" }.map {
+      $0["event"]["text"].text
+    }.joined()
+    XCTAssertEqual(text, "Apples glow in morning light.")
+    let buttons = events.filter { $0["event_type"].string == "mouse_button" }
+    XCTAssertTrue(buttons.contains { $0["event"]["state"].bool == true })
+    XCTAssertEqual(buttons.last?["event"]["state"].bool, false)
+    XCTAssertFalse(session.agentOwnsInput)
+    XCTAssertEqual(session.mediaConnectionsStarted, 1)
+
+    // Manual capture interrupts active automation before the first human key can reach the remote session.
+    agent.send("Create another poem")
+    try await waitUntil { agent.actionCount == 2 || agent.status == .failed }
+    session.capture()
+    XCTAssertTrue(session.captured)
+    XCTAssertFalse(session.agentOwnsInput)
+    try await waitUntil { agent.canResume || agent.status == .failed }
+    XCTAssertEqual(agent.status, .paused, agent.detail)
+    let pausedCount = try await api.call("/test/state")["events"].array.filter {
+      $0["event_type"].string == "mapped_text"
+    }.count
+    try await Task.sleep(for: .milliseconds(500))
+    let finalCount = try await api.call("/test/state")["events"].array.filter {
+      $0["event_type"].string == "mapped_text"
+    }.count
+    XCTAssertEqual(
+      finalCount, pausedCount, "No further characters may be sent after manual takeover")
+    agent.stop()
+    await session.disconnect()
+    await api.close()
+  }
+
   // Dispatch actual AppKit events through the production surface; a controlled window avoids OS automation dependencies.
   @MainActor func testAppKitInputAndFullscreenReleaseWithoutMediaRestart() async throws {
     let media = FixtureMedia()
@@ -263,6 +363,18 @@ final class ProtocolE2ETests: XCTestCase {
       events.contains { $0["event"]["key"].string == "KeyA" && $0["event"]["state"].bool == true })
     XCTAssertTrue(
       events.contains { $0["event"]["key"].string == "KeyA" && $0["event"]["state"].bool == false })
+    // The emergency shortcut must interrupt automation even when human capture is currently released.
+    session.agentOwnsInput = true
+    session.onAgentInterruption = { session.agentOwnsInput = false }
+    let emergency = try XCTUnwrap(
+      NSEvent.keyEvent(
+        with: .keyDown, location: .zero,
+        modifierFlags: [.control, .option, .command], timestamp: 2,
+        windowNumber: window.windowNumber,
+        context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 53
+      ))
+    surface.keyDown(with: emergency)
+    XCTAssertFalse(session.agentOwnsInput)
     surface.teardown()
     window.contentView = nil
     await session.disconnect()

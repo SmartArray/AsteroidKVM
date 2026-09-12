@@ -1,3 +1,4 @@
+import CometAgent
 import CometCore
 import CometSession
 // Keep the remote image dominant and put occasional controls in compact native popovers.
@@ -84,6 +85,12 @@ struct SessionView: View {
         }
         .disabled(!session.active || session.ocrBusy).help("Select text in the remote display")
         .accessibilityIdentifier("ocr-toolbar")
+        Button {
+          session.releaseCapture()
+          openWindow(id: "agent", value: session.id)
+        } label: {
+          Label("Agent", systemImage: "bubble.left.and.text.bubble.right")
+        }.help("Experimental Codex agent").accessibilityIdentifier("agent-toolbar")
         Menu {
           Button("Reboot Comet…") {
             session.releaseCapture()
@@ -149,6 +156,9 @@ struct SessionView: View {
         Circle().fill(session.active ? Color.green : Color.secondary).frame(width: 6, height: 6)
         Text(session.phase.rawValue).accessibilityIdentifier("connection-status")
         Spacer()
+        if let agent = model.agents[session.id] {
+          AgentSessionControls(agent: agent)
+        }
         if session.microphone {
           Label("Microphone forwarding", systemImage: "mic.fill").foregroundStyle(.orange)
         }
@@ -426,5 +436,19 @@ struct OCRResultView: View {
         }.keyboardShortcut(.defaultAction)
       }
     }.padding(24).frame(width: 540, height: 320)
+  }
+}
+
+// Keep Pause reachable beside the remote image even when the chat is behind another window.
+private struct AgentSessionControls: View {
+  @ObservedObject var agent: AgentController
+  var body: some View {
+    if agent.status.busy || agent.status == .paused {
+      Text("Agent: " + agent.status.rawValue)
+      Button(agent.status == .paused ? "Resume Agent" : "Pause Agent") {
+        if agent.status == .paused { agent.resume() } else { agent.pause() }
+      }.disabled(agent.status == .paused ? !agent.canResume : agent.status == .pausing)
+        .accessibilityIdentifier("agent-session-pause")
+    }
   }
 }

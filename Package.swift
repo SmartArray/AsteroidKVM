@@ -8,6 +8,7 @@ let package = Package(
     products: [
         .library(name: "CometCore", targets: ["CometCore"]),
         .library(name: "CometMedia", targets: ["CometMedia"]),
+        .library(name: "CometAgent", targets: ["CometAgent"]),
         .library(name: "CometSession", targets: ["CometSession"]),
         .executable(name: "CometApp", targets: ["CometApp"])
     ],
@@ -15,8 +16,9 @@ let package = Package(
     targets: [
         .target(name: "CometCore"),
         .target(name: "CometMedia", dependencies: ["CometCore", "WebRTC"]),
-        .target(name: "CometSession", dependencies: ["CometCore", "CometMedia"]),
-        .executableTarget(name: "CometApp", dependencies: ["CometCore", "CometMedia", "CometSession"]),
-        .testTarget(name: "CometCoreTests", dependencies: ["CometCore", "CometMedia", "CometSession"])
+        .target(name: "CometAgent", dependencies: ["CometCore"]),
+        .target(name: "CometSession", dependencies: ["CometCore", "CometMedia", "CometAgent"]),
+        .executableTarget(name: "CometApp", dependencies: ["CometCore", "CometMedia", "CometAgent", "CometSession"]),
+        .testTarget(name: "CometCoreTests", dependencies: ["CometCore", "CometMedia", "CometAgent", "CometSession"])
     ]
 )

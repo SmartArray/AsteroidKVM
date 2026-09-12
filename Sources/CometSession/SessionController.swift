@@ -2,6 +2,7 @@ import AVFoundation
 // A session owns authentication, media, HID state, and reconnection independently of its window.
 import AppKit
 import Combine
+import CometAgent
 import CometCore
 import CometMedia
 
@@ -26,6 +27,9 @@ import CometMedia
   public var input = InputEngine()
   public var output: HIDOutput?
   public var onProfileChanged: ((ConnectionProfile) -> Void)?
+  // Agent ownership is independent of window focus; manual capture explicitly interrupts it.
+  @Published public var agentOwnsInput = false
+  public var onAgentInterruption: (() -> Void)?
   public var onCapture: ((UUID) -> Void)?
   public private(set) var api: CometAPI?
   private var media: (any MediaConnection)?
@@ -70,6 +74,7 @@ import CometMedia
 
   // Release capture before a preference change can alter input interpretation.
   public func updateProfile(_ change: (inout ConnectionProfile) -> Void) {
+    onAgentInterruption?()
     releaseCapture()
     change(&profile)
     configureInput()
@@ -138,6 +143,7 @@ import CometMedia
       output.onPasteChanged = { [weak self] busy in self?.pasting = busy }
       output.onError = { [weak self] error in
         self?.message = error.localizedDescription
+        self?.onAgentInterruption?()
         self?.releaseCapture()
       }
       self.output = output
@@ -242,6 +248,7 @@ import CometMedia
 
   // Reconnection invalidates pending input and uses a cancellable bounded backoff, including wake recovery.
   private func connectionFailed(_ error: Error) {
+    onAgentInterruption?()
     guard shouldReconnect, phase != .reconnecting else { return }
     releaseCapture()
     phase = .reconnecting
@@ -272,6 +279,7 @@ import CometMedia
 
   // Invalidate queued work and release input before the Mac sleeps.
   public func suspend() {
+    onAgentInterruption?()
     guard shouldReconnect else { return }
     releaseCapture()
     generation = UUID()
@@ -295,12 +303,14 @@ import CometMedia
   public func releaseCapture() {
     captured = false
     _ = input.releaseAll()
-    output?.releaseAll()
+    // Losing video-window focus must not discard agent typing while the chat owns input.
+    if !agentOwnsInput { output?.releaseAll() }
     cancelOCR()
   }
 
   // Grant input only to an active session after the registry releases its other sessions.
   public func capture() {
+    onAgentInterruption?()
     guard active, !pasting, !ocrSelecting, !ocrBusy else { return }
     onCapture?(id)
     captured = true
@@ -309,6 +319,7 @@ import CometMedia
 
   // Flush key releases before closing a socket; server disconnect cleanup is the final backstop.
   public func disconnect(logout: Bool = false) async {
+    onAgentInterruption?()
     shouldReconnect = false
     generation = UUID()
     connectTask?.cancel()
@@ -368,6 +379,7 @@ import CometMedia
 
   // Native paste locks live input for the operation and never retains clipboard text after completion.
   public func paste() {
+    onAgentInterruption?()
     guard active, !pasting, let text = NSPasteboard.general.string(forType: .string) else { return }
     _ = input.releaseAll()
     output?.paste(text, keymap: profile.keymap)
@@ -375,6 +387,7 @@ import CometMedia
 
   // Send balanced remote shortcut transitions through the session’s ordered input queue.
   public func shortcut(_ codes: [String]) {
+    onAgentInterruption?()
     guard active, !pasting else { return }
     releaseCapture()
     output?.enqueue(codes.map { .key($0, true) } + codes.reversed().map { .key($0, false) })
@@ -382,6 +395,7 @@ import CometMedia
 
   // Mutate just the chosen encoder field and debounce controls that can generate repeated changes.
   public func setVideo(_ changes: [String: String], debounce: Bool = false) {
+    onAgentInterruption?()
     guard let api else { return }
     let key = changes.keys.sorted().joined(separator: ",")
     settingsTasks[key]?.cancel()
@@ -396,6 +410,7 @@ import CometMedia
 
   // Apply only the chosen USB function and refresh the device’s resulting state.
   public func setDevice(_ key: String, value: Bool) {
+    onAgentInterruption?()
     performSetting(
       "device:" + key,
       operation: { api in
@@ -406,6 +421,7 @@ import CometMedia
 
   // Write a confirmed device parameter through the session-owned settings lifecycle.
   public func setSystemParameter(_ key: String, value: String) {
+    onAgentInterruption?()
     performSetting(
       "system:" + key,
       operation: { api in
@@ -415,6 +431,7 @@ import CometMedia
 
   // Update a supported HID option and read its actual resulting state.
   public func setHID(_ key: String, value: String) {
+    onAgentInterruption?()
     performSetting(
       "hid:" + key,
       operation: { api in
@@ -479,6 +496,7 @@ import CometMedia
 
   // Release capture before restarting the selected appliance and entering reconnection.
   public func reboot() {
+    onAgentInterruption?()
     guard active, let api else { return }
     let ticket = generation
     releaseCapture()
@@ -493,6 +511,7 @@ import CometMedia
 
   // Selection freezes a retained renderer frame; recognition results and images are cleared on dismissal.
   public func startOCR() {
+    onAgentInterruption?()
     releaseCapture()
     guard mailbox.snapshot() != nil else {
       message = "Text Recognition needs a received video frame."

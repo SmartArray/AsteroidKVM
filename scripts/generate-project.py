@@ -61,13 +61,13 @@ for name, source, kind, dependencies in [
         "CometKVM",
         "Sources/CometApp",
         "com.apple.product-type.application",
-        ["CometCore", "CometMedia", "CometSession"],
+        ["CometCore", "CometMedia", "CometAgent", "CometSession"],
     ),
     (
         "CometCoreTests",
         "Tests/CometCoreTests",
         "com.apple.product-type.bundle.unit-test",
-        ["CometCore", "CometMedia", "CometSession"],
+        ["CometCore", "CometMedia", "CometAgent", "CometSession"],
     ),
     (
         "CometUITests",
