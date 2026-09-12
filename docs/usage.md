@@ -37,7 +37,7 @@ The app does not import that file automatically. Its token is never added to sav
 
 ## Experimental Codex agent
 
-Use the chat's **Model** selector to choose an image-capable model reported by your installed Codex, including **GPT-5.6-Luna** when available. **Codex default** follows your Codex configuration. The app remembers your choice without editing Codex's configuration. Changing models stops active work and starts a fresh Codex conversation on the next prompt; visible chat history remains. Use **⋯ → Refresh Models** to reload the catalog after changing your Codex installation or account.
+Open **⋯ beneath the prompt** for agent options. The single-line summary shows the model, thinking level, remote permission, and click-preview state. Use the popover’s **Model** selector to choose an image-capable model reported by your installed Codex, including **GPT-5.6-Luna** when available. **Codex default** follows your Codex configuration. The app remembers your choice without editing Codex's configuration. Changing models stops active work and starts a fresh Codex conversation on the next prompt; visible chat history remains. Use **⋯ → Refresh Models** to reload the catalog after changing your Codex installation or account.
 
 The **Thinking** selector offers the effort levels supported by the selected model, including Luna. **Automatic** keeps the app’s medium effort where supported, otherwise using the model’s supported default. Higher levels can take longer. Your choice is remembered for new chats; switching to a model that does not support it resets to Automatic. Changing the level stops active work and starts a fresh conversation on the next prompt, keeping visible history.
 
@@ -51,7 +51,7 @@ The chat streams Markdown replies and a visible action history. Choose **Remote 
 
 Changing permission stops the current turn. Changing host, port, scheme, account, or certificate identity clears the conversation and restores approval mode. Endpoint edits also discard the old certificate exception. Screenshots older than 60 seconds cannot authorize actions in any mode.
 
-**Click preview** is enabled by default. A pulsing purple circle on the remote display marks the proposed click while you review it. Clicks wait for at least one second of preview, including in Full control mode. Use **⋯ → Show Click Preview** in the chat header to toggle the checkmark; the preference is remembered. The marker is drawn locally and is excluded from screenshots sent to Codex. Rejecting, pausing, or stopping clears it.
+**Click preview** is enabled by default. A pulsing purple circle on the remote display marks the proposed click while you review it. Clicks wait for at least one second of preview, including in Full control mode. Use **⋯ beneath the prompt → Show Click Preview** to toggle the checkbox; the preference is remembered. The marker is drawn locally and is excluded from screenshots sent to Codex. Rejecting, pausing, or stopping clears it.
 
 Enable the remote-control/screenshot toggle, enter a task such as “Create a new text document and write a poem about apples,” and press **Send** or **⌘Return**. Screenshots and chat go to your configured Codex provider using your existing account and usage limits. This is not local model inference; device credentials remain inside the KVM client.
 

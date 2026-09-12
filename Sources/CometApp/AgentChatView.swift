@@ -9,6 +9,7 @@ struct AgentChatView: View {
   @State private var prompt = ""
   @State private var consent = false
   @State private var settingsOpen = false
+  @State private var optionsOpen = false
   @State private var proposedURL: URL?
   @AppStorage("agentClickPreviewsEnabled") private var clickPreviewsEnabled = true
   @FocusState private var composerFocused: Bool
@@ -40,10 +41,6 @@ struct AgentChatView: View {
           .disabled(agent.status == .idle && agent.messages.isEmpty).accessibilityIdentifier(
             "agent-stop")
         Menu {
-          // A native menu toggle shows its checkmark and persists the user's preview preference.
-          Toggle("Show Click Preview", isOn: $clickPreviewsEnabled)
-            .accessibilityIdentifier("agent-click-preview-toggle")
-          Divider()
           Button("New Conversation") { agent.clear() }
           Button("Agent Settings…") { settingsOpen = true }
           Button("Refresh Models") { Task { await agent.refreshModels() } }
@@ -77,68 +74,6 @@ struct AgentChatView: View {
       }
       Divider()
       VStack(alignment: .leading, spacing: 10) {
-        // Populate model choices from Codex itself so Luna and future image-capable models use valid identifiers.
-        Picker(
-          "Model",
-          selection: Binding(
-            get: { agent.selectedModel },
-            set: { model in
-              agent.selectModel(model)
-              UserDefaults.standard.set(model, forKey: "agentModel")
-              UserDefaults.standard.set(agent.selectedThinkingLevel, forKey: "agentThinkingLevel")
-            })
-        ) {
-          Text("Codex default").tag("")
-          ForEach(agent.models) { model in Text(model.name).tag(model.id) }
-          if !agent.selectedModel.isEmpty
-            && !agent.models.contains(where: { $0.id == agent.selectedModel })
-          {
-            Text(agent.selectedModel).tag(agent.selectedModel)
-          }
-        }
-        .disabled(agent.loadingModels)
-        .accessibilityIdentifier("agent-model-selector")
-        .help("Changing models starts a new Codex conversation. Visible chat history is kept.")
-        if let error = agent.modelListError {
-          Text("Could not load models: \(error) Use ⋯ → Refresh Models to retry.")
-            .font(.caption).foregroundStyle(.secondary)
-        }
-
-        // Expose only runtime-supported effort levels and persist the preference without editing Codex configuration.
-        Picker(
-          "Thinking",
-          selection: Binding(
-            get: { agent.selectedThinkingLevel },
-            set: { level in
-              agent.selectThinkingLevel(level)
-              UserDefaults.standard.set(agent.selectedThinkingLevel, forKey: "agentThinkingLevel")
-            })
-        ) {
-          Text("Automatic (\(agent.automaticThinkingLevel.capitalized))").tag("")
-          ForEach(agent.thinkingLevels, id: \.self) { level in
-            Text(level == "xhigh" ? "Extra High" : level.capitalized).tag(level)
-          }
-        }
-        .disabled(agent.loadingModels || agent.thinkingLevels.isEmpty)
-        .accessibilityIdentifier("agent-thinking-selector")
-        .help(
-          "Higher thinking levels can take longer. Changing the level starts a fresh Codex conversation."
-        )
-
-        // Permission changes stop the current turn; prompts cannot select or silently broaden this setting.
-        Picker(
-          "Remote permission",
-          selection: Binding(get: { agent.controlMode }, set: { agent.setControlMode($0) })
-        ) {
-          ForEach(AgentControlMode.allCases, id: \.self) { mode in Text(mode.rawValue).tag(mode) }
-        }.accessibilityIdentifier("agent-control-mode")
-        if agent.controlMode == .fullControl {
-          Text(
-            "Full control allows unreviewed actions with the remote user's privileges, including deleting files or sending content."
-          )
-          .font(.caption).foregroundStyle(.orange)
-        }
-
         // Render the exact immutable proposal beside its target before releasing the controller's input gate.
         if let approval = agent.pendingApproval {
           VStack(alignment: .leading, spacing: 8) {
@@ -199,6 +134,23 @@ struct AgentChatView: View {
             )
             .accessibilityIdentifier("agent-send")
         }.padding(10).background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 12))
+        // Keep chosen values visible beneath the draft while the full controls live in a native popover.
+        HStack(spacing: 8) {
+          Text(optionsSummary).font(.caption).foregroundStyle(.secondary)
+            .lineLimit(1).truncationMode(.middle).help(optionsSummary)
+            .accessibilityIdentifier("agent-options-summary")
+          Spacer(minLength: 0)
+          Button {
+            optionsOpen.toggle()
+          } label: {
+            Image(systemName: "ellipsis").frame(width: 24, height: 20).contentShape(Rectangle())
+          }
+          .buttonStyle(.borderless).help("Agent options")
+          .accessibilityLabel("Agent options").accessibilityIdentifier("agent-options")
+          .popover(isPresented: $optionsOpen, arrowEdge: .bottom) {
+            AgentOptionsPopover(agent: agent, clickPreviewsEnabled: $clickPreviewsEnabled)
+          }
+        }
         Text("⌘Return to send · Control stays with this Comet · Closing this chat pauses the agent")
           .font(.caption2).foregroundStyle(.secondary)
       }.padding(16).fixedSize(horizontal: false, vertical: true).layoutPriority(1)
@@ -241,6 +193,19 @@ struct AgentChatView: View {
       consent = false
       proposedURL = nil
     }
+  }
+
+  // Summarize the same bindings used by the popover, including the current permission and preview state.
+  private var optionsSummary: String {
+    let model =
+      agent.selectedModel.isEmpty
+      ? "Codex default" : agent.currentModel?.name ?? agent.selectedModel
+    let level =
+      agent.thinkingLevels.contains(agent.selectedThinkingLevel)
+      ? agent.selectedThinkingLevel : agent.automaticThinkingLevel
+    let thinking = level == "xhigh" ? "Extra High" : level.capitalized
+    let preview = clickPreviewsEnabled ? "Preview on" : "Preview off"
+    return "\(model) · \(thinking) thinking · \(agent.controlMode.rawValue) · \(preview)"
   }
 
   // Preserve readable, wrapping action text even when the transcript and composer compete for vertical space.

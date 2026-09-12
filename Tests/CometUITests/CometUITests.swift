@@ -226,14 +226,21 @@ final class CometUITests: XCTestCase {
     remote.buttons.matching(identifier: "agent-toolbar").firstMatch.click()
     let chat = app.windows["Agent — Comet Test Session"]
     XCTAssertTrue(chat.waitForExistence(timeout: 8))
+    // Options start collapsed; the summary remains below the prompt and opens a native popover on demand.
+    let options = chat.buttons["agent-options"].firstMatch
+    let summary = chat.staticTexts["agent-options-summary"].firstMatch
+    XCTAssertTrue(summary.exists)
+    XCTAssertFalse(chat.popUpButtons["agent-model-selector"].exists)
+    XCTAssertGreaterThanOrEqual(summary.frame.minY, chat.textViews["agent-composer"].frame.maxY)
+    options.click()
     // Wait for runtime discovery, then verify the visible Luna selection is used by the subprocess fixture.
-    let model = chat.popUpButtons.matching(identifier: "agent-model-selector").firstMatch
+    let model = app.popUpButtons.matching(identifier: "agent-model-selector").firstMatch
     XCTAssertTrue(model.waitForExistence(timeout: 5))
     let modelsLoaded = XCTNSPredicateExpectation(
       predicate: NSPredicate { _, _ in model.isEnabled }, object: model)
     XCTAssertEqual(XCTWaiter.wait(for: [modelsLoaded], timeout: 10), .completed)
     let previousModel = model.value as? String ?? "Codex default"
-    let thinking = chat.popUpButtons["agent-thinking-selector"].firstMatch
+    let thinking = app.popUpButtons["agent-thinking-selector"].firstMatch
     let previousThinking = thinking.value as? String ?? "Automatic (Medium)"
     model.click()
     let luna = app.menuItems["GPT-5.6-Luna"]
@@ -243,6 +250,14 @@ final class CometUITests: XCTestCase {
     XCTAssertTrue(thinking.isEnabled)
     thinking.click()
     app.menuItems["High"].click()
+    let optionsScreenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    optionsScreenshot.name = "Agent options popover"
+    optionsScreenshot.lifetime = .keepAlways
+    add(optionsScreenshot)
+    app.typeKey(.escape, modifierFlags: [])
+    XCTAssertFalse(model.exists)
+    XCTAssertTrue(
+      (summary.value as? String ?? summary.label).contains("GPT-5.6-Luna · High thinking"))
     let pause = chat.buttons.matching(identifier: "agent-pause").firstMatch
     XCTAssertTrue(pause.exists)
     XCTAssertFalse(pause.isEnabled)
@@ -302,14 +317,18 @@ final class CometUITests: XCTestCase {
     let marker = remote.images.matching(identifier: "agent-click-preview").firstMatch
     XCTAssertTrue(marker.waitForExistence(timeout: 5))
 
-    // The checkmarked native menu controls the pending marker immediately and restores it on reenable.
-    let menu = chat.descendants(matching: .any).matching(identifier: "agent-menu").firstMatch
-    menu.click()
-    app.menuItems["Show Click Preview"].click()
+    // Reopening the options popover changes the pending marker and updates its compact summary immediately.
+    options.click()
+    let previewToggle = app.checkBoxes["agent-click-preview-toggle"].firstMatch
+    previewToggle.click()
+    app.typeKey(.escape, modifierFlags: [])
     XCTAssertTrue(marker.waitForNonExistence(timeout: 5))
-    menu.click()
-    app.menuItems["Show Click Preview"].click()
+    XCTAssertTrue((summary.value as? String ?? summary.label).contains("Preview off"))
+    options.click()
+    previewToggle.click()
+    app.typeKey(.escape, modifierFlags: [])
     XCTAssertTrue(marker.waitForExistence(timeout: 5))
+    XCTAssertTrue((summary.value as? String ?? summary.label).contains("Preview on"))
     let preview = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
     preview.name = "Readable click approval with purple remote-display preview"
     preview.lifetime = .keepAlways
@@ -323,6 +342,7 @@ final class CometUITests: XCTestCase {
     add(attachment)
     chat.buttons.matching(identifier: "agent-stop").firstMatch.click()
     // Restore the preceding preference so UI verification does not change the user's chosen model.
+    options.click()
     model.click()
     app.menuItems[previousModel].click()
     thinking.click()
