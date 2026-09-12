@@ -5,6 +5,20 @@ import CometCore
 import XCTest
 
 @MainActor final class AgentTests: XCTestCase {
+  // Query the installed runtime without starting inference or sending a screenshot to the provider.
+  func testInstalledCodexCatalogIncludesLuna() async throws {
+    guard ProcessInfo.processInfo.environment["COMET_CODEX_E2E"] == "1" else {
+      throw XCTSkip("Set COMET_CODEX_E2E=1 to inspect the installed Codex model catalog.")
+    }
+    let computer = FixtureComputer()
+    let agent = AgentController(computer: computer)
+    await agent.refreshModels()
+    XCTAssertNil(agent.modelListError)
+    XCTAssertTrue(agent.models.contains { $0.id == "gpt-5.6-luna" }, "Luna must be selectable")
+    XCTAssertEqual(computer.screens, 0)
+    XCTAssertFalse(computer.owned)
+  }
+
   // A subprocess fixture exercises initialization, inherited-tool disabling, images, actions, and streamed Markdown.
   func testChatScreenActionLoopThroughRealProcess() async throws {
     let computer = FixtureComputer()

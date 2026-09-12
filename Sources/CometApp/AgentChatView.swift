@@ -46,6 +46,8 @@ struct AgentChatView: View {
           Divider()
           Button("New Conversation") { agent.clear() }
           Button("Agent Settings…") { settingsOpen = true }
+          Button("Refresh Models") { Task { await agent.refreshModels() } }
+            .disabled(agent.loadingModels)
         } label: {
           Image(systemName: "ellipsis")
         }.menuIndicator(.hidden).fixedSize().accessibilityIdentifier("agent-menu")
@@ -75,6 +77,32 @@ struct AgentChatView: View {
       }
       Divider()
       VStack(alignment: .leading, spacing: 10) {
+        // Populate model choices from Codex itself so Luna and future image-capable models use valid identifiers.
+        Picker(
+          "Model",
+          selection: Binding(
+            get: { agent.selectedModel },
+            set: { model in
+              agent.selectModel(model)
+              UserDefaults.standard.set(model, forKey: "agentModel")
+            })
+        ) {
+          Text("Codex default").tag("")
+          ForEach(agent.models) { model in Text(model.name).tag(model.id) }
+          if !agent.selectedModel.isEmpty
+            && !agent.models.contains(where: { $0.id == agent.selectedModel })
+          {
+            Text(agent.selectedModel).tag(agent.selectedModel)
+          }
+        }
+        .disabled(agent.loadingModels)
+        .accessibilityIdentifier("agent-model-selector")
+        .help("Changing models starts a new Codex conversation. Visible chat history is kept.")
+        if let error = agent.modelListError {
+          Text("Could not load models: \(error) Use ⋯ → Refresh Models to retry.")
+            .font(.caption).foregroundStyle(.secondary)
+        }
+
         // Permission changes stop the current turn; prompts cannot select or silently broaden this setting.
         Picker(
           "Remote permission",
@@ -159,6 +187,8 @@ struct AgentChatView: View {
       AgentWindowObserver { agent.pause(reason: "Paused because the agent chat was closed.") }
     )
     .sheet(isPresented: $settingsOpen) { AgentSettingsView() }
+    // Loading model names sends no screenshots or prompts; the selected override stays local to this app.
+    .task { await agent.refreshModels() }
     // Update the controller even during a pending approval so toggling the menu immediately changes the marker.
     .onChange(of: clickPreviewsEnabled, initial: true) { _, enabled in
       agent.setClickPreviewsEnabled(enabled)
@@ -313,7 +343,7 @@ private struct AgentSettingsView: View {
         "Codex installation and sign-in",
         destination: URL(string: "https://developers.openai.com/codex/cli")!)
       Text(
-        "The default model and provider come from your Codex configuration. Conversations are ephemeral and remain in this app’s memory; provider data policies still apply. Stop before changing the executable."
+        "Choose a model in the chat, or use Codex default to follow your Codex configuration. The provider still comes from Codex. Changing models starts a new conversation and keeps visible chat history. Conversations are ephemeral; provider data policies still apply. Stop before changing the executable."
       )
       .font(.caption).foregroundStyle(.secondary)
       Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)

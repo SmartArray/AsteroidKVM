@@ -131,6 +131,7 @@ final class CometUITests: XCTestCase {
     let app = XCUIApplication()
     app.launchEnvironment["COMET_MOCK_CODEX_READ_ONLY"] = "1"
     app.launchEnvironment["COMET_MOCK_CODEX_REVIEW_TEST"] = "1"
+    app.launchEnvironment["COMET_MOCK_CODEX_EXPECT_MODEL"] = "gpt-5.6-luna"
     app.launchArguments = [
       "--ui-testing", "-ApplePersistenceIgnoreState", "YES", "--session-file", path,
       "-agentCodexPath", root.appendingPathComponent("scripts/mock-codex.py").path,
@@ -156,6 +157,17 @@ final class CometUITests: XCTestCase {
     remote.buttons.matching(identifier: "agent-toolbar").firstMatch.click()
     let chat = app.windows["Agent — Comet Test Session"]
     XCTAssertTrue(chat.waitForExistence(timeout: 8))
+    // Wait for runtime discovery, then verify the visible Luna selection is used by the subprocess fixture.
+    let model = chat.popUpButtons.matching(identifier: "agent-model-selector").firstMatch
+    XCTAssertTrue(model.waitForExistence(timeout: 5))
+    let modelsLoaded = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in model.isEnabled }, object: model)
+    XCTAssertEqual(XCTWaiter.wait(for: [modelsLoaded], timeout: 10), .completed)
+    let previousModel = model.value as? String ?? "Codex default"
+    model.click()
+    let luna = app.menuItems["GPT-5.6-Luna"]
+    XCTAssertTrue(luna.waitForExistence(timeout: 10))
+    luna.click()
     let pause = chat.buttons.matching(identifier: "agent-pause").firstMatch
     XCTAssertTrue(pause.exists)
     XCTAssertFalse(pause.isEnabled)
@@ -235,6 +247,9 @@ final class CometUITests: XCTestCase {
     attachment.lifetime = .keepAlways
     add(attachment)
     chat.buttons.matching(identifier: "agent-stop").firstMatch.click()
+    // Restore the preceding preference so UI verification does not change the user's chosen model.
+    model.click()
+    app.menuItems[previousModel].click()
   }
 
   @MainActor func testConnectionCreationWindowKeyboardSettingsAndFullscreen() throws {

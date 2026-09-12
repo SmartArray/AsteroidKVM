@@ -4,6 +4,56 @@ import CometCore
 import XCTest
 
 @MainActor final class AgentSecurityTests: XCTestCase {
+  // Discovery follows cursors, uses wire IDs rather than catalog IDs, and excludes models unable to read images.
+  func testModelCatalogPaginationAndImageCapabilityFiltering() async throws {
+    let computer = SecurityComputer()
+    let transport = SecurityTransport()
+    let luna: JSONValue = .object([
+      "id": .string("catalog-entry"), "model": .string("gpt-5.6-luna"),
+      "displayName": .string("GPT-5.6-Luna"), "inputModalities": .array([.string("image")]),
+      "supportedReasoningEfforts": .array([.object(["reasoningEffort": .string("low")])]),
+      "defaultReasoningEffort": .string("low"),
+    ])
+    transport.modelPages = [
+      .object([
+        "data": .array([
+          luna,
+          .object(["model": .string("text-only"), "inputModalities": .array([.string("text")])]),
+          .object(["model": .string("hidden"), "hidden": .bool(true)]),
+        ]), "nextCursor": .string("page-two"),
+      ]),
+      .object(["data": .array([luna, .object(["model": .string("legacy-without-modalities")])])]),
+    ]
+    let agent = AgentController(computer: computer, transportFactory: { transport })
+    await agent.refreshModels()
+    XCTAssertNil(agent.modelListError)
+    XCTAssertEqual(agent.models.map(\.id), ["gpt-5.6-luna", "legacy-without-modalities"])
+    XCTAssertEqual(agent.models.first?.reasoningEffort, "low")
+    XCTAssertEqual(transport.modelRequests.last?["cursor"].string, "page-two")
+    XCTAssertEqual(transport.threadStarts, 0)
+    XCTAssertFalse(computer.owned)
+  }
+
+  // Model changes release current control and send the chosen model only when starting a new thread.
+  func testSelectedModelReachesThreadAndDefaultRemovesOverride() async throws {
+    let computer = SecurityComputer()
+    let transport = SecurityTransport()
+    let agent = AgentController(computer: computer, transportFactory: { transport })
+    defer { agent.stop() }
+    agent.selectModel("gpt-5.6-luna")
+    agent.send("Inspect with Luna")
+    try await wait { transport.started }
+    XCTAssertEqual(transport.threadParameters.first?["model"].string, "gpt-5.6-luna")
+    XCTAssertTrue(computer.owned)
+    agent.selectModel("")
+    XCTAssertFalse(computer.owned)
+    XCTAssertEqual(agent.status, .idle)
+    XCTAssertFalse(agent.messages.isEmpty)
+    agent.send("Inspect with my configured default")
+    try await wait { transport.threadStarts == 2 }
+    XCTAssertEqual(transport.threadParameters.last?["model"], .null)
+  }
+
   // Automatic approval still gives the human a full second to inspect the target before any click occurs.
   func testFullControlClickPreviewDelaysInputAndCanBeDisabled() async throws {
     let computer = SecurityComputer()
@@ -290,6 +340,9 @@ import XCTest
   var started = false
   var threadStarts = 0
   var responses: [JSONValue] = []
+  var modelPages: [JSONValue] = []
+  var modelRequests: [JSONValue] = []
+  var threadParameters: [JSONValue] = []
   func start() throws { started = false }
   func close() {}
   func notify(_ method: String, _ params: JSONValue) throws {}
@@ -297,8 +350,12 @@ import XCTest
   func reject(id: JSONValue, message: String) throws {}
   func request(_ method: String, _ params: JSONValue) async throws -> JSONValue {
     switch method {
+    case "model/list":
+      modelRequests.append(params)
+      return modelPages.removeFirst()
     case "account/read": return .object(["requiresOpenaiAuth": .bool(false)])
     case "thread/start":
+      threadParameters.append(params)
       threadStarts += 1
       return .object(["thread": .object(["id": .string("thread")])])
     case "turn/start":

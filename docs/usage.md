@@ -37,6 +37,8 @@ The app does not import that file automatically. Its token is never added to sav
 
 ## Experimental Codex agent
 
+Use the chat's **Model** selector to choose an image-capable model reported by your installed Codex, including **GPT-5.6-Luna** when available. **Codex default** follows your Codex configuration. The app remembers your choice without editing Codex's configuration. Changing models stops active work and starts a fresh Codex conversation on the next prompt; visible chat history remains. Use **⋯ → Refresh Models** to reload the catalog after changing your Codex installation or account.
+
 Open a connected remote display and click **Agent** in its toolbar. Install and sign in to [Codex CLI](https://developers.openai.com/codex/cli) first (`codex login`); the integration is tested with version **0.154.0**. The ordinary KVM client does not require Codex. Agent Settings accepts a custom executable path if automatic detection does not find it.
 
 The chat streams Markdown replies and a visible action history. Choose **Remote permission** before starting:

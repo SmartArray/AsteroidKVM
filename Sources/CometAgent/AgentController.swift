@@ -12,6 +12,10 @@ import Foundation
   @Published public private(set) var controlMode: AgentControlMode = .review
   @Published public private(set) var pendingApproval: AgentApproval?
   @Published public private(set) var clickPreviewsEnabled = true
+  @Published public private(set) var models: [AgentModel] = []
+  @Published public private(set) var selectedModel = ""
+  @Published public private(set) var loadingModels = false
+  @Published public private(set) var modelListError: String?
   private var proposedClick: AgentClickPreview?
   private var previewStarted: ContinuousClock.Instant?
   private var approvalContinuation: CheckedContinuation<Void, Error>?
@@ -50,6 +54,65 @@ import Foundation
   ) {
     self.computer = computer
     factory = transportFactory
+  }
+
+  // A model change closes the old thread and input lease while preserving the visible transcript for review.
+  public func selectModel(_ id: String) {
+    guard id != selectedModel, id.utf8.count <= 200 else { return }
+    stop()
+    selectedModel = id
+    detail = "Model changed. Your next prompt starts a new Codex conversation."
+  }
+
+  // Discover models in a separate short-lived process without acquiring input, reading screens, or starting inference.
+  public func refreshModels() async {
+    guard !loadingModels else { return }
+    loadingModels = true
+    modelListError = nil
+    defer { loadingModels = false }
+    do {
+      let connection = try factory()
+      defer { connection.close() }
+      try await withTaskCancellationHandler {
+        try connection.start()
+        _ = try await connection.request(
+          "initialize",
+          .object([
+            "clientInfo": .object([
+              "name": .string("comet_kvm_models"), "version": .string("1.0.0"),
+            ])
+          ]))
+        try connection.notify("initialized", .object([:]))
+        var result: [AgentModel] = []
+        var cursor: String?
+        var cursors = Set<String>()
+        for _ in 0..<10 {
+          try Task.checkCancellation()
+          var params: [String: JSONValue] = ["limit": .number(100), "includeHidden": .bool(false)]
+          if let cursor { params["cursor"] = .string(cursor) }
+          let page = try await connection.request("model/list", .object(params))
+          guard case .array(let entries) = page["data"], entries.count <= 100 else {
+            throw AgentError("Codex returned an invalid model catalog.")
+          }
+          for model in entries.compactMap(AgentModel.init)
+          where !result.contains(where: { $0.id == model.id }) {
+            result.append(model)
+          }
+          cursor = page["nextCursor"].string
+          guard let cursor else {
+            try Task.checkCancellation()
+            models = result
+            return
+          }
+          guard cursors.insert(cursor).inserted else { break }
+        }
+        throw AgentError("Codex returned too many model catalog pages.")
+      } onCancel: {
+        Task { @MainActor in connection.close() }
+      }
+    } catch {
+      if !Task.isCancelled { modelListError = String(error.localizedDescription.prefix(500)) }
+    }
   }
 
   // Start only on explicit user submission; opening the chat never transmits pixels or controls the device.
@@ -126,20 +189,24 @@ import Foundation
           let config = try await connection.request(
             "config/read", .object(["includeLayers": .bool(false)]))
           var overrides = CodexTransport.configuration
+          // Respect each model's supported effort levels while retaining medium where it is available.
+          if let model = models.first(where: { $0.id == selectedModel }) {
+            overrides["model_reasoning_effort"] = .string(model.reasoningEffort)
+          }
           for name in config["config"]["mcp_servers"].object.keys {
             overrides["mcp_servers.\(name).enabled"] = .bool(false)
           }
-          let thread = try await connection.request(
-            "thread/start",
-            .object([
-              "ephemeral": .bool(true), "approvalPolicy": .string("untrusted"),
-              "sandbox": .string("read-only"),
-              "baseInstructions": .string(
-                AgentTool.instructions + "\nLocal control mode: " + controlMode.rawValue),
-              "developerInstructions": .string(AgentTool.instructions),
-              "config": .object(overrides), "dynamicTools": AgentTool.definitions,
-              "environments": .array([]),
-            ]))
+          var threadParameters: [String: JSONValue] = [
+            "ephemeral": .bool(true), "approvalPolicy": .string("untrusted"),
+            "sandbox": .string("read-only"),
+            "baseInstructions": .string(
+              AgentTool.instructions + "\nLocal control mode: " + controlMode.rawValue),
+            "developerInstructions": .string(AgentTool.instructions),
+            "config": .object(overrides), "dynamicTools": AgentTool.definitions,
+            "environments": .array([]),
+          ]
+          if !selectedModel.isEmpty { threadParameters["model"] = .string(selectedModel) }
+          let thread = try await connection.request("thread/start", .object(threadParameters))
           guard let id = thread["thread"]["id"].string else {
             throw AgentError("Codex did not return a thread ID.")
           }
