@@ -120,8 +120,11 @@ import WebRTC
       }
     }
     if kind == "trickle", let sdp = message["candidate"]["candidate"].string {
+      // ICE media indices must be representable and nonnegative before crossing the native WebRTC boundary.
+      guard let index = message["candidate"]["sdpMLineIndex"].integer(in: 0...Int(Int32.max))
+      else { throw CometError.invalidResponse }
       let c = RTCIceCandidate(
-        sdp: sdp, sdpMLineIndex: Int32(message["candidate"]["sdpMLineIndex"].number ?? 0),
+        sdp: sdp, sdpMLineIndex: Int32(index),
         sdpMid: message["candidate"]["sdpMid"].string)
       if peer?.remoteDescription != nil { try await peer?.add(c) } else { candidates.append(c) }
     }

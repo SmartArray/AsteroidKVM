@@ -340,7 +340,7 @@ struct DisplayPopover: View {
       key == "quality" && session.state.streamer["features"]["quality"].bool == true
     let min = session.state.streamer["limits"][key]["min"].number ?? (qualitySupported ? 1 : nil)
     let max = session.state.streamer["limits"][key]["max"].number ?? (qualitySupported ? 100 : nil)
-    if let min, let max, max > min {
+    if let min, let max, Int(exactly: min) != nil, Int(exactly: max) != nil, max > min {
       VStack(alignment: .leading) {
         HStack {
           Text(title)
@@ -349,14 +349,16 @@ struct DisplayPopover: View {
         }
         Slider(
           value: Binding(
-            get: { session.state.params[key]?.number ?? value },
+            get: { Swift.min(max, Swift.max(min, session.state.params[key]?.number ?? value)) },
             set: {
               session.state.streamer = replacingParameter(key, value: $0)
-              session.setVideo([key: String(Int($0))], debounce: true)
+              if let number = Int(exactly: $0) {
+                session.setVideo([key: String(number)], debounce: true)
+              }
             }), in: min...max, step: 1)
       }
     } else {
-      LabeledContent(title, value: String(Int(value)))
+      LabeledContent(title, value: JSONValue.number(value).text)
     }
   }
 

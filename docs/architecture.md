@@ -66,6 +66,17 @@ JSON-RPC output is framed on a dedicated reader queue. A serial writer sends scr
 
 A screenshot is a one-time Core Image/JPEG conversion, capped at 1600 pixels on its longest side, outside the live Metal rendering path. Its coordinates refer to the full raw source frame, independently of local window scaling, cropping, or presentation rotation. The adapter maps those coordinates to signed absolute HID values. Arrival identity and wall-clock freshness are separate from decoder timestamps: real streams can deliver repeated timestamps while continuing to produce new frames.
 
+The controller defaults to per-action approval, with explicit observation-only and full-control modes. Pending approvals bind one immutable action to a screen and endpoint/account/certificate identity. Pause, Stop, permission changes, target changes, and 60-second observation expiry invalidate approval. Session profile mutation is encapsulated; endpoint edits clear certificate exceptions before publishing or persisting the new value. Identity callbacks clear even idle agent threads, while the input adapter also checks identity at every lease boundary.
+
 Every action consumes a unique screen ID and returns a new screenshot after input settles. Parallel tool requests, unknown keys, stale IDs, invalid coordinates, and oversized text are rejected. A single agent lease gates every input transition and every screenshot response. Pause invalidates that lease synchronously, cancels the current action, releases held input, and requests `turn/interrupt`; Resume waits for interruption and observes the current screen. An unsubmitted prompt survives startup pause. Stop terminates the process and drops thread context. Lifecycle generations prevent canceled tasks from affecting a newer run.
 
 Agent typing uses the production FIFO one scalar at a time, with the existing mapped-text cadence; firmware without mapped-text support uses individual-character slow HTTP printing. It never sends a whole paragraph into the daemon's paste queue. Local focus changes release human input without discarding active agent input. Manual capture and configuration/lifecycle changes explicitly pause the agent first. Prompts instruct Codex to treat screen text as untrusted content and ask before destructive or external actions; semantic task correctness still depends on the model and should be reviewed on the remote display.
+
+
+## Protocol and chat resource limits
+
+`JSONValue.integer(in:)` checks exact representability and field bounds before converting protocol numbers to native integers. Numeric text formatting never traps on an out-of-range `Double`. ICE indices, video controls, and Codex response IDs use checked conversions.
+
+`AgentTranscript` owns every timeline mutation, including deltas and completions. Count, per-message UTF-8 bytes, and total UTF-8 bytes are bounded; exhaustion stops control. The stdio reader admits one event to the main queue at a time, bounds its buffer to 1 MiB, and uses pipe backpressure. Screenshot writes have an independent 8 MiB queue budget. The stdin descriptor uses Darwin's `F_SETNOSIGPIPE`, and close runs on the serial writer queue, so subprocess exit cannot terminate the app or block Stop while output is pending.
+
+`AgentLinkPolicy` permits only HTTP/HTTPS destinations without embedded credentials. The native chat intercepts URL opening and reveals the destination in a confirmation dialog; rendering never fetches previews or invokes local handlers.

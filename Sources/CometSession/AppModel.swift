@@ -49,6 +49,11 @@ import CometMedia
 
   // Persist only profile preferences and explicitly remembered Keychain credentials.
   public func save(_ profile: ConnectionProfile, password: String?) throws {
+    // Sanitize the persisted copy independently of live sessions so endpoint edits cannot migrate trust.
+    let profile =
+      profiles.first(where: { $0.id == profile.id }).map {
+        profile.securingReplacement(of: $0)
+      } ?? profile
     guard profile.baseURL != nil else { throw CometError.invalidAddress }
     if profile.rememberPassword, let password, !password.isEmpty {
       try PasswordStore().save(password, for: profile)
@@ -103,6 +108,8 @@ import CometMedia
     session.onAgentInterruption = { [weak agent] in
       agent?.pause(reason: "Paused for manual input or a connection change.")
     }
+    // Identity changes destroy provider context and permissions, including completed idle conversations.
+    session.onAgentIdentityChanged = { [weak agent] in agent?.resetTarget() }
     agents[session.id] = agent
     return agent
   }

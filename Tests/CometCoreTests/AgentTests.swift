@@ -11,6 +11,12 @@ import XCTest
     let agent = AgentController(computer: computer, transportFactory: fixtureTransport)
     defer { agent.stop() }
     agent.send("Create a poem about apples")
+    try await wait { agent.pendingApproval != nil }
+    XCTAssertTrue(computer.actions.isEmpty)
+    agent.approveAction(id: try XCTUnwrap(agent.pendingApproval).id)
+    try await wait { agent.pendingApproval != nil }
+    XCTAssertEqual(computer.actions.count, 1)
+    agent.approveAction(id: try XCTUnwrap(agent.pendingApproval).id)
     try await wait { agent.status == .idle || agent.status == .failed }
     XCTAssertEqual(agent.status, .idle, agent.detail)
     XCTAssertEqual(
@@ -29,6 +35,8 @@ import XCTest
     let computer = FixtureComputer()
     computer.delay = true
     let agent = AgentController(computer: computer, transportFactory: fixtureTransport)
+    // These isolated fixtures explicitly opt into autonomous input.
+    agent.setControlMode(.fullControl)
     defer { agent.stop() }
     agent.send("Create a poem")
     try await wait { computer.actions.count == 1 || agent.status == .failed }
@@ -54,6 +62,8 @@ import XCTest
   func testPauseBeforeStartupPreservesPrompt() async throws {
     let computer = FixtureComputer()
     let agent = AgentController(computer: computer, transportFactory: fixtureTransport)
+    // Observation-only mode preserves the startup prompt without granting input.
+    agent.setControlMode(.observe)
     defer { agent.stop() }
     agent.send("Read only: inspect this screen.")
     agent.pause()
@@ -116,6 +126,8 @@ import XCTest
     }
     let computer = FixtureComputer()
     let agent = AgentController(computer: computer)
+    // These isolated fixtures explicitly opt into autonomous input.
+    agent.setControlMode(.fullControl)
     defer { agent.stop() }
     agent.send(
       "This is an isolated test computer. Read comet_screen, then use comet_action to click at x=25,y=30, then use comet_action to type exactly 'Apples glow'. Read the resulting screen and report completion. These two actions are explicitly authorized; use only Comet tools."

@@ -253,7 +253,8 @@ struct DeviceSettings: View {
                 get: { session.profile.mousePollingMilliseconds },
                 set: { value in session.updateProfile { $0.mousePollingMilliseconds = value } }),
               in: 1...50, step: 1)
-            Text("\(Int(session.profile.mousePollingMilliseconds)) ms").monospacedDigit()
+            Text("\((Int(exactly: session.profile.mousePollingMilliseconds) ?? 10)) ms")
+              .monospacedDigit()
           }
           Text("Local relative mouse sensitivity")
           Slider(

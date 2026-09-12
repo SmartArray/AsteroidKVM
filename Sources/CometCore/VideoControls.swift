@@ -17,7 +17,9 @@ public struct VideoPreset: Identifiable, Sendable {
     guard state.params["h264_bitrate"] != nil, state.streamer["features"]["h264"].bool != false
     else { return false }
     let limits = state.streamer["limits"]["h264_bitrate"]
-    guard bitrate >= Int(limits["min"].number ?? 0), bitrate <= Int(limits["max"].number ?? 0)
+    guard let minimum = limits["min"].integer(in: 0...Int.max),
+      let maximum = limits["max"].integer(in: minimum...Int.max),
+      (minimum...maximum).contains(bitrate)
     else { return false }
 
     // A preset must satisfy every parameter it writes, including the advertised keyframe interval.

@@ -63,8 +63,15 @@ public enum JSONValue: Codable, Equatable, Sendable {
     return nil
   }
   public var text: String {
-    string ?? number.map { $0.rounded() == $0 ? String(Int($0)) : String($0) } ?? bool.map(
+    string ?? number.map { Int(exactly: $0).map(String.init) ?? String($0) } ?? bool.map(
       String.init) ?? ""
+  }
+
+  // Convert untrusted JSON numbers exactly before applying protocol-specific bounds; never trap on overflow.
+  public func integer(in range: ClosedRange<Int> = Int.min...Int.max) -> Int? {
+    guard let number, number.isFinite, let value = Int(exactly: number), range.contains(value)
+    else { return nil }
+    return value
   }
 
   // Decode protocol values without losing unknown object fields.
@@ -122,6 +129,23 @@ public struct ConnectionProfile: Codable, Identifiable, Equatable, Sendable {
     return c.url
   }
   public var credentialAccount: String { "\(scheme)://\(host.lowercased()):\(port)/\(username)" }
+
+  // Encode identity as a tuple so delimiters in account names cannot alias another agent target.
+  public var agentIdentity: String {
+    let fields = [scheme, host.lowercased(), String(port), username, certificateSHA256 ?? ""]
+    return String(decoding: (try? JSONEncoder().encode(fields)) ?? Data(), as: UTF8.self)
+  }
+
+  // A certificate exception belongs to its original endpoint, even when a profile UUID is reused.
+  public func securingReplacement(of previous: ConnectionProfile) -> ConnectionProfile {
+    var result = self
+    if scheme != previous.scheme || host.lowercased() != previous.host.lowercased()
+      || port != previous.port
+    {
+      result.certificateSHA256 = nil
+    }
+    return result
+  }
 }
 
 // Report connection phases separately from video signal status and transient operations.

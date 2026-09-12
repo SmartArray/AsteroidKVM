@@ -30,6 +30,7 @@ Control a remote computer yourself, or give Codex a task and watch it work.
 Open **Agent**, enter a prompt, and follow the work in a native chat window. Codex sees screenshots from the connected Comet and operates the remote machine through its keyboard and mouse input. Each action returns a fresh screenshot so the next step can respond to what actually happened.
 
 - **See the work:** streamed Markdown replies, code blocks, and a visible action history.
+- **Choose permission:** approve each action by default, use observation-only mode, or explicitly grant full control for autonomous work.
 - **Stay in control:** Pause/Resume and Stop remain in the chat header. Pause/Resume also appears beside the remote video while the agent is active.
 - **Take over naturally:** click the remote display to pause the agent and capture manual input.
 - **Resume with context:** Codex reads the current screen before continuing. Closing chat, disconnecting, or sleeping interrupts automation.
@@ -44,7 +45,7 @@ Open **Agent**, enter a prompt, and follow the work in a native chat window. Cod
 
 > **Experimental:** requires an installed, signed-in [Codex CLI](https://developers.openai.com/codex/cli), tested with **0.154.0**. Screenshots and chat go to your configured Codex provider using your existing account and usage limits. Device credentials stay in the KVM client. Enable screen sharing and remote control before the first request.
 
-Agent input supports clicks, double-clicks, key chords, text, scrolling, and waits. Typing is sent character by character, so pausing stops further text; a character already sent may finish. A turn pauses after 150 actions or 15 minutes. [Setup and behavior →](docs/usage.md#experimental-codex-agent)
+Full control permits unreviewed actions with the remote user’s privileges, including destructive operations; use approval mode when each step needs review. Agent input supports clicks, double-clicks, key chords, text, scrolling, and waits. Typing is sent character by character, so pausing stops further text; a character already sent may finish. A turn pauses after 150 actions or 15 minutes. [Setup and behavior →](docs/usage.md#experimental-codex-agent)
 
 <a id="native-keys-type-with-your-macs-layout"></a>
 
@@ -96,7 +97,7 @@ You can also open `CometKVM.xcodeproj`, select **CometKVM → My Mac**, and run.
 1. **Add your Comet** with its hostname, port, and account.
 2. **Connect and click the display** to capture input. The first click captures; subsequent clicks reach the remote machine.
 3. **Choose the target keymap** in Keyboard. Enable native-layout typing when supported.
-4. **Try Agent:** run `codex login` in Terminal, open Agent in the toolbar, enable remote control and screenshot sharing, and send a task with **⌘Return**.
+4. **Try Agent:** run `codex login` in Terminal, open Agent in the toolbar, choose its permission mode, enable screenshot/chat sharing, and send a task with **⌘Return**. The default mode asks you to approve each proposed action.
 
 Passwords stay in memory unless you explicitly choose **Remember password in Keychain**. Self-signed certificates require approval of a fingerprint scoped to that device. Each connection owns its credentials, media, and input state.
 
@@ -123,13 +124,13 @@ The test suite covers actual HTTP/WebSocket traffic, a native H.264 sender and r
 ./scripts/test.sh --agent
 ```
 
-**Acceptance:** 31 tests passed in the combined local/model/hardware run; the separate real-agent hardware task also passed. All three native UI tests passed. Hardware tests require a valid session; UI automation requires an unlocked Mac desktop. The [usage guide](docs/usage.md#tests) documents the opt-ins for remote typing and the unsaved-document agent task.
+**Latest security regression:** 49 tests passed, including the installed model against a synthetic computer; two opt-in hardware tests were skipped. All three native UI tests passed against live Comet video, including action approval. The earlier real-agent scratch-document acceptance is recorded in the verification guide. Hardware tests require a valid session; UI automation requires an unlocked Mac desktop. The [usage guide](docs/usage.md#tests) documents the opt-ins for remote typing and the unsaved-document agent task.
 
 ### GitHub Actions
 
 [macOS CI](.github/workflows/macos.yml) runs deterministic unit tests on new pull requests, PR updates, and pushes to **`main`**. Only a push to `main` builds the universal release app, after the tests pass. Download `AsteroidKVM-macOS-universal-<commit>` from the successful run’s **Artifacts** section; it contains the zipped app and a SHA-256 checksum. Builds are ad-hoc signed and retained for 14 days.
 
-Run the same unit selection locally with `./scripts/test.sh --unit`. Hardware, native GPU/video integration, interactive UI, and real Codex tests remain explicit local test commands. The workflow uses macOS 26 and Xcode 26.6; pushes to other branches do not trigger it.
+Run the same unit selection locally with `./scripts/test.sh --unit`; it includes adversarial agent tests and local TLS/redirect fixtures. [Security fixes and remaining limits →](docs/security.md) Hardware, native GPU/video integration, interactive UI, and real Codex tests remain explicit local test commands. The workflow uses macOS 26 and Xcode 26.6; pushes to other branches do not trigger it.
 
 ## Built to stay understandable
 

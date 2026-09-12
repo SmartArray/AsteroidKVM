@@ -7,21 +7,29 @@ public struct AgentScreen: Sendable {
   public let width: Int
   public let height: Int
   public let id: String
-  public init(imageURL: String, width: Int, height: Int, id: String) {
+  public let capturedAt: Date
+  public init(imageURL: String, width: Int, height: Int, id: String, capturedAt: Date = Date()) {
     self.imageURL = imageURL
     self.width = width
     self.height = height
     self.id = id
+    self.capturedAt = capturedAt
   }
 }
 
 // The controller receives only pixels and bounded input; device credentials never cross this boundary.
 @MainActor public protocol AgentComputer: AnyObject {
   var available: Bool { get }
+  var identity: String { get }
   func acquire() throws
   func release()
   func screen() async throws -> AgentScreen
   func perform(_ action: AgentAction) async throws
+}
+
+// Fixture computers have stable instance identity; production adapters supply endpoint/account/trust identity.
+extension AgentComputer {
+  public var identity: String { String(describing: ObjectIdentifier(self)) }
 }
 
 // Actions use screenshot pixel coordinates and balanced key chords, never raw unpaired key presses.
@@ -31,6 +39,18 @@ public enum AgentAction: Equatable, Sendable {
   case type(String)
   case scroll(Int)
   case wait(Int)
+
+  // Approval displays the complete effect, including every character of proposed typing, without Markdown interpretation.
+  public var reviewText: String {
+    switch self {
+    case .click(let x, let y, let button, let count):
+      return "Click \(button) \(count) time(s) at (\(x), \(y))"
+    case .key(let keys): return "Press " + keys.joined(separator: " + ")
+    case .type(let text): return "Type the following text:\n" + text
+    case .scroll(let delta): return "Scroll \(delta) steps (positive is down)"
+    case .wait(let milliseconds): return "Wait \(milliseconds) milliseconds"
+    }
+  }
 }
 
 // A narrow JSON-RPC boundary permits deterministic process and lifecycle tests without model inference.
@@ -131,16 +151,16 @@ public enum AgentTool {
 
   // Validate again at the host boundary because model-generated JSON is never trusted as executable input.
   public static func parse(_ value: JSONValue, screen: AgentScreen) throws -> AgentAction {
-    guard value["screenId"].string == screen.id else {
+    guard value["screenId"].string == screen.id, screen.width > 0, screen.height > 0 else {
       throw AgentError("Stale screenId. Read comet_screen before acting.")
     }
     func integer(_ key: String, _ range: ClosedRange<Int>, default fallback: Int? = nil) throws
       -> Int
     {
-      guard let n = value[key].number ?? fallback.map(Double.init), n.isFinite,
-        n.rounded() == n, n >= Double(range.lowerBound), n <= Double(range.upperBound)
+      let field = value[key] == .null ? fallback.map { JSONValue.number(Double($0)) } : value[key]
+      guard let result = field?.integer(in: range)
       else { throw AgentError("Invalid \(key). Expected an integer in \(range).") }
-      return Int(n)
+      return result
     }
     switch value["action"].string {
     case "click":

@@ -8,7 +8,15 @@ import CometMedia
 
 @MainActor public final class SessionController: ObservableObject, Identifiable {
   public let id: UUID
-  @Published public var profile: ConnectionProfile
+  @Published public private(set) var profile: ConnectionProfile {
+    didSet {
+      // Invalidate context on every identity mutation; endpoint sanitization happens before publishing the value.
+      if profile.agentIdentity != oldValue.agentIdentity {
+        pendingCertificate = nil
+        onAgentIdentityChanged?()
+      }
+    }
+  }
   @Published public var phase = ConnectionPhase.disconnected
   @Published public var state = DeviceState()
   @Published public var message: String?
@@ -30,6 +38,7 @@ import CometMedia
   // Agent ownership is independent of window focus; manual capture explicitly interrupts it.
   @Published public var agentOwnsInput = false
   public var onAgentInterruption: (() -> Void)?
+  public var onAgentIdentityChanged: (() -> Void)?
   public var onCapture: ((UUID) -> Void)?
   public private(set) var api: CometAPI?
   private var media: (any MediaConnection)?
@@ -76,7 +85,9 @@ import CometMedia
   public func updateProfile(_ change: (inout ConnectionProfile) -> Void) {
     onAgentInterruption?()
     releaseCapture()
-    change(&profile)
+    var updated = profile
+    change(&updated)
+    profile = updated.securingReplacement(of: profile)
     configureInput()
     onProfileChanged?(profile)
     media?.setMuted(profile.muted)
@@ -84,7 +95,7 @@ import CometMedia
   // Editing endpoint identity ends the old session before adopting new credentials or certificate policy.
   public func replaceProfile(_ updated: ConnectionProfile, password: String?) async {
     await disconnect()
-    self.profile = updated
+    self.profile = updated.securingReplacement(of: profile)
     self.password = password?.isEmpty == false ? password : nil
     suppliedToken = nil
     configureInput()

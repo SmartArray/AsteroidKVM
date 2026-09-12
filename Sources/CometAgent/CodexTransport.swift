@@ -1,5 +1,6 @@
 // Own one Codex subprocess and serialize newline-delimited JSON-RPC without blocking the UI thread.
 import CometCore
+import Darwin
 import Foundation
 
 @MainActor public final class CodexTransport: AgentTransport {
@@ -15,6 +16,7 @@ import Foundation
   private var deadlines: [Int: Task<Void, Never>] = [:]
   private let writes = DispatchQueue(label: "app.cometkvm.codex.write")
   private var generation = UUID()
+  private var queuedWriteBytes = 0
 
   // Resolve common GUI-app installation paths explicitly because Finder does not inherit a shell PATH.
   public static func installedExecutable() -> URL? {
@@ -67,6 +69,10 @@ import Foundation
     let child = Process()
     let stdin = Pipe()
     let stdout = Pipe()
+    // A child exiting during a screenshot write must produce EPIPE, never a process-terminating SIGPIPE.
+    guard fcntl(stdin.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) != -1 else {
+      throw AgentError("Could not configure a safe Codex input pipe.")
+    }
     child.executableURL = executable
     child.arguments = arguments
     child.currentDirectoryURL = directory
@@ -91,11 +97,17 @@ import Foundation
         let chunk = reader.availableData
         if chunk.isEmpty { break }
         buffer.append(chunk)
-        if buffer.count > 16_000_000 { break }
+        if buffer.count > 1_048_576 { break }
         while let newline = buffer.firstIndex(of: 10) {
           let line = Data(buffer[..<newline])
           buffer.removeSubrange(...newline)
-          DispatchQueue.main.async { self?.receive(line, ticket: ticket) }
+          // Admit one complete event at a time; kernel pipe backpressure bounds floods of small envelopes.
+          let delivered = DispatchSemaphore(value: 0)
+          DispatchQueue.main.async {
+            self?.receive(line, ticket: ticket)
+            delivered.signal()
+          }
+          delivered.wait()
         }
       }
       try? reader.close()
@@ -145,8 +157,21 @@ import Foundation
     guard let input, process?.isRunning == true else { throw AgentError("Codex is not running.") }
     var data = try message.data()
     data.append(10)
+    // Screenshot writes have a separate byte budget so a subprocess that stops reading cannot retain an unbounded queue.
+    guard data.count <= 8_388_608, queuedWriteBytes <= 8_388_608 - data.count else {
+      ended(generation, "Codex stopped consuming data. Remote control has stopped.")
+      throw AgentError("Codex stopped consuming data. Stop and start a new conversation.")
+    }
+    queuedWriteBytes += data.count
+    let byteCount = data.count
     let ticket = generation
     writes.async { [weak self] in
+      defer {
+        DispatchQueue.main.async {
+          guard let self, self.generation == ticket else { return }
+          self.queuedWriteBytes -= byteCount
+        }
+      }
       do { try input.write(contentsOf: data) } catch {
         DispatchQueue.main.async { self?.ended(ticket, "Could not send data to Codex.") }
       }
@@ -164,10 +189,13 @@ import Foundation
       onEvent?(value)
       return
     }
-    guard let number = value["id"].number,
-      let continuation = pending.removeValue(forKey: Int(number))
-    else { return }
-    deadlines.removeValue(forKey: Int(number))?.cancel()
+    // JSON-RPC IDs must match exact positive request integers; fractional and overflowing responses fail closed.
+    guard let id = value["id"].integer(in: 1...Int.max) else {
+      ended(ticket, "Codex returned an invalid response ID.")
+      return
+    }
+    guard let continuation = pending.removeValue(forKey: id) else { return }
+    deadlines.removeValue(forKey: id)?.cancel()
     if value["error"] != .null {
       continuation.resume(
         throwing: AgentError(value["error"]["message"].string ?? "Codex request failed."))
@@ -186,8 +214,12 @@ import Foundation
     generation = UUID()
     let child = process
     process = nil
+    let closingInput = input
     input = nil
+    queuedWriteBytes = 0
     if child?.isRunning == true { child?.terminate() }
+    // Closing shares the serial writer queue so a blocked write cannot make Stop block the main actor.
+    writes.async { try? closingInput?.close() }
     deadlines.values.forEach { $0.cancel() }
     deadlines.removeAll()
     let requests = pending.values

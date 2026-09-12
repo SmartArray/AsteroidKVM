@@ -9,6 +9,7 @@ struct AgentChatView: View {
   @State private var prompt = ""
   @State private var consent = false
   @State private var settingsOpen = false
+  @State private var proposedURL: URL?
   @FocusState private var composerFocused: Bool
 
   // Starting explicitly grants this chat control and discloses that Codex receives the remote screen.
@@ -69,6 +70,42 @@ struct AgentChatView: View {
       }
       Divider()
       VStack(alignment: .leading, spacing: 10) {
+        // Permission changes stop the current turn; prompts cannot select or silently broaden this setting.
+        Picker(
+          "Remote permission",
+          selection: Binding(get: { agent.controlMode }, set: { agent.setControlMode($0) })
+        ) {
+          ForEach(AgentControlMode.allCases, id: \.self) { mode in Text(mode.rawValue).tag(mode) }
+        }.accessibilityIdentifier("agent-control-mode")
+        if agent.controlMode == .fullControl {
+          Text(
+            "Full control allows unreviewed actions with the remote user's privileges, including deleting files or sending content."
+          )
+          .font(.caption).foregroundStyle(.orange)
+        }
+
+        // Render the exact immutable proposal beside its target before releasing the controller's input gate.
+        if let approval = agent.pendingApproval {
+          VStack(alignment: .leading, spacing: 8) {
+            Text("Approve action on \(session.profile.host):\(session.profile.port)").font(
+              .headline)
+            ScrollView {
+              Text(approval.action.reviewText).font(.system(.body, design: .monospaced))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }.frame(maxHeight: 120)
+            Text(
+              "Review the remote display. This approval expires 60 seconds after its screenshot."
+            ).font(.caption)
+            HStack {
+              Button("Reject and Pause") { agent.rejectAction(id: approval.id) }
+                .accessibilityIdentifier("agent-reject-action")
+              Button("Approve This Action") { agent.approveAction(id: approval.id) }
+                .buttonStyle(.borderedProminent).accessibilityIdentifier("agent-approve-action")
+            }
+          }.padding(12).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        }
+
         Text(agent.detail).font(.caption).foregroundStyle(
           agent.status == .failed ? Color.orange : .secondary
         )
@@ -114,6 +151,31 @@ struct AgentChatView: View {
     )
     .sheet(isPresented: $settingsOpen) { AgentSettingsView() }
     .onDisappear { agent.pause(reason: "Paused because the agent chat was closed.") }
+    // Screen-derived Markdown never invokes local URL handlers; even web links reveal their destination first.
+    .environment(
+      \.openURL,
+      OpenURLAction { url in
+        guard AgentLinkPolicy.allows(url) else { return .discarded }
+        proposedURL = url
+        return .handled
+      }
+    )
+    .alert(
+      "Open this website?",
+      isPresented: Binding(get: { proposedURL != nil }, set: { if !$0 { proposedURL = nil } })
+    ) {
+      Button("Open in Browser") {
+        if let url = proposedURL, AgentLinkPolicy.allows(url) { NSWorkspace.shared.open(url) }
+        proposedURL = nil
+      }
+      Button("Cancel", role: .cancel) { proposedURL = nil }
+    } message: {
+      Text(proposedURL?.absoluteString ?? "")
+    }
+    .onChange(of: session.profile.agentIdentity) { _, _ in
+      consent = false
+      proposedURL = nil
+    }
   }
 
   // Consume the draft only after an explicit Send; chat text never reaches the local shell or clipboard.

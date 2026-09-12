@@ -39,11 +39,21 @@ The app does not import that file automatically. Its token is never added to sav
 
 Open a connected remote display and click **Agent** in its toolbar. Install and sign in to [Codex CLI](https://developers.openai.com/codex/cli) first (`codex login`); the integration is tested with version **0.154.0**. The ordinary KVM client does not require Codex. Agent Settings accepts a custom executable path if automatic detection does not find it.
 
-The chat streams Markdown replies and a visible action history. Enable the remote-control/screenshot toggle, enter a task such as “Create a new text document and write a poem about apples,” and press **Send** or **⌘Return**. Screenshots and chat go to your configured Codex provider using your existing account and usage limits. This is not local model inference; device credentials remain inside the KVM client.
+The chat streams Markdown replies and a visible action history. Choose **Remote permission** before starting:
+
+- **Approve each action** (default): review the full proposed input and target, then choose **Approve This Action** or **Reject and Pause**. Approval applies once to that exact action and expires 60 seconds after the screenshot.
+- **Observation only**: screenshots are allowed; every action tool is blocked by the application, regardless of the prompt.
+- **Full control**: explicitly grants unreviewed input with the remote user's privileges. This includes potentially destructive actions; model instructions are not an authorization barrier in this mode.
+
+Changing permission stops the current turn. Changing host, port, scheme, account, or certificate identity clears the conversation and restores approval mode. Endpoint edits also discard the old certificate exception. Screenshots older than 60 seconds cannot authorize actions in any mode.
+
+Enable the remote-control/screenshot toggle, enter a task such as “Create a new text document and write a poem about apples,” and press **Send** or **⌘Return**. Screenshots and chat go to your configured Codex provider using your existing account and usage limits. This is not local model inference; device credentials remain inside the KVM client.
 
 **Pause / Resume** stays in the chat header and appears beside the remote video while active. Clicking the remote display takes manual control and pauses the agent. Closing chat, disconnecting, changing input configuration, or sleeping also interrupts automation. **⌃⌥⌘Escape** pauses agents and releases input. Resume starts from a fresh screen and preserves the task, including a prompt paused before Codex finished connecting. **Stop** ends the Codex process; **New Conversation** also clears the visible history.
 
 The agent can observe, click/double-click, press balanced key chords, type, scroll, and wait. Text is sent character by character, so Pause stops further typing; a character already sent to the appliance may finish. It requires live video and absolute mouse mode. Each turn pauses after 150 actions or 15 minutes. Conversations remain in app memory and use ephemeral Codex threads. The app-server dynamic-tool API is experimental and may require adaptation after a Codex upgrade.
+
+Chat storage is limited to 1,000 messages, 64 KiB per message including its ID, and 1 MiB total UTF-8 text/ID data. Exceeding a limit stops the agent; use **New Conversation** to clear history. Model-generated links permit only HTTP/HTTPS and show their destination for confirmation before opening a browser. Local files and custom application schemes are blocked. [Security review and fixes](security.md).
 
 ## Tests
 

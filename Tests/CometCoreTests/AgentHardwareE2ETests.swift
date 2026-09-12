@@ -29,6 +29,8 @@ final class AgentHardwareE2ETests: XCTestCase {
     let session = SessionController(profile: profile, token: credentials["token"].string)
     let adapter = SessionAgentComputer(session: session)
     let agent = AgentController(computer: adapter)
+    // This separately opted-in scratch-document test explicitly grants remote input permission.
+    agent.setControlMode(.fullControl)
     session.onAgentInterruption = { [weak agent] in agent?.pause() }
     defer { agent.stop() }
     do {

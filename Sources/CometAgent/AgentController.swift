@@ -9,6 +9,13 @@ import Foundation
   @Published public private(set) var detail =
     "Use your installed, signed-in Codex to control this remote computer."
   @Published public private(set) var actionCount = 0
+  @Published public private(set) var controlMode: AgentControlMode = .review
+  @Published public private(set) var pendingApproval: AgentApproval?
+  private var approvalContinuation: CheckedContinuation<Void, Error>?
+  private var approvalDeadline: Task<Void, Never>?
+  private var contextIdentity: String?
+  private var connectionID = UUID()
+  private var transcript = AgentTranscript()
   private let computer: any AgentComputer
   private let factory: @MainActor () throws -> any AgentTransport
   private var transport: (any AgentTransport)?
@@ -46,12 +53,18 @@ import Foundation
   public func send(_ text: String) {
     let prompt = text.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !prompt.isEmpty, prompt.count <= 16000, !status.busy, status != .paused else { return }
-    append(.user, prompt)
+    guard append(.user, prompt) else { return }
     begin(prompt)
   }
 
   // Initialize one ephemeral thread, disable inherited MCP servers, and reuse context for follow-up turns.
   private func begin(_ prompt: String) {
+    // A second identity check protects adapters even when a lifecycle callback was missed.
+    if let contextIdentity, contextIdentity != computer.identity {
+      resetTarget()
+      return
+    }
+    contextIdentity = computer.identity
     do { try computer.acquire() } catch {
       fail(error.localizedDescription)
       return
@@ -80,8 +93,17 @@ import Foundation
           transport?.close()
           let connection = try factory()
           transport = connection
-          connection.onEvent = { [weak self] value in self?.event(value) }
-          connection.onClose = { [weak self] message in self?.fail(message) }
+          // A replaced transport must never deliver queued events into its successor's conversation.
+          let sourceID = UUID()
+          connectionID = sourceID
+          connection.onEvent = { [weak self] value in
+            guard let self, connectionID == sourceID else { return }
+            event(value)
+          }
+          connection.onClose = { [weak self] message in
+            guard let self, connectionID == sourceID else { return }
+            fail(message)
+          }
           try connection.start()
           _ = try await connection.request(
             "initialize",
@@ -109,7 +131,8 @@ import Foundation
             .object([
               "ephemeral": .bool(true), "approvalPolicy": .string("untrusted"),
               "sandbox": .string("read-only"),
-              "baseInstructions": .string(AgentTool.instructions),
+              "baseInstructions": .string(
+                AgentTool.instructions + "\nLocal control mode: " + controlMode.rawValue),
               "developerInstructions": .string(AgentTool.instructions),
               "config": .object(overrides), "dynamicTools": AgentTool.definitions,
               "environments": .array([]),
@@ -167,6 +190,7 @@ import Foundation
     status = .pausing
     detail = reason
     latestScreen = nil
+    cancelApproval()
     toolTask?.cancel()
     computer.release()
     watchdog?.cancel()
@@ -194,7 +218,9 @@ import Foundation
   // Reuse any prompt paused before submission; otherwise continue the existing interrupted conversation.
   public func resume() {
     guard canResume else { return }
-    append(.notice, "Resumed. Codex will read the current screen before continuing.")
+    guard append(.notice, "Resumed. Codex will read the current screen before continuing.") else {
+      return
+    }
     begin(
       pendingPrompt
         ?? "Continue the previous user task from the current screen. An interrupted action may be only partially complete. Read comet_screen first and inspect the result before deciding what remains."
@@ -204,6 +230,8 @@ import Foundation
   // Stop is immediate and final for the subprocess; chat remains visible until explicitly cleared.
   public func stop() {
     generation = UUID()
+    connectionID = UUID()
+    cancelApproval()
     status = .idle
     detail = "Stopped. Send a new request to start a new Codex conversation."
     toolTask?.cancel()
@@ -227,12 +255,17 @@ import Foundation
   // Clearing is explicit because stopping control should leave the conversation available for review.
   public func clear() {
     stop()
-    messages.removeAll()
+    transcript.clear()
+    messages = []
     actionCount = 0
   }
 
   // Route only this thread's visible prose and the two registered remote tools; reject every other server request.
   private func event(_ event: JSONValue) {
+    guard contextIdentity == computer.identity else {
+      resetTarget()
+      return
+    }
     let method = event["method"].text
     let params = event["params"]
     if event["id"] != .null {
@@ -253,23 +286,16 @@ import Foundation
     case "item/agentMessage/delta":
       let id = params["itemId"].text
       let delta = params["delta"].text
-      if let index = messages.firstIndex(where: { $0.id == id }) {
-        messages[index].text += delta
-      } else {
-        messages.append(AgentMessage(id: id, kind: .assistant, text: delta))
-      }
+      storeMessage(AgentMessage(id: id, kind: .assistant, text: delta), delta: true)
     case "item/completed":
       let item = params["item"]
       if item["type"].string == "agentMessage", let text = item["text"].string {
-        if let index = messages.firstIndex(where: { $0.id == item["id"].text }) {
-          messages[index].text = text
-        } else {
-          messages.append(AgentMessage(id: item["id"].text, kind: .assistant, text: text))
-        }
+        storeMessage(AgentMessage(id: item["id"].text, kind: .assistant, text: text))
       }
     case "turn/completed":
       guard turnID == nil || turnID == params["turn"]["id"].string else { return }
       turnID = nil
+      cancelApproval()
       watchdog?.cancel()
       computer.release()
       if params["turn"]["status"].string == "failed" {
@@ -324,12 +350,18 @@ import Foundation
             pause(reason: "Paused after 150 actions. Review progress before resuming.")
             throw CancellationError()
           }
+          // Consume the observation before waiting so a parallel call cannot reuse pending approval.
           latestScreen = nil
+          try await authorize(action, screen: screen)
+          try Task.checkCancellation()
+          guard generation == ticket, status == .running, contextIdentity == computer.identity,
+            Date().timeIntervalSince(screen.capturedAt) <= 60
+          else { throw CancellationError() }
+          guard append(.action, describe(action)) else { throw CancellationError() }
           actionCount += 1
-          append(.action, describe(action))
           try await computer.perform(action)
         } else if params["tool"].string == "comet_screen" {
-          append(.action, "Read remote screen")
+          guard append(.action, "Read remote screen") else { throw CancellationError() }
         } else {
           throw AgentError("Unknown remote tool.")
         }
@@ -381,14 +413,103 @@ import Foundation
   private func fail(_ message: String) {
     stop()
     status = .failed
-    detail = message
-    append(.notice, message)
+    detail = String(message.prefix(4096))
+    append(.notice, detail)
   }
 
-  // Bound the local transcript independently of the provider context window.
-  private func append(_ kind: AgentMessage.Kind, _ text: String) {
-    messages.append(.init(kind: kind, text: text))
-    if messages.count > 1000 { messages.removeFirst(messages.count - 1000) }
+  // All message paths share count and byte budgets; violations release input without recursive error logging.
+  @discardableResult private func storeMessage(_ message: AgentMessage, delta: Bool = false) -> Bool
+  {
+    do {
+      try transcript.put(message, delta: delta)
+      messages = transcript.messages
+      return true
+    } catch {
+      stop()
+      status = .failed
+      detail = "Chat output exceeded its safety limit. Start a new conversation."
+      return false
+    }
+  }
+
+  // Ordinary timeline entries use the same budget as streamed assistant deltas and completions.
+  @discardableResult private func append(_ kind: AgentMessage.Kind, _ text: String) -> Bool {
+    storeMessage(.init(kind: kind, text: text))
+  }
+
+  // Changing permission is an explicit local action and invalidates any in-flight action or conversation turn.
+  public func setControlMode(_ mode: AgentControlMode) {
+    guard mode != controlMode else { return }
+    stop()
+    controlMode = mode
+  }
+
+  // Identity changes discard provider context and restore the safe default before the target can be reused.
+  public func resetTarget() {
+    clear()
+    contextIdentity = nil
+    controlMode = .review
+    detail = "Remote identity changed. Start a new conversation for this target."
+  }
+
+  // Only this exact pending action can be approved; identity, freshness, and ownership are rechecked after await.
+  public func approveAction(id: UUID) {
+    guard let approval = pendingApproval, approval.id == id else { return }
+    guard approval.targetIdentity == computer.identity else {
+      resetTarget()
+      return
+    }
+    guard status == .running, Date() <= approval.expiresAt else {
+      cancelApproval()
+      return
+    }
+    let continuation = approvalContinuation
+    approvalContinuation = nil
+    pendingApproval = nil
+    approvalDeadline?.cancel()
+    approvalDeadline = nil
+    continuation?.resume()
+  }
+
+  // Rejecting an action pauses the whole turn, preventing immediate re-proposals from bypassing the decision.
+  public func rejectAction(id: UUID) {
+    guard pendingApproval?.id == id else { return }
+    pause(reason: "Action rejected. Review the task before resuming.")
+  }
+
+  // The controller—not the model—enforces observation mode and holds exact actions for native approval.
+  private func authorize(_ action: AgentAction, screen: AgentScreen) async throws {
+    guard Date().timeIntervalSince(screen.capturedAt) <= 60 else {
+      throw AgentError("Observation expired. Read comet_screen again before acting.")
+    }
+    switch controlMode {
+    case .observe: throw AgentError("Observation-only mode blocks every action. Use comet_screen.")
+    case .fullControl: return
+    case .review:
+      let approval = AgentApproval(
+        id: UUID(), action: action, screen: screen, targetIdentity: computer.identity)
+      try await withCheckedThrowingContinuation { continuation in
+        approvalContinuation = continuation
+        pendingApproval = approval
+        detail = "Review the proposed action before allowing input."
+        approvalDeadline = Task { [weak self] in
+          do {
+            try await Task.sleep(for: .seconds(max(0, approval.expiresAt.timeIntervalSinceNow)))
+          } catch { return }
+          self?.pause(reason: "Action approval expired. Resume to read the current screen.")
+        }
+      }
+    }
+  }
+
+  // Cancellation always resolves the waiter once; no old approval can revive a stopped or replaced task.
+  private func cancelApproval() {
+    let continuation = approvalContinuation
+    approvalContinuation = nil
+    pendingApproval = nil
+    approvalDeadline?.cancel()
+    approvalDeadline = nil
+    continuation?.resume(throwing: CancellationError())
   }
 
   // Describe visible effects with a short text preview instead of exposing raw tool arguments.

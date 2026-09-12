@@ -18,7 +18,9 @@ struct JigglerSettingsView: View {
           Button("Apply") { session.setHID("jiggler_interval", value: String(interval)) }
             .disabled(
               !session.active || !(1...3600).contains(interval)
-                || interval == Int(session.state.hid["jiggler"]["interval"].number ?? 20))
+                || interval
+                  == (session.state.hid["jiggler"]["interval"].integer(in: 1...3600) ?? 20)
+            )
         }
         Text("1–3,600 seconds between movements while idle.").font(.caption).foregroundStyle(
           .secondary)
@@ -30,9 +32,9 @@ struct JigglerSettingsView: View {
       }
     }
     .disabled(!session.active)
-    .onAppear { interval = Int(session.state.hid["jiggler"]["interval"].number ?? 20) }
+    .onAppear { interval = (session.state.hid["jiggler"]["interval"].integer(in: 1...3600) ?? 20) }
     .onChange(of: session.state.hid["jiggler"]["interval"]) { _, value in
-      interval = Int(value.number ?? 20)
+      interval = (value.integer(in: 1...3600) ?? 20)
     }
     .sheet(isPresented: $editingSchedule) {
       JigglerScheduleEditor(

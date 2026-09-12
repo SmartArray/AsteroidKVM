@@ -290,6 +290,8 @@ final class ProtocolE2ETests: XCTestCase {
           executable: URL(fileURLWithPath: "/usr/bin/env"),
           arguments: ["python3", root.appendingPathComponent("scripts/mock-codex.py").path])
       })
+    // The loopback appliance and synthetic peer explicitly authorize autonomous input for this acceptance test.
+    agent.setControlMode(.fullControl)
     session.onAgentInterruption = { [weak agent] in agent?.pause() }
     defer {
       agent.stop()

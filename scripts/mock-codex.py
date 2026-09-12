@@ -3,9 +3,11 @@
 import json
 import os
 import sys
+import time
 
 turn = 0
 stage = 0
+approval_test = False
 screen_id = None
 read_only = os.environ.get("COMET_MOCK_CODEX_READ_ONLY") == "1"
 
@@ -94,6 +96,7 @@ for line in sys.stdin:
         assert message["params"]["ephemeral"] is True
         send({"id": request_id, "result": {"thread": {"id": "fixture-thread"}}})
     elif method == "turn/start":
+        approval_test = os.environ.get("COMET_MOCK_CODEX_REVIEW_TEST") == "1" and "Approval fixture" in message["params"]["input"][0]["text"]
         read_only = read_only or "Read only" in message["params"]["input"][0]["text"]
         turn += 1
         stage = 0
@@ -114,12 +117,18 @@ for line in sys.stdin:
         assert items[1]["imageUrl"].startswith("data:image/")
         screen_id = items[0]["text"].split("screenId: ")[1]
         stage += 1
-        if read_only:
+        if approval_test:
+            # A wait has no HID effects but passes through the same immutable approval boundary as typing.
+            if stage == 1:
+                tool("comet_action", {"screenId": screen_id, "action": "wait", "milliseconds": 0})
+            else:
+                complete()
+        elif read_only:
             if stage <= 5:
-                tool(
-                    "comet_action",
-                    {"screenId": screen_id, "action": "wait", "milliseconds": 2000},
-                )
+                # Observation-only fixtures never request input; a short UI-only delay leaves time to pause.
+                if os.environ.get("COMET_MOCK_CODEX_READ_ONLY") == "1":
+                    time.sleep(1)
+                tool("comet_screen", {})
             else:
                 complete()
         elif stage == 1:

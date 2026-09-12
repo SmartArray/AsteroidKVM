@@ -12,6 +12,8 @@ import UniformTypeIdentifiers
   private var screenSize: CGSize?
   private var sourceSize: CGSize?
   private var lastActionFrame: UUID?
+  public var identity: String { session?.profile.agentIdentity ?? "disconnected" }
+  private var leasedIdentity: String?
   public var available: Bool {
     session?.phase == .connected && session?.mailbox.snapshot() != nil
       && (session?.mailbox.frameAge ?? .infinity) < 3
@@ -33,6 +35,7 @@ import UniformTypeIdentifiers
     }
     session.releaseCapture()
     lease = UUID()
+    leasedIdentity = identity
     screenSize = nil
     lastActionFrame = nil
     session.agentOwnsInput = true
@@ -41,6 +44,7 @@ import UniformTypeIdentifiers
   // Invalidating the lease stops the next character or transition even if Codex interruption is delayed.
   public func release() {
     lease = nil
+    leasedIdentity = nil
     screenSize = nil
     session?.agentOwnsInput = false
     session?.output?.releaseAll()
@@ -155,7 +159,7 @@ import UniformTypeIdentifiers
   // Recheck the lease after every await because a pause, disconnect, or manual capture may have intervened.
   private func checkedLease() throws -> UUID {
     try Task.checkCancellation()
-    guard let lease, available, session?.agentOwnsInput == true else {
+    guard let lease, leasedIdentity == identity, available, session?.agentOwnsInput == true else {
       throw AgentError("Remote control is paused or disconnected.")
     }
     return lease

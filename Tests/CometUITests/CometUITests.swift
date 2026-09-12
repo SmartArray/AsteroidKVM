@@ -93,6 +93,7 @@ final class CometUITests: XCTestCase {
       .deletingLastPathComponent().deletingLastPathComponent()
     let app = XCUIApplication()
     app.launchEnvironment["COMET_MOCK_CODEX_READ_ONLY"] = "1"
+    app.launchEnvironment["COMET_MOCK_CODEX_REVIEW_TEST"] = "1"
     app.launchArguments = [
       "--ui-testing", "-ApplePersistenceIgnoreState", "YES", "--session-file", path,
       "-agentCodexPath", root.appendingPathComponent("scripts/mock-codex.py").path,
@@ -139,6 +140,20 @@ final class CometUITests: XCTestCase {
       }, object: chat)
     XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 30), .completed)
     XCTAssertEqual(chat.staticTexts["agent-status"].value as? String, "Ready")
+    // A harmless wait tests the native approval gate without clicking or typing on the remote machine.
+    composer.click()
+    composer.typeText("Approval fixture: propose one harmless wait.")
+    chat.buttons.matching(identifier: "agent-send").firstMatch.click()
+    let approve = chat.buttons.matching(identifier: "agent-approve-action").firstMatch
+    XCTAssertTrue(approve.waitForExistence(timeout: 15))
+    XCTAssertTrue(chat.buttons.matching(identifier: "agent-reject-action").firstMatch.exists)
+    approve.click()
+    let approved = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in
+        !approve.exists && (chat.staticTexts["agent-status"].value as? String) == "Ready"
+      }, object: chat)
+    XCTAssertEqual(XCTWaiter.wait(for: [approved], timeout: 15), .completed)
+
     let attachment = XCTAttachment(screenshot: chat.screenshot())
     attachment.name = "Agent chat after screen observation and pause-resume"
     attachment.lifetime = .keepAlways

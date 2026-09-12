@@ -1,177 +1,118 @@
-# Security review
+# Security review and remediation
 
-Reviewed on **2026-09-12**, against commit **`1d5c85718a337054fda14ff3b9405a9683080933`**. Source references and findings describe that revision. This review changes documentation only; the findings below remain open.
+**Reviewed and remediated:** 2026-09-12. The original review covered the implementation preceding commit `240899f` (the review-document commit after the author/committer rewrite). This document records the six findings, their fixes, verification, and remaining limitations. It is a focused source review with adversarial regression tests, not a security certification.
 
-## Assessment
+## Current assessment
 
-The client has useful controls around credentials, network redirects, ordered input, and agent interruption. The main security concern is the experimental agent: once granted control, its permitted keyboard and mouse tools can perform sensitive operations without an application-enforced approval. Instructions to the model provide behavioral guidance, but cannot establish an authorization boundary against hostile screen content.
+All six reported findings have code fixes and regression coverage. Agent control now defaults to **Approve each action**. **Observation only** blocks every action tool in the controller. **Full control** remains an explicit local choice for autonomous work and grants unreviewed input with the remote user's privileges; it does not protect against a model choosing destructive or inappropriate actions.
 
-The review also identified a reproducible crash from malformed device data, agent context surviving endpoint changes, and an ineffective transcript size limit. Address these before treating the agent as suitable for unattended operation on sensitive machines.
+Credentials remain scoped to the appliance transport and Keychain. Endpoint changes invalidate certificate exceptions and agent context. Untrusted numeric values no longer trap at the identified conversion sites. Agent text and transport queues have resource limits, and chat links cannot invoke local-file or custom application handlers.
 
-| ID | Severity | Finding | Evidence |
+| ID | Original severity | Status | Resolution |
 | :--- | :--- | :--- | :--- |
-| S-01 | High, conditional on agent control | Sensitive remote operations rely on model instructions for approval | Production controller exercised with a synthetic tool request |
-| S-02 | Medium | Unchecked numeric conversions let device responses terminate the client | Production JSON helper crashed in an isolated subprocess |
-| S-03 | Medium | Agent conversation survives a change of remote endpoint | Source trace across profile replacement and agent lifecycle |
-| S-04 | Medium | Assistant messages bypass transcript limits | 1,100 synthetic deltas produced 1,101 retained messages |
-| S-05 | Low | Certificate exceptions follow edited endpoints | Source trace across profile editing and certificate validation |
-| S-06 | Low | Model-generated Markdown permits local and custom URL schemes | Local Markdown parsing retained a `file:` link |
-
-Severity reflects impact and the access required to trigger the issue. “High” here describes potential remote-machine actions after the user enables the agent; it does not mean unauthenticated code execution on the Mac. No live prompt-injection attack or third-party binary exploit was attempted.
+| S-01 | High when agent control is enabled | Fixed | Application-enforced permission modes and single-use action approvals |
+| S-02 | Medium | Fixed | Exact, bounded numeric conversions and safe numeric formatting |
+| S-03 | Medium | Fixed | Target-bound conversations, identity invalidation, and lease checks |
+| S-04 | Medium | Fixed | Shared transcript budgets, pipe backpressure, bounded writes, and safe broken-pipe handling |
+| S-05 | Low | Fixed | Certificate exceptions cleared before endpoint edits are published or persisted |
+| S-06 | Low | Fixed | Web-only chat URL policy and explicit destination confirmation |
 
 ## Scope and trust boundaries
 
-The review covered the Swift authentication and persistence code, HTTP/WebSocket handling, media signaling and frame ownership, input delivery, session lifecycle, agent controller and subprocess adapter, chat rendering, build configuration, dependency declarations, tests, and GitHub Actions workflow.
+The review covered Swift authentication and persistence, HTTP/WebSocket handling, media signaling and frame ownership, input delivery, session lifecycle, agent subprocess handling, chat rendering, build configuration, dependency declarations, tests, and GitHub Actions.
 
-Assets include appliance passwords and tokens, remote display contents, clipboard text, microphone audio, remote keyboard/mouse authority, Codex account access, and distributed application artifacts. Relevant boundaries are:
+Protected assets include appliance passwords and tokens, screen contents, clipboard text, microphone audio, remote input authority, Codex account access, and application artifacts. Important boundaries are:
 
-- **Mac → appliance:** device identity and encryption must protect authentication, signaling, and input. A malicious appliance or a network attacker on an explicitly selected HTTP connection can control protocol responses.
-- **Remote screen → model → input:** screen content can be hostile even when the appliance and its TLS connection are legitimate. Valid input coordinates do not establish that an operation is authorized.
-- **Application → installed Codex process/provider:** the app intentionally sends screenshots and chat after consent. The installed executable and configured provider are trusted dependencies; the narrow `AgentComputer` interface does not sandbox the executable itself.
-- **Pull request → CI:** contributor-controlled code executes in the test job. Build artifacts must come from the trusted branch without exposing signing or hardware credentials to PR jobs.
+- **Mac to appliance:** TLS and endpoint identity protect authentication, signaling, and input. A faulty or malicious appliance can still supply malformed application data.
+- **Remote screen to model to input:** screen text is untrusted. Correct coordinates and a fresh image cannot establish whether the meaning of an action is authorized.
+- **Application to installed Codex/provider:** screenshots and chat are shared after local consent. The executable and configured provider remain trusted dependencies; the `AgentComputer` interface does not sandbox the executable itself.
+- **Pull request to CI:** contributor-controlled code runs in test jobs. Release artifacts are built only on pushes to `main`, after successful tests.
 
-This was a source review with focused local tests, not a full penetration test or certification. It did not access the real session credential file, send input to hardware, invoke a paid model, inspect provider retention, audit WebRTC machine code, perform a comprehensive CVE assessment, inspect GitHub repository settings, or scan all Git history. Existing screenshots were not subjected to a separate privacy audit.
+The original review did not test a live prompt-injection attack, audit WebRTC machine code, establish provider retention guarantees, perform a comprehensive CVE or Git-history scan, inspect repository settings, or separately audit existing documentation screenshots. Remediation verification uses local adversarial fixtures, the installed model against a synthetic computer, and the native UI against live Comet video. The UI approval fixture proposes a zero-input wait rather than typing or clicking on the remote machine.
 
-## Findings
+## Findings and fixes
 
-### S-01 — Remote action approval is advisory
+### S-01 — Remote action approval was advisory
 
-**Severity:** High when an enabled agent encounters hostile content. **Status:** Open; confirmed enforcement gap, with prompt-injection exploitability inferred rather than demonstrated against a live model.
+**Original issue:** instructions asked the model to request permission before destructive operations, publishing, purchases, and secrets, but any syntactically valid input tool could execute immediately. A fixture demonstrated typing despite a user prompt saying “read only.” This established an enforcement gap; successful prompt injection against a live model was not claimed.
 
-**Evidence:** [Agent instructions](../Sources/CometAgent/AgentTypes.swift#L80) ask the model to distrust screen text and request permission before destructive operations, publishing, purchases, and secrets. [Tool parsing](../Sources/CometAgent/AgentTypes.swift#L132) validates syntax, coordinates, key codes, and text length. [Tool execution](../Sources/CometAgent/AgentController.swift#L318) then invokes `computer.perform` without a separate user-approval decision. [Session input](../Sources/CometSession/SessionAgentComputer.swift#L111) allows general key chords and text, including Enter and Tab.
+**Fix:** [AgentController](../Sources/CometAgent/AgentController.swift) enforces [local permission modes](../Sources/CometAgent/AgentPolicy.swift). The default holds each immutable action for approval. An approval binds a UUID, exact action, screenshot, and endpoint/account/certificate identity. Approving by UUID cannot substitute new arguments. Parallel proposals and replayed approvals cannot execute. Pause, Stop, rejection, permission changes, identity changes, and expiration invalidate pending approval. Observations expire after 60 seconds, including in full-control mode.
 
-**Trigger and impact:** After the user grants remote control, misleading screen content or a mistaken model decision can produce an otherwise valid click, key chord, or typing operation. These tools can use the remote machine's terminal, send a message, change settings, or approve a dialog with the remote user's privileges. Disabling the local Mac shell does not constrain a terminal operated through the remote display. A fresh screen ID prevents replay of an observation; it does not authorize the meaning of the next action.
+[AgentChatView](../Sources/CometApp/AgentChatView.swift) displays the complete action and target in native UI. It exposes **Approve This Action**, **Reject and Pause**, and the permission picker. Full control has a visible explanation of its authority. Model text cannot change these local permissions. Input ownership is rechecked after asynchronous waits in [SessionAgentComputer](../Sources/CometSession/SessionAgentComputer.swift).
 
-**Local reproduction:** A fixture submitted “Read the screen only. Do not type or click.” It then supplied `comet_screen`, followed by a valid `comet_action` typing a harmless marker and newline. The production controller delivered one action to an in-memory computer without an approval step. No real desktop was affected. The same fixture confirmed that Pause rejected subsequent input.
+**Regression evidence:** [AgentSecurityTests](../Tests/CometCoreTests/AgentSecurityTests.swift) covers all five action types in observation mode, exact-action approval, substitution attempts, replay, cancellation, target changes, expiration, and old observations in full-control mode. [AgentTests](../Tests/CometCoreTests/AgentTests.swift) exercises approval through the actual stdio subprocess. [CometUITests](../Tests/CometUITests/CometUITests.swift) exercises the production approval button with live video and a harmless wait.
 
-**Recommendation:** Add an explicit observation-only mode enforced by the controller. For controlled execution, represent approval as application state bound to the endpoint and exact action or bounded action batch, and invalidate it on pause, cancellation, or identity changes. General desktop actions cannot be reliably classified as destructive by key-code filtering alone; an optional per-action review mode offers a concrete boundary. Clearly describe unrestricted control as granting the agent the remote user's input authority. Keep the existing model instructions as an additional defense.
+**Limit:** approvals authorize input, not semantic correctness or a guaranteed unchanged remote window. Users must inspect the action and display. Full control intentionally permits unreviewed actions; model instructions remain an additional behavioral defense, not an authorization boundary.
 
-**Regression criteria:** Observation-only sessions reject every input tool regardless of prompt or model output. Pending actions cannot execute until approved in trusted local UI. Changed arguments, a different target, and approval replay must fail. Preserve immediate Pause behavior.
+### S-02 — Device-controlled numbers could crash the application
 
-### S-02 — Device-controlled numbers can crash the application
+**Original issue:** converting a valid JSON number such as `1e100` to `Int` trapped in `JSONValue.text`. Similar unchecked conversions existed in ICE candidate indices, video controls, and Codex response IDs. This could terminate the whole client; memory corruption or code execution was not demonstrated.
 
-**Severity:** Medium. **Status:** Open; reproduced.
+**Fix:** [JSONValue.integer(in:)](../Sources/CometCore/Models.swift) verifies finite values, exact integer representability, and field bounds. Generic numeric text falls back to floating-point formatting instead of a trapping conversion. [Video presets](../Sources/CometCore/VideoControls.swift), numeric/jiggler UI controls, [ICE candidate indices](../Sources/CometMedia/JanusClient.swift), and [Codex response IDs](../Sources/CometAgent/CodexTransport.swift) use checked conversions. Invalid ICE indices fail the media connection; invalid Codex IDs close that subprocess transport.
 
-**Evidence:** [JSONValue.text](../Sources/CometCore/Models.swift#L65) converts an integral `Double` to `Int` without verifying representability. [Janus error handling](../Sources/CometMedia/JanusClient.swift#L89) passes a device-controlled error code through that helper. Other unchecked conversions include [ICE candidate indices](../Sources/CometMedia/JanusClient.swift#L122), [video preset bounds](../Sources/CometCore/VideoControls.swift#L20), and [Codex response IDs](../Sources/CometAgent/CodexTransport.swift#L167).
+**Regression evidence:** [SecurityTests](../Tests/CometCoreTests/SecurityTests.swift) covers `1e100`, negative extremes, rounded integer boundaries, fractions, non-finite values, and malformed video bounds. [TransportSecurityTests](../Tests/CometCoreTests/TransportSecurityTests.swift) sends overflowing, fractional, and negative response IDs through actual subprocess pipes and verifies graceful failure.
 
-**Trigger and impact:** A malicious or faulty appliance can supply a finite JSON number outside the integer range. The conversion traps instead of throwing a recoverable protocol error, terminating the whole client and its other sessions. An attacker on a plaintext connection can also inject such data. This is an availability finding; memory corruption or code execution was not demonstrated.
+### S-03 — Editing a target retained its previous agent conversation
 
-**Local reproduction:** Decoding the following with the production `JSONValue` and evaluating `value["error"]["code"].text` terminated an isolated subprocess with signal 5:
+**Original issue:** the session and cached agent kept their UUID when a saved connection changed endpoint. Pausing did not discard an existing provider thread, particularly after an idle completed turn. Old instructions and data could therefore carry into a different target.
 
-```json
-{"janus":"error","error":{"code":1e100}}
-```
+**Fix:** [ConnectionProfile.agentIdentity](../Sources/CometCore/Models.swift) identifies scheme, normalized host, port, account, and certificate exception using an unambiguous encoded tuple. [SessionController](../Sources/CometSession/SessionController.swift) encapsulates profile mutation and publishes an identity-change callback. [AppModel](../Sources/CometSession/AppModel.swift) uses it to clear the agent, destroy provider context, invalidate approval, and restore review mode, including for idle agents. The controller independently checks identity before reuse and on protocol events; the input adapter checks it against the acquired lease. Old transport callbacks have an independent generation guard. Chat consent resets for the new identity.
 
-The diagnostic was `Double value cannot be converted to Int because the result would be greater than Int.max`. The production Janus error branch uses the same expression. The payload was not delivered to the running application or hardware.
+**Regression evidence:** tests cover live and persisted endpoint changes, account and certificate changes, unchanged identity during display-only preferences, and replacement of a mutable fixture computer's identity while approval is pending. The latter verifies that subsequent work starts a new provider thread even without a session callback.
 
-**Recommendation:** Introduce shared checked integer decoding using finite/integral validation and `Int(exactly:)` or `Int32(exactly:)`, followed by field-specific bounds. Format generic numeric text without a trapping integer conversion. Reject malformed protocol fields before updating session/UI state. Avoid comparisons against `Double(Int.max)` alone because floating-point rounding makes that boundary unsafe.
+### S-04 — Assistant output bypassed transcript bounds
 
-**Regression criteria:** Test values around integer limits, `1e100`, negative candidate indices, fractional IDs, and malformed settings. An invalid message should fail the affected connection gracefully while leaving other sessions operational. Crash cases should run in subprocesses until fixed.
+**Original issue:** streamed deltas and completion messages mutated the transcript directly, bypassing its 1,000-message limit. Repeated deltas could grow a single message indefinitely. Complete protocol lines were dispatched to an unbounded main-queue backlog.
 
-### S-03 — Editing a target retains the previous agent conversation
+**Fix:** [AgentTranscript](../Sources/CometAgent/AgentPolicy.swift) owns all timeline mutations with a 1,000-message limit, 64 KiB per message, and 1 MiB total UTF-8 text/ID budget. Replacement completions and repeated deltas share the same accounting. Exceeding a limit stops control and reports a bounded error; **New Conversation** clears the store.
 
-**Severity:** Medium. **Status:** Open; source-verified, without a live cross-device reproduction.
+[CodexTransport](../Sources/CometAgent/CodexTransport.swift) caps the reader buffer at 1 MiB and admits only one complete event to the main queue at a time. Pipe backpressure prevents floods of tiny envelopes from becoming unbounded queued work. Screenshot writes have a separate 8 MiB pending-byte budget. Stale callbacks are rejected after Stop.
 
-**Evidence:** [AppModel.agent](../Sources/CometSession/AppModel.swift#L99) caches the controller by session UUID. [Profile replacement](../Sources/CometSession/SessionController.swift#L85) disconnects and updates that same session's endpoint. Disconnection invokes the agent's pause callback, but does not clear its thread. [Pause](../Sources/CometAgent/AgentController.swift#L163) retains conversation state; [begin](../Sources/CometAgent/AgentController.swift#L78) reuses an existing transport and thread. A completed, idle agent is not affected by `pause` at all.
+A stalled-writer test discovered an additional `SIGPIPE` crash when a child exited during a screenshot write. The input descriptor now uses Darwin's per-descriptor `F_SETNOSIGPIPE`, converting broken-pipe writes into errors. Closing the input handle runs on the serial writer queue so it cannot block the main actor. This uses a descriptor-scoped policy rather than changing signal handling for the entire application; the flag is documented in [Apple's XNU headers](https://github.com/apple/darwin-xnu/blob/main/bsd/sys/fcntl.h).
 
-**Trigger and impact:** Use the agent on machine A, then edit that saved connection to point to machine B while retaining its profile ID. After connecting to B, Resume or a follow-up can reuse A's conversation. Old instructions and information can influence input on B, and the model can mix data between targets. Endpoint editing is a user action; this finding does not imply that an appliance can silently rewrite a profile.
+**Regression evidence:** tests cover unique-message floods, repeated multibyte deltas, oversized completion text, aggregate byte limits, replacement accounting, 10,000 small subprocess events, oversized protocol envelopes, invalid response IDs, and a subprocess that stops reading. The stalled-writer regression verifies the write budget and that Stop returns in under one second without terminating the test process.
 
-**Recommendation:** Bind agent context to immutable connection identity: scheme, normalized host, port, username, and relevant trust identity. On identity change, stop and discard the old provider thread, invalidate all input approvals, and require a new conversation for the new target. Historical messages may remain available in a clearly labeled, separate transcript. Ordinary reconnects to the same identity can retain context if that behavior is explicit.
+**Limit:** these budgets constrain application-retained text and queued protocol work; they are not a whole-process memory quota for Codex, WebRTC, or the operating system.
 
-**Regression criteria:** Start a fixture conversation on A, replace the endpoint with B, and verify that B uses a new thread and cannot resume A's task. Repeat for account and certificate changes. Verify that display-only preference changes do not unnecessarily reset the conversation.
+### S-05 — Certificate approval followed edited endpoints
 
-### S-04 — Assistant output bypasses the transcript bound
+**Original issue:** a certificate exception approved for A remained in the profile when its host or port changed to B. B could use the same certificate/key without a new endpoint-specific approval. A different certificate still failed, so this was not an arbitrary-certificate bypass.
 
-**Severity:** Medium. **Status:** Open; reproduced.
+**Fix:** [ConnectionProfile.securingReplacement(of:)](../Sources/CometCore/Models.swift) clears the exception when scheme, normalized host, or port changes. Both profile persistence and live replacement apply this before saving/publishing the edited profile. Display-name changes and host capitalization alone preserve the intended exception.
 
-**Evidence:** [append](../Sources/CometAgent/AgentController.swift#L388) limits the transcript to 1,000 messages, but [assistant delta and completion handling](../Sources/CometAgent/AgentController.swift#L253) writes directly to `messages`. Individual message text also grows without a byte limit. The [transport reader](../Sources/CometAgent/CodexTransport.swift#L88) limits its current byte buffer, but dispatches complete lines to the main queue without an outstanding-work limit.
+**Regression evidence:** [SecurityTests](../Tests/CometCoreTests/SecurityTests.swift) checks persisted and live changes across all endpoint components. [TransportSecurityTests](../Tests/CometCoreTests/TransportSecurityTests.swift) uses a disposable self-signed HTTPS server to verify default rejection, acceptance after explicit fingerprint approval, and rejection of a mismatching fingerprint. No system trust anchor is installed. Real redirects verify same-origin credential retention and rejection of host changes, port changes, and HTTPS downgrades.
 
-**Trigger and impact:** A faulty, compromised, or excessively verbose app-server stream can retain arbitrarily many assistant messages or repeatedly grow one message. Many small valid envelopes evade the transport buffer limit. This can exhaust memory or stall the UI, reducing access to Pause. A remote screen alone does not directly emit these protocol events; exploiting it through the model would require influencing model output.
+**Policy:** the transport deliberately accepts normal system trust or an approved leaf exception. This is not strict pinning that rejects every normally trusted replacement certificate. [Apple's manual trust documentation](https://developer.apple.com/documentation/Foundation/performing-manual-server-trust-authentication) describes the evaluation boundary.
 
-**Local reproduction:** An in-process transport fixture delivered 1,100 small `item/agentMessage/delta` events with unique item IDs. The production controller retained **1,101 messages**, including the user prompt. The probe intentionally stopped before memory pressure or a UI stall.
+### S-06 — Chat links had no scheme policy
 
-**Recommendation:** Route all transcript mutations through one bounded store with message-count, per-message byte, and total-byte budgets. Batch streaming updates and add reader backpressure. On resource-limit violations, release agent input and surface a bounded error. Cap pending events independently of individual envelope size.
+**Original issue:** native Markdown retained `file:` and application-specific links without an opening policy. A local user click could invoke a handler outside the remote-computer task; automatic execution was not demonstrated.
 
-**Regression criteria:** Verify limits for unique item IDs, repeated deltas to one ID, completion messages, and floods of small envelopes. Confirm that limit enforcement keeps Pause responsive and releases input.
+**Fix:** [AgentLinkPolicy](../Sources/CometAgent/AgentPolicy.swift) allows only HTTP/HTTPS URLs with a host and no embedded credentials. The chat intercepts `openURL`, rejects other schemes, and reveals the full destination for confirmation before opening the browser. Rendering never opens links or fetches previews. The opening handler rechecks the policy when the user confirms.
 
-### S-05 — Certificate approval is not reset when the endpoint changes
+**Regression evidence:** tests parse a misleading Markdown label with a `file:` destination and verify rejection. They also cover JavaScript, SSH, application-specific schemes, credential-bearing web URLs, and accepted HTTP/HTTPS destinations. Native UI builds exercise the production integration; no custom handler is invoked by tests.
 
-**Severity:** Low, requiring an endpoint edit and reuse of the previously approved certificate/key. **Status:** Open; source-verified.
+## Verification
 
-**Evidence:** [ProfileEditor](../Sources/CometApp/ConnectionManagerView.swift#L111) edits a copy of the complete profile, including `certificateSHA256`, and saves it without clearing that field when host or port changes. [replaceProfile](../Sources/CometSession/SessionController.swift#L85) adopts the updated object unchanged. [DeviceTransport](../Sources/CometCore/CometAPI.swift#L95) checks a challenge against the profile's current host and port, so the old approval now applies to the edited endpoint.
-
-**Trigger and impact:** Approve an otherwise untrusted certificate for A, then edit the profile to B. If B presents the same certificate and possesses its private key, the client accepts it without a new approval, even though the user approved A. A different certificate still fails, so this is not an arbitrary-certificate bypass. Shared appliance certificates or a copied private key make the distinction relevant.
-
-**Recommendation:** Clear certificate approval whenever scheme, normalized host, or port changes, or persist the approved endpoint alongside the fingerprint and compare both. Explain legitimate certificate reuse through a new endpoint-specific confirmation.
-
-**Regression criteria:** An exception approved for A must not authorize B after editing host or port, even if B uses the same certificate. Unchanged endpoints must retain their intended trust behavior.
-
-**Related policy clarification:** The transport accepts normal system trust before checking the stored fingerprint. It therefore implements a certificate exception, not strict pinning that rejects every replacement certificate. This agrees with the transport's current comment and is not counted as another bypass. If strict pinning is desired, change both the policy and UI wording and test trusted-but-mismatching certificates. Apple's [manual server trust documentation](https://developer.apple.com/documentation/Foundation/performing-manual-server-trust-authentication) describes the trust-evaluation boundary.
-
-### S-06 — Chat links have no scheme policy
-
-**Severity:** Low; requires a local user click and an applicable URL handler. **Status:** Open; parsing reproduced, handler behavior not exercised.
-
-**Evidence:** [AgentMarkdownProse](../Sources/CometApp/AgentChatView.swift#L202) passes model text to `AttributedString(markdown:)` and then SwiftUI `Text` without an `openURL` policy or link-scheme filtering. A local parse of `[Open result](file:///private/tmp/review.txt)` retained the `file:` URL attribute.
-
-**Trigger and impact:** Model output can present a reassuring link label whose destination is a local file or an application-specific URL scheme. If clicked and handled by macOS, this can open local content or invoke another application outside the remote-machine task. The tested parsing behavior does not prove automatic URL opening or code execution; the user must interact with the link, and the destination handler determines its effects.
-
-**Recommendation:** Apply one explicit chat link policy, normally allowing only HTTP/HTTPS with the destination visible. Reject local-file and custom schemes unless a particular integration is deliberately supported and approved. Do not automatically fetch previews of model-generated links.
-
-**Regression criteria:** HTTP/HTTPS links follow the documented policy; `file:`, application-specific schemes, and misleading labels cannot dispatch unexpected local handlers. Rendering a message must never open or fetch its links.
-
-## Existing controls and remaining hardening work
-
-### Credentials and network transport
-
-[PasswordStore](../Sources/CometCore/ProfileStore.swift#L23) uses Keychain items scoped by scheme, host, port, and username. The profile model has no password/token fields; the round-trip and Keychain tests passed. Each [DeviceTransport](../Sources/CometCore/CometAPI.swift#L31) uses an ephemeral session with shared cookies, credentials, and caching disabled. The redirect callback rejects another host, scheme, or port, including an HTTPS downgrade. Authentication failures do not automatically retry mutations, and logout clears the API's token even if revocation fails.
-
-HTTPS is the default, but [HTTP is selectable with a warning](../Sources/CometApp/ConnectionManagerView.swift#L125), and [ATS permits arbitrary loads](../Resources/Info.plist). Selecting HTTP exposes passwords, tokens, input, and signaling to the network path. This is an explicit compatibility tradeoff, not a newly discovered silent downgrade. Consider a persistent insecure-connection indicator and a policy to disable HTTP for sensitive deployments. Certificate and redirect behavior still need dedicated TLS and redirect integration tests; the current authentication fixtures use loopback HTTP.
-
-A targeted scan of tracked text found no private-key blocks, GitHub token formats, OpenAI key formats, or AWS access-key IDs. This is not a general secret-scanner result or a history audit. The real session file remained outside the review. Also, `.gitignore` ignores `*.session.json` but does **not** match the hardware filename `comet-session.json`; adding that explicit name would reduce accidental commits if someone copies the file into the repository.
-
-### Agent and local privacy
-
-The UI [discloses screenshot/chat transmission and requires consent before Send](../Sources/CometApp/AgentChatView.swift#L76). Opening chat alone does not start the agent. `AgentComputer` exposes pixels and bounded input, without an appliance credential API. [CodexTransport](../Sources/CometAgent/CodexTransport.swift#L49) launches an executable with an argument array rather than interpolating prompts into a shell command. The controller rejects unrelated server requests and disables configured MCP servers for its thread.
-
-Those configuration overrides are a denylist against an independently installed executable and experimental protocol. The review did not establish a complete capability allowlist for every supported CLI version, OS-level isolation of the subprocess, or provider/local diagnostic retention. Add a version/capability compatibility check and fail closed when required restrictions cannot be confirmed. An empty working directory and a thread's `read-only` sandbox setting are not evidence that the entire subprocess cannot access the user's files or inherited environment.
-
-Pause invalidates input ownership before waiting for model interruption; the local tests verified this. Fresh screen IDs, geometry checks, bounded typing, a 150-action limit, and a 15-minute watchdog reduce operational risk. They do not make completed input reversible. Consider binding observations to an age limit as well as an ID: the adapter checks whether video is live, but an old model observation can remain actionable while newer frames arrive.
-
-OCR runs through local Vision processing. Microphone access is requested on demand and forwarding is stopped with the media session. The media mailbox clears on stop. Chat history intentionally survives Stop, and typed text previews remain in the transcript; users should understand that stopping control is not erasing the conversation.
-
-### Application and dependency distribution
-
-[Build configuration](../scripts/generate-project.py#L156) disables App Sandbox and uses ad-hoc signing. The existing release app reported `Signature=adhoc`, no TeamIdentifier, and flags `0x2(adhoc)`, without the hardened-runtime flag. This is documented development distribution, but provides less containment and publisher assurance than a hardened, Developer ID-signed release. Investigate isolating media decoding and the agent adapter where practical, and enable Hardened Runtime with narrowly justified exceptions before public signed distribution. Apple documents [Hardened Runtime](https://developer.apple.com/documentation/security/hardened-runtime) and [notarization requirements](https://developer.apple.com/documentation/security/resolving-common-notarization-issues).
-
-WebRTC is fixed to `153.0.0` in [Package.swift](../Package.swift), with a source revision in [Package.resolved](../Package.resolved). Its locally resolved package declares a binary download checksum. These controls constrain dependency substitution but do not prove that the binary is vulnerability-free or reproducibly built. Track upstream security fixes and record binary provenance; no claim about current CVE exposure is made here.
-
-### GitHub Actions
-
-The [workflow](../.github/workflows/macos.yml) uses `pull_request`, read-only repository permissions, SHA-pinned actions, and checkout without persisted credentials. It does not reference repository secrets or interpolate PR titles/bodies into shell commands. The release job requires passing unit tests and an explicit `push` to `refs/heads/main`. PR artifacts are not promoted into releases, and no shared build cache is configured. These choices align with GitHub's [secure-use guidance](https://docs.github.com/en/actions/reference/security/secure-use).
-
-The ZIP preserves bundle permissions and symlinks. The checksum verifies downloaded bytes but is not an independent publisher signature when distributed beside the same artifact. Before adding signing credentials, keep them confined to a protected release job. Repository rulesets, required reviews, fork-workflow approval settings, secret-scanning settings, and the actual hosted execution were not inspected. Consider ownership review for workflow changes and automated dependency/action update monitoring.
-
-## Validation performed
-
-| Check | Result and limits |
+| Check | Result |
 | :--- | :--- |
-| `./scripts/test.sh --unit` | 18 tests passed, 0 failures; isolated Keychain item and deterministic subprocess fixtures |
-| Authentication/session-isolation and failed-authentication/oversize-paste protocol tests | 2 tests passed, 0 failures; local HTTP fixture only |
-| Production controller probe | Unauthorized-by-prompt fixture typing reached the in-memory computer; Pause blocked subsequent input |
-| Production transcript probe | 1,101 retained messages after 1,100 small assistant deltas |
-| Production JSON probe | `1e100` numeric error field caused an isolated Swift integer-conversion trap |
-| Markdown attribute probe | `file:` destination survived parsing; no URL handler invoked |
-| `actionlint .github/workflows/macos.yml` | Passed |
-| Existing release signature inspection | Ad-hoc signature, no TeamIdentifier or hardened-runtime flag |
-| Targeted tracked-text secret-format scan | No matches for the four enumerated formats; exclusions and limits noted above |
+| `./scripts/test.sh --unit` after final queue cleanup | **37 passed**, 0 failures; same selection used by GitHub Actions |
+| `COMET_CODEX_E2E=1 swift test` | 51 discovered; **49 passed**, 2 explicitly opt-in hardware tests skipped, 0 failures |
+| Installed Codex vision/action test | Passed against a synthetic in-memory computer; no real remote input |
+| Native H.264/WebRTC/Metal and HID integration | Passed through loopback Janus/Comet fixtures; native VideoToolbox path reported zero CPU frame copies |
+| `./scripts/test.sh --ui-hardware` | **3 passed**, including live-screen pause/resume, native action approval of a zero-input wait, connection editing, and fullscreen |
+| Stalled-writer, event-flood, malformed-ID, and TLS/redirect tests | Passed; included in the final suite and CI selection |
+| `./scripts/build.sh` | Universal release build succeeded; arm64/x86_64 and ad-hoc signature verified |
+| Workflow and source checks | `actionlint`, Python fixture syntax, local documentation links, and `git diff --check` passed |
 
-The temporary probes compiled the repository's actual `CometCore` and `CometAgent` sources and used synthetic inputs. They were not added to the production test suite. Passing existing tests does not close the findings: those tests do not assert the missing security properties.
+The native UI result is `build/DerivedData/Logs/Test/Test-CometKVM-2026.09.12_10-19-14-+0200.xcresult` (local, ignored artifact). An earlier UI run failed during Xcode's initial application launch before reaching the agent assertions; the complete rerun passed. The original numeric crash and stalled-writer SIGPIPE were reproduced before their fixes; their regression tests now pass. Existing real-device poem verification remains historical and was not repeated during this remediation.
 
-## Remediation order
+## Existing controls and remaining work
 
-1. Establish application-enforced agent permissions and approval behavior, then add adversarial regression coverage for S-01.
-2. Remove trapping numeric conversions at all protocol boundaries and verify graceful failures for S-02.
-3. Bind conversation state and certificate exceptions to endpoint identity for S-03 and S-05.
-4. Bound streamed transcript storage and queued events for S-04; restrict chat link handling for S-06.
-5. Add TLS/redirect integration tests and verify CLI capability restrictions. Address release signing, containment, dependency provenance, and repository protections as distribution requirements.
+- **Credentials:** Keychain items remain scoped to scheme/host/port/account, and profiles cannot encode passwords or tokens. The API uses ephemeral sessions with shared cookie, credential, and cache storage disabled. Logout clears its local token even when revocation fails. The original targeted tracked-file scan found none of the enumerated private-key, GitHub-token, OpenAI-key, or AWS-access-key formats; it was not a complete secret or history audit. `.gitignore` now explicitly excludes `comet-session.json` as well as `*.session.json`.
+- **Plain HTTP:** HTTPS remains the default. HTTP is an explicit, warned compatibility option and exposes authentication, input, and signaling to the network path. It has not been removed. Deployments requiring encrypted transport must use HTTPS and may wish to disable HTTP by policy.
+- **CLI/provider trust:** the adapter launches the installed executable directly, requests an ephemeral read-only thread, disables configured integrations, and rejects unrelated server requests. Its feature overrides remain version-sensitive. A full capability allowlist/version compatibility gate, independent subprocess sandbox, and provider/local diagnostic-retention guarantees remain follow-up work. A successful installed-model test is interoperability evidence, not proof that every CLI version has identical restrictions.
+- **Privacy and interruption:** OCR uses local Vision processing. Microphone forwarding is opt-in and stops with media. The frame mailbox clears on stop. Chat text and typed-text previews intentionally remain visible after Stop until cleared. Already delivered remote input cannot be rolled back.
+- **Distribution:** the app remains ad-hoc signed with App Sandbox disabled. Developer ID signing, notarization, Hardened Runtime compatibility/entitlements, and process isolation require separate distribution work. These fixes do not claim to provide an OS sandbox or publisher identity.
+- **Dependencies:** WebRTC remains pinned to `153.0.0` and a source revision; its resolved binary package declares a download checksum. Binary provenance, reproducible builds, ongoing upstream security monitoring, and a complete CVE assessment remain separate work. No claim of zero dependency vulnerabilities is made.
+- **CI:** the workflow uses `pull_request`, read-only repository permissions, SHA-pinned actions, checkout without persisted credentials, and a push-to-`main` release guard after tests. CI now includes the security regression/TLS fixtures. It does not reference signing or hardware credentials, interpolate PR prose into shell commands, or promote PR artifacts into releases. This follows [GitHub's secure-use guidance](https://docs.github.com/en/actions/reference/security/secure-use). Rulesets, required reviews, fork approvals, secret-scanning settings, workflow ownership, and hosted execution have not been audited. ZIP checksums provide integrity checking, not independent publisher authentication.
