@@ -27,6 +27,9 @@ import MetalKit
   // Native popovers and sheets retain local focus; automatic capture occurs only on activation or connection.
   public var allowsAutomaticCapture = true
   private var wasSessionActive = false
+
+  // A dismantled surface must reject queued focus work and input while deferred session cleanup runs.
+  private var isTornDown = false
   private var capsLock = false
   private var lastMouseTime = 0.0
   private var tracking: NSTrackingArea?
@@ -176,7 +179,7 @@ import MetalKit
 
   // Give the active display keyboard focus and use the session registry to release input on other connections.
   private func focusRemoteDisplay() {
-    guard allowsAutomaticCapture, let window, window.isKeyWindow, NSApp.isActive,
+    guard !isTornDown, allowsAutomaticCapture, let window, window.isKeyWindow, NSApp.isActive,
       window.attachedSheet == nil, !window.isMiniaturized, session.active,
       session.pendingCertificate == nil, session.ocrText == nil,
       !session.ocrSelecting, !session.ocrBusy, !session.pasting
@@ -206,6 +209,7 @@ import MetalKit
 
   // Release remote input before another local control becomes the editing target.
   public override func resignFirstResponder() -> Bool {
+    guard !isTornDown else { return true }
     session.releaseCapture()
     cancelSelection()
     return true
@@ -225,15 +229,25 @@ import MetalKit
     cursorUpdate(with: event)
   }
 
-  // Remove observers and selection resources when the surface is no longer presented.
+  // SwiftUI holds its graph access during dismantling, so only view-local cleanup may run synchronously.
   public func teardown() {
+    guard !isTornDown else { return }
+    isTornDown = true
     allowsAutomaticCapture = false
-    cancelSelection()
-    session.releaseCapture()
+    captureObservation?.cancel()
+    captureObservation = nil
+    cancelComposition()
+    clearSelection()
+    clickPreviewView.show(at: nil)
     metalView?.isPaused = true
     metalView?.delegate = nil
     observers.forEach(NotificationCenter.default.removeObserver)
     observers.removeAll()
+
+    // Retain the session, not the disappearing view, until capture and OCR can publish outside graph destruction.
+    Task { @MainActor [session] in
+      session.releaseCapture()
+    }
   }
 
   // A frozen frame and fixed geometry make OCR selection deterministic while the stream continues receiving.
@@ -298,8 +312,8 @@ import MetalKit
     session.cancelOCR()
   }
   private var canSend: Bool {
-    session.captured && window?.isKeyWindow == true && window?.firstResponder === self
-      && !session.pasting && !session.ocrSelecting
+    !isTornDown && session.captured && window?.isKeyWindow == true
+      && window?.firstResponder === self && !session.pasting && !session.ocrSelecting
   }
 
   // Convert AppKit window coordinates into the same local coordinates used by rendering.
