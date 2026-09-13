@@ -26,7 +26,7 @@ The app does not import that file automatically. Its token is never added to sav
 
 ## Controls
 
-- Click the display to capture remote input. The first click captures; subsequent clicks are forwarded.
+- Activating a connected remote-display window focuses its screen and captures keyboard/mouse input automatically. Initial connection also captures when that window is active. Local dialogs and popovers retain their controls. After explicitly releasing input, click the display or reactivate its window to capture again.
 - **⌃⌥⌘Escape** releases remote input. **⌃⌘F** toggles native fullscreen.
 - Escape cancels OCR selection first, and otherwise reaches the remote computer while captured.
 - **⌘Q**, **⌘W**, and **⌘,** remain local. Other captured Command shortcuts go to the remote computer, except enabled **⌘V** paste.
@@ -55,7 +55,7 @@ Changing permission stops the current turn. Changing host, port, scheme, account
 
 Enable the remote-control/screenshot toggle, enter a task such as “Create a new text document and write a poem about apples,” and press **Send** or **⌘Return**. Screenshots and chat go to your configured Codex provider using your existing account and usage limits. This is not local model inference; device credentials remain inside the KVM client.
 
-**Pause / Resume** stays in the chat header and appears beside the remote video while active. Clicking the remote display takes manual control and pauses the agent. Closing chat, disconnecting, changing input configuration, or sleeping also interrupts automation. **⌃⌥⌘Escape** pauses agents and releases input. Resume starts from a fresh screen and preserves the task, including a prompt paused before Codex finished connecting. **Stop** ends the Codex process; **New Conversation** also clears the visible history.
+**Pause / Resume** stays in the chat header and appears beside the remote video while active. Activating the remote display window takes manual control and pauses the agent. Closing chat, disconnecting, changing input configuration, or sleeping also interrupts automation. **⌃⌥⌘Escape** pauses agents and releases input. Resume starts from a fresh screen and preserves the task, including a prompt paused before Codex finished connecting. **Stop** ends the Codex process; **New Conversation** also clears the visible history.
 
 The agent can observe, click/double-click, press balanced key chords, type, scroll, and wait. Text is sent character by character, so Pause stops further typing; a character already sent to the appliance may finish. It requires live video and absolute mouse mode. Each turn pauses after 150 actions or 15 minutes. Conversations remain in app memory and use ephemeral Codex threads. The app-server dynamic-tool API is experimental and may require adaptation after a Codex upgrade.
 

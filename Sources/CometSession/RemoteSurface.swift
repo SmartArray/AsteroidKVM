@@ -23,6 +23,10 @@ import MetalKit
   private var selectionStart: CGPoint?
   private var selectionGeometry: DisplayGeometry?
   private var observers: [NSObjectProtocol] = []
+
+  // Native popovers and sheets retain local focus; automatic capture occurs only on activation or connection.
+  public var allowsAutomaticCapture = true
+  private var wasSessionActive = false
   private var capsLock = false
   private var lastMouseTime = 0.0
   private var tracking: NSTrackingArea?
@@ -122,6 +126,20 @@ import MetalKit
       fullscreenDelegate = delegate
       window.delegate = delegate
     }
+
+    // React to both window switching and returning to the app with its display window already selected.
+    for (name, object) in [
+      (NSWindow.didBecomeKeyNotification, window as AnyObject?),
+      (NSApplication.didBecomeActiveNotification, nil),
+    ] {
+      observers.append(
+        NotificationCenter.default.addObserver(forName: name, object: object, queue: .main) {
+          [weak self] _ in
+          Task { @MainActor in self?.focusRemoteDisplay() }
+        })
+    }
+    Task { @MainActor [weak self] in self?.focusRemoteDisplay() }
+
     for name in [
       NSWindow.didResignKeyNotification, NSWindow.willEnterFullScreenNotification,
       NSWindow.willExitFullScreenNotification,
@@ -156,6 +174,18 @@ import MetalKit
       })
   }
 
+  // Give the active display keyboard focus and use the session registry to release input on other connections.
+  private func focusRemoteDisplay() {
+    guard allowsAutomaticCapture, let window, window.isKeyWindow, NSApp.isActive,
+      window.attachedSheet == nil, !window.isMiniaturized, session.active,
+      session.pendingCertificate == nil, session.ocrText == nil,
+      !session.ocrSelecting, !session.ocrBusy, !session.pasting
+    else { return }
+    if let editor = window.firstResponder as? NSTextView, editor.isFieldEditor { return }
+    guard window.makeFirstResponder(self) else { return }
+    if !session.captured { session.capture() }
+  }
+
   // Track only this view in its active window so unfocused sessions cannot capture pointer motion.
   public override func updateTrackingAreas() {
     super.updateTrackingAreas()
@@ -181,9 +211,12 @@ import MetalKit
     return true
   }
 
-  // OCR already released remote input; preserve its armed state and any drag when the pointer leaves.
+  // Balance held input at the view edge while keeping keyboard capture tied to window focus, not pointer position.
   public override func mouseExited(with event: NSEvent) {
-    if !session.ocrSelecting { session.releaseCapture() }
+    if canSend {
+      _ = session.input.releaseAll()
+      session.output?.releaseAll()
+    }
     NSCursor.arrow.set()
   }
 
@@ -194,6 +227,7 @@ import MetalKit
 
   // Remove observers and selection resources when the surface is no longer presented.
   public func teardown() {
+    allowsAutomaticCapture = false
     cancelSelection()
     session.releaseCapture()
     metalView?.isPaused = true
@@ -204,6 +238,12 @@ import MetalKit
 
   // A frozen frame and fixed geometry make OCR selection deterministic while the stream continues receiving.
   public func synchronize() {
+    // Defer capture until SwiftUI finishes updating; repeated video/state updates must not undo an explicit release.
+    let becameActive = session.active && !wasSessionActive
+    wasSessionActive = session.active
+    if becameActive { Task { @MainActor [weak self] in self?.focusRemoteDisplay() } }
+
+    // Clear unfinished composition whenever the active input mode no longer accepts it.
     if !canSend || !session.input.nativeLayout || !session.input.mappedTextSupported {
       cancelComposition()
     }

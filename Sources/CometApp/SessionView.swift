@@ -17,7 +17,10 @@ struct SessionView: View {
   // Keep live video dominant and place occasional controls in native popovers and sheets.
   var body: some View {
     ZStack {
-      RemoteDisplayView(session: session)
+      // Local controls keep focus while open; activating an unobstructed display grants remote input automatically.
+      RemoteDisplayView(
+        session: session,
+        allowsAutomaticCapture: !keyboardOpen && !displayOpen && !diagnosticsOpen && !rebootConfirm)
       if !session.active && !session.ocrSelecting {
         VStack(spacing: 16) {
           Image(systemName: "desktopcomputer").font(.system(size: 42)).foregroundStyle(.secondary)

@@ -111,7 +111,7 @@ struct AgentChatView: View {
           )
           .font(.caption).accessibilityIdentifier("agent-consent")
           Text(
-            "Uses your Codex account and usage limits. Pause stops further input; a character already sent may finish. Clicking the remote display pauses the agent."
+            "Uses your Codex account and usage limits. Pause stops further input; a character already sent may finish. Activating the remote display window pauses the agent."
           )
           .font(.caption2).foregroundStyle(.secondary)
         }

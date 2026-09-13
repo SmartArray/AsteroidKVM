@@ -20,7 +20,9 @@ final class CometUITests: XCTestCase {
     ]
     app.launch()
     defer { app.terminate() }
-    app.typeKey("n", modifierFlags: .command)
+    // Open the local manager through its menu because a focused display now captures ordinary Command shortcuts.
+    app.menuBars.menuBarItems["File"].click()
+    app.menuItems["Connections…"].click()
     let window = app.windows["Comet Test Session"]
     guard window.waitForExistence(timeout: 15) else {
       XCTFail("Expected the imported session window. " + app.debugDescription)
@@ -185,7 +187,9 @@ final class CometUITests: XCTestCase {
     ]
     app.launch()
     defer { app.terminate() }
-    app.typeKey("n", modifierFlags: .command)
+    // Open the local manager through its menu because a focused display now captures ordinary Command shortcuts.
+    app.menuBars.menuBarItems["File"].click()
+    app.menuItems["Connections…"].click()
     let remote = app.windows["Comet Test Session"]
     XCTAssertTrue(remote.waitForExistence(timeout: 15))
     let trust = remote.sheets.buttons["Trust This Device"]
@@ -202,6 +206,20 @@ final class CometUITests: XCTestCase {
       return
     }
 
+    // Connection completion focuses the display without a capture click; explicit release remains effective.
+    let captureStatus = remote.staticTexts["capture-status"]
+    func isCaptured() -> Bool {
+      (captureStatus.value as? String ?? captureStatus.label).hasPrefix("Remote input")
+    }
+    let captured = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in isCaptured() }, object: remote)
+    XCTAssertEqual(XCTWaiter.wait(for: [captured], timeout: 5), .completed)
+    app.typeKey(.escape, modifierFlags: [.control, .option, .command])
+    let staysReleased = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in isCaptured() }, object: remote)
+    staysReleased.isInverted = true
+    XCTAssertEqual(XCTWaiter.wait(for: [staysReleased], timeout: 1), .completed)
+
     // Enable only the native typing preference; the pending dead key never leaves this Mac.
     remote.buttons["keyboard-toolbar"].firstMatch.click()
     let native = app.checkBoxes["native-layout-toggle"].firstMatch
@@ -211,10 +229,24 @@ final class CometUITests: XCTestCase {
       return
     }
     if native.value as? String != "1" { native.click() }
+    XCTAssertFalse(isCaptured(), "The keyboard popover must not grant remote input")
     app.typeKey(.escape, modifierFlags: [])
-    let display = remote.descendants(matching: .any).matching(identifier: "remote-display")
-      .firstMatch
-    display.click()
+    app.menuBars.menuBarItems["File"].click()
+    app.menuItems["Connections…"].click()
+    XCTAssertFalse(isCaptured(), "Switching away must release remote input")
+    remote.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
+      .withOffset(CGVector(dx: 0, dy: 12)).click()
+    let refocused = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in isCaptured() }, object: remote)
+    XCTAssertEqual(XCTWaiter.wait(for: [refocused], timeout: 5), .completed)
+    // Returning from another app must also recapture the same display window without a screen click.
+    XCUIApplication(bundleIdentifier: "com.apple.finder").activate()
+    XCTAssertFalse(isCaptured(), "Leaving the app must release remote input")
+    app.activate()
+    let reactivated = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in isCaptured() }, object: remote)
+    XCTAssertEqual(XCTWaiter.wait(for: [reactivated], timeout: 5), .completed)
+    // The very first typed key after activation reaches AppKit composition without clicking the display.
     XCTAssertEqual(TISSelectInputSource(german), noErr)
     app.typeKey("n", modifierFlags: .option)
     let preview = remote.staticTexts["native-composition"].firstMatch
@@ -252,7 +284,9 @@ final class CometUITests: XCTestCase {
     ]
     app.launch()
     defer { app.terminate() }
-    app.typeKey("n", modifierFlags: .command)
+    // Open the local manager through its menu because a focused display now captures ordinary Command shortcuts.
+    app.menuBars.menuBarItems["File"].click()
+    app.menuItems["Connections…"].click()
     let remote = app.windows["Comet Test Session"]
     XCTAssertTrue(remote.waitForExistence(timeout: 15))
     let trust = remote.sheets.buttons.matching(identifier: "Trust This Device").firstMatch
@@ -399,7 +433,9 @@ final class CometUITests: XCTestCase {
     // Ignore restored windows so every run starts with the isolated, empty connection store.
     app.launchArguments = ["--ui-testing", "-ApplePersistenceIgnoreState", "YES"]
     app.launch()
-    app.typeKey("n", modifierFlags: .command)
+    // Open the local manager through its menu because a focused display now captures ordinary Command shortcuts.
+    app.menuBars.menuBarItems["File"].click()
+    app.menuItems["Connections…"].click()
     XCTAssertTrue(app.buttons["add-connection"].waitForExistence(timeout: 10))
     app.buttons["add-connection"].click()
     let name = app.textFields["profile-name"]
