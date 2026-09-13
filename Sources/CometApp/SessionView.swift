@@ -432,21 +432,33 @@ struct OCRResultView: View {
           session.ocrText?.isEmpty == false
             ? session.ocrText! : "No text found. Try selecting a larger or sharper area."
         ).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+          .accessibilityIdentifier("ocr-result-text")
       }.frame(minHeight: 160)
       HStack {
         Text("Recognized locally on this Mac").font(.caption).foregroundStyle(.secondary)
         Spacer()
-        Button("Copy") {
+        // Cancel discards recognition without touching the clipboard; Escape follows the same path.
+        Button("Cancel", role: .cancel) { close() }
+          .keyboardShortcut(.cancelAction).accessibilityIdentifier("ocr-cancel")
+
+        // Copy the complete result once and dismiss only after the clipboard accepts it.
+        Button("Copy & Close") {
+          guard let text = session.ocrText, !text.isEmpty else { return }
           NSPasteboard.general.clearContents()
-          NSPasteboard.general.setString(session.ocrText ?? "", forType: .string)
-        }.disabled(session.ocrText?.isEmpty != false)
-        Button("Done") {
-          session.ocrText = nil
-          dismiss()
-        }.keyboardShortcut(.defaultAction)
+          if NSPasteboard.general.setString(text, forType: .string) { close() }
+        }
+        .disabled(session.ocrText?.isEmpty != false)
+        .keyboardShortcut(.defaultAction).accessibilityIdentifier("ocr-copy-close")
       }
     }.padding(24).frame(width: 540, height: 320)
   }
+
+  // Clear the session's retained recognition before dismissing its native sheet.
+  private func close() {
+    session.ocrText = nil
+    dismiss()
+  }
+
 }
 
 // Keep Pause reachable beside the remote image even when the chat is behind another window.

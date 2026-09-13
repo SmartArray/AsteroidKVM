@@ -33,7 +33,7 @@ The app does not import that file automatically. Its token is never added to sav
 - Use **Keyboard** to choose the target OS keymap, paste, send shortcuts, or enable native-layout typing when the daemon advertises it.
 - Use **Display** for advertised encoder controls and local Fit, Fill, Actual Size, and rotation.
 - Use **Settings → Devices** for the selected Comet's USB functions, audio, mouse, and keyboard settings.
-- **Text Recognition** freezes a received frame and runs OCR on the Mac. Drag within the image; Escape cancels.
+- **Text Recognition** freezes a received frame and runs OCR on the Mac. Drag within the image; Escape cancels. In the result dialog, **Cancel** dismisses without changing the clipboard; **Copy & Close** copies the recognized text and dismisses.
 
 ## Experimental Codex agent
 

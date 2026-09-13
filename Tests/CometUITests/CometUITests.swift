@@ -1,4 +1,5 @@
 // Exercise the shipped AppKit/SwiftUI application through macOS accessibility and native windows.
+import AppKit
 import Carbon
 import XCTest
 
@@ -32,6 +33,9 @@ final class CometUITests: XCTestCase {
     {
       trust.click()
     }
+
+    let reconnect = window.buttons["session-connect"].firstMatch
+    if reconnect.exists && reconnect.isEnabled { reconnect.click() }
 
     // Diagnostics are production UI; observe counters rather than injecting a synthetic video source.
     let connected = XCTNSPredicateExpectation(
@@ -84,28 +88,35 @@ final class CometUITests: XCTestCase {
     XCTAssertEqual(after.1, before.1, "Fullscreen must preserve the existing WebRTC connection")
 
     // The native selection toggle must survive leaving the window and follow Escape and repeated clicks.
-    let selection = window.descendants(matching: .any).matching(identifier: "ocr-toolbar")
+    let selection = window.checkBoxes.matching(identifier: "ocr-toolbar")
       .firstMatch
     let display = window.descendants(matching: .any).matching(identifier: "remote-display")
       .firstMatch
-    XCTAssertEqual(selection.value as? String, "Off")
+    // Native checkboxes can expose NSNumber values; do not mistake a selected checkbox for a missing String.
+    func selectionIsOn() -> Bool {
+      if let number = selection.value as? NSNumber { return number.boolValue }
+      return ["1", "On"].contains(selection.value as? String ?? "")
+    }
+    XCTAssertFalse(selectionIsOn())
     selection.click()
-    XCTAssertEqual(selection.value as? String, "On")
+    XCTAssertTrue(selectionIsOn())
     let outside = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1))
       .withOffset(CGVector(dx: 0, dy: 20))
     outside.hover()
     display.hover()
-    XCTAssertEqual(selection.value as? String, "On", "Pointer exit must not untoggle selection")
+    XCTAssertTrue(
+      selectionIsOn(),
+      "Pointer exit must not untoggle selection")
     let armed = XCTAttachment(screenshot: window.screenshot())
     armed.name = "Text selection remains highlighted after pointer re-entry"
     armed.lifetime = .keepAlways
     add(armed)
     app.typeKey(.escape, modifierFlags: [])
-    XCTAssertEqual(selection.value as? String, "Off")
+    XCTAssertFalse(selectionIsOn())
     selection.click()
-    XCTAssertEqual(selection.value as? String, "On")
+    XCTAssertTrue(selectionIsOn())
     selection.click()
-    XCTAssertEqual(selection.value as? String, "Off")
+    XCTAssertFalse(selectionIsOn())
 
     // A drag after re-entry must reach local Vision and reset the toggle when its result is presented.
     selection.click()
@@ -117,8 +128,42 @@ final class CometUITests: XCTestCase {
     let result = window.sheets.staticTexts["Recognized Text"]
     XCTAssertTrue(
       result.waitForExistence(timeout: 15), "Re-entering must leave OCR ready to select")
-    XCTAssertEqual(selection.value as? String, "Off")
-    window.sheets.buttons.matching(identifier: "Done").firstMatch.click()
+    XCTAssertFalse(selectionIsOn())
+    // Preserve every clipboard representation while checking that Cancel leaves it untouched.
+    let clipboard = NSPasteboard.general
+    let originalItems: [NSPasteboardItem] =
+      clipboard.pasteboardItems?.map { item in
+        let copy = NSPasteboardItem()
+        for type in item.types {
+          if let data = item.data(forType: type) { copy.setData(data, forType: type) }
+        }
+        return copy
+      } ?? []
+    defer {
+      clipboard.clearContents()
+      clipboard.writeObjects(originalItems)
+    }
+    let sentinel = "Asteroid OCR clipboard fixture"
+    clipboard.clearContents()
+    clipboard.setString(sentinel, forType: .string)
+    window.sheets.buttons["ocr-cancel"].firstMatch.click()
+    XCTAssertTrue(result.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(
+      clipboard.string(forType: .string) == sentinel, "Cancel must not change the clipboard")
+
+    // A second real recognition verifies that Copy & Close copies the displayed result and dismisses the sheet.
+    selection.click()
+    start.click(forDuration: 0.2, thenDragTo: end)
+    XCTAssertTrue(result.waitForExistence(timeout: 15))
+    let text = window.sheets.staticTexts["ocr-result-text"].firstMatch
+    let expected = text.value as? String ?? text.label
+    let copy = window.sheets.buttons["ocr-copy-close"].firstMatch
+    XCTAssertEqual(copy.label, "Copy & Close")
+    XCTAssertTrue(copy.isEnabled, "The live test region must contain readable text")
+    copy.click()
+    XCTAssertTrue(result.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(
+      clipboard.string(forType: .string) == expected, "Copy must contain the recognized text")
   }
 
   // Verify real WindowServer dead keys on live video without committing text to the remote machine.
