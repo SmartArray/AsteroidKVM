@@ -8,13 +8,20 @@ case "${1:-local}" in
     ;;
   --unit)
     # Keep hosted CI deterministic: these suites use local fixtures and never require GPU, UI, or account access.
-    swift test --filter 'CometCoreTests\.(InputTests|GeometryAndStorageTests|AgentTests|SecurityTests|AgentSecurityTests|TransportSecurityTests)/' \
+    swift test --filter 'CometCoreTests\.(InputTests|GeometryAndStorageTests|AgentTests|SecurityTests|AgentSecurityTests|TransportSecurityTests|EDIDTests)/' \
       --skip 'AgentTests/testInstalledCodexVisionAndDynamicToolEndToEnd'
     ;;
   --hardware)
     export COMET_E2E_SESSION="${COMET_E2E_SESSION:-$HOME/.cache/qrx/comet-session.json}"
     test -r "$COMET_E2E_SESSION"
     swift test --filter HardwareE2ETests/testRealCometAuthenticationStateHIDVideoAndRendering
+    ;;
+  --edid-hardware)
+    # Apply a supported monitor profile, verify fresh video, and restore the captured EDID exactly.
+    export COMET_E2E_SESSION="${COMET_E2E_SESSION:-$HOME/.cache/qrx/comet-session.json}"
+    export COMET_EDID_E2E=1
+    test -r "$COMET_E2E_SESSION"
+    swift test --filter EDIDHardwareTests
     ;;
   --ui)
     xcodebuild -project CometKVM.xcodeproj -scheme CometKVM -destination 'platform=macOS' \
@@ -47,7 +54,7 @@ case "${1:-local}" in
     swift test --filter ProtocolE2ETests/testNativeWebRTCVideoEndToEndThroughJanusAndMetal
     ;;
   *)
-    printf 'Usage: scripts/test.sh [local|--unit|--hardware|--ui|--ui-hardware|--video|--agent|--agent-hardware|--text-input]\n' >&2
+    printf 'Usage: scripts/test.sh [local|--unit|--hardware|--edid-hardware|--ui|--ui-hardware|--video|--agent|--agent-hardware|--text-input]\n' >&2
     exit 2
     ;;
 esac

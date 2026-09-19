@@ -39,7 +39,7 @@ The original device frontend supplied these presets; values are kbps and frames.
 
 The test appliance advertised FPS 0–70, bitrate 0–20,000, GOP 0–240, H.264/H.265, quality, encoder mode, and low-delay control. Its resolution feature was false. JPEG quality uses advertised limits if present, otherwise the inspected validator's 1–100 contract when quality support is explicitly true. Encoder modes `smart` and `normal`, video format `0`/`1`, and `zero_delay` follow the inspected daemon and frontend.
 
-H.264 is supported by the pinned native decoder. H.265 is visibly unavailable because that WebRTC binary does not provide an HEVC decoder. The web client's direct-stream and FEC transport choices require a different media backend and are visibly unavailable. They are not silently mapped to WebRTC. Future hardware identity configuration is reserved behind `HardwareIdentityProvider`; no speculative identity endpoint is called.
+H.264 is supported by the pinned native decoder. H.265 is visibly unavailable because that WebRTC binary does not provide an HEVC decoder. The web client's direct-stream and FEC transport choices require a different media backend and are visibly unavailable. They are not silently mapped to WebRTC. USB identity configuration remains reserved behind `HardwareIdentityProvider`; EDID uses the confirmed display-specific interface described below.
 
 ## Primary source references
 
@@ -53,3 +53,13 @@ H.264 is supported by the pinned native decoder. H.265 is visibly unavailable be
 - [Native WebRTC distribution](https://github.com/stasel/WebRTC/tree/153.0.0)
 
 The companion mapped-text extension is specified in [spec.md](spec.md); it is absent from the inspected public HID source and was confirmed separately through the live capability and acknowledgment contract. No device credentials, private configuration dump, or public frontend bundle is included in this repository.
+
+## EDID configuration
+
+Display settings use the appliance web client's `GET /api/upgrade/get_edid` (`result.edid`, whitespace-separated or contiguous hex) and multipart `POST /api/upgrade/edid` (text field `edid`). `GET /api/upgrade/version` supplies the real Comet `model`; the legacy `/api/info` platform model is not used for mode support. The optional EDID catalog endpoint is not required. Authentication and certificate policy are inherited from the connection; a rejected session is not interpreted as unsupported EDID.
+
+The native codec accepts checksummed EDID 1.3/1.4 documents of 128 or 256 bytes with matching extension counts. Bundled timing profiles are complete 256-byte documents with CTA basic audio, stereo LPCM, speaker allocation, and HDMI vendor data. The preferred modes are 1080p60 (148.5 MHz), 1920×1200 CVT reduced blanking (154 MHz), and 2560×1440 CVT reduced blanking (241.5 MHz). Mode selection uses a known-model allowlist including RM1V2; unknown models do not get speculative timing controls.
+
+Writes are serialized, never automatically retried, and verified by readback. Readback verifies firmware's stored EDID, not the target OS's active desktop mode. Firmware may normalize a single-block EDID internally; restoration submits the exact previously returned document. Local backups contain monitor data only and are stored under `Application Support/CometKVM/EDIDBackups` with a hashed connection/endpoint/certificate key.
+
+Run `COMET_EDID_E2E=1 COMET_E2E_SESSION="$HOME/.cache/qrx/comet-session.json" swift test --filter EDIDHardwareTests` for the opt-in hardware apply/readback/video/restore test. It saves an additional temporary recovery copy before writing and requires readable baseline bytes. The native UI test `testDisplaySettingsNavigationAndDrafts` verifies navigation and unapplied edits without writing EDID.

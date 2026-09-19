@@ -10,6 +10,8 @@ import CometMedia
   @Published public var sessions: [UUID: SessionController] = [:]
   @Published public private(set) var agents: [UUID: AgentController] = [:]
   @Published public var error: String?
+  // Share Settings navigation so toolbar shortcuts can select a section in an already open window.
+  @Published public var settingsSection = "General"
   @Published public var selectedDevice: UUID?
   private let store: ProfileStore
   private let mediaFactory: @MainActor (CometAPI, FrameMailbox) -> any MediaConnection

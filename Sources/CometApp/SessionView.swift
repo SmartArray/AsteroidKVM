@@ -8,6 +8,7 @@ struct SessionView: View {
   @ObservedObject var session: SessionController
   @EnvironmentObject var model: AppModel
   @Environment(\.openWindow) private var openWindow
+  @Environment(\.openSettings) private var openSettings
   @State private var keyboardOpen = false
   @State private var displayOpen = false
   @State private var diagnosticsOpen = false
@@ -79,7 +80,15 @@ struct SessionView: View {
         } label: {
           Label("Display", systemImage: "display")
         }
-        .popover(isPresented: $displayOpen) { DisplayPopover(session: session) }
+        .popover(isPresented: $displayOpen) {
+          DisplayPopover(session: session) {
+            session.releaseCapture()
+            model.selectedDevice = session.id
+            model.settingsSection = "Display"
+            displayOpen = false
+            openSettings()
+          }
+        }
         .accessibilityIdentifier("display-toolbar")
         // Bind the native toggle to OCR state so Escape, completion, and another click clear its highlight.
         Toggle(
@@ -261,6 +270,7 @@ struct KeyboardPopover: View {
 
 struct DisplayPopover: View {
   @ObservedObject var session: SessionController
+  var openDisplaySettings: () -> Void
 
   // Separate local presentation from discovered device encoder controls.
   var body: some View {
@@ -283,6 +293,10 @@ struct DisplayPopover: View {
         ) {
           ForEach([0, 90, 180, 270], id: \.self) { Text("\($0)°").tag($0) }
         }
+        Divider()
+        // Link to the full device editor while keeping frequent local presentation controls compact.
+        Button("Display Settings…", action: openDisplaySettings)
+          .accessibilityIdentifier("display-settings-link")
         Divider()
         Text("Comet Video Encoder").font(.subheadline.bold())
         if session.state.params.isEmpty {
@@ -308,7 +322,7 @@ struct DisplayPopover: View {
           let resolutions = session.state.streamer["limits"]["available_resolutions"].array
             .compactMap(\.string)
           if !resolutions.isEmpty {
-            Picker("Resolution", selection: parameter("resolution")) {
+            Picker("Encoder resolution", selection: parameter("resolution")) {
               ForEach(resolutions, id: \.self) { Text($0).tag($0) }
             }
           }

@@ -43,6 +43,20 @@ import CometMedia
   public var onAgentIdentityChanged: (() -> Void)?
   public var onCapture: ((UUID) -> Void)?
   public private(set) var api: CometAPI?
+
+  // Display drafts and backups belong to this connection; the provider follows authenticated reconnects.
+  public lazy var displaySettings = DisplaySettingsController(
+    service: { [weak self] in self?.api },
+    endpoint: { [weak self] in
+      guard let self else { return "" }
+      return self.id.uuidString + "|" + (self.profile.baseURL?.absoluteString ?? "")
+        + "|" + (self.profile.certificateSHA256 ?? "system-trust")
+    },
+    beforeApply: { [weak self] in
+      self?.onAgentInterruption?()
+      self?.releaseCapture()
+    })
+
   private var media: (any MediaConnection)?
   private let mediaFactory: @MainActor (CometAPI, FrameMailbox) -> any MediaConnection
   private var lastStateMessage = Date()

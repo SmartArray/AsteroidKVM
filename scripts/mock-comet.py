@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # A deterministic local protocol fixture records actual HTTP and WebSocket traffic for E2E assertions.
 import base64
+from email.parser import BytesParser
+from email.policy import default
 import hashlib
 import itertools
 import json
@@ -16,6 +18,8 @@ state = {
     "events": [],
     "tokens": set(),
     "pastes": [],
+    "edid": "",
+    "edid_writes": 0,
     "params": {
         "desired_fps": 60,
         "h264_bitrate": 5000,
@@ -81,6 +85,28 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/test/offer":
             state["offer"] = json.loads(body)
             return self.reply({})
+        # Parse real multipart uploads, preserving an appliance-side EDID for readback and restoration tests.
+        if path == "/api/upgrade/version":
+            return self.reply({"model": "RM1V2", "version": "fixture"})
+        if path == "/api/upgrade/get_edid":
+            return self.reply({"edid": state["edid"]})
+        if path == "/api/upgrade/edid":
+            mime = BytesParser(policy=default).parsebytes(
+                ("Content-Type: " + self.headers.get("Content-Type", "") + "\r\n\r\n").encode() + body
+            )
+            parts = list(mime.iter_parts())
+            if len(parts) != 1 or parts[0].get_param("name", header="content-disposition") != "edid":
+                return self.reply({}, 400)
+            value = parts[0].get_payload(decode=True).decode()
+            try:
+                data = bytes.fromhex(value)
+                assert len(data) in (128, 256)
+                assert all(sum(data[i:i + 128]) % 256 == 0 for i in range(0, len(data), 128))
+            except (ValueError, AssertionError):
+                return self.reply({}, 400)
+            state["edid"] = value
+            state["edid_writes"] += 1
+            return self.reply({"status": "success"})
         if path == "/api/auth/check":
             return self.reply({})
         if path == "/api/auth/logout":

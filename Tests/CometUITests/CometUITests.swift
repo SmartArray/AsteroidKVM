@@ -4,6 +4,94 @@ import Carbon
 import XCTest
 
 final class CometUITests: XCTestCase {
+  // Open Display settings from the live toolbar and prove editing remains local until Apply is pressed.
+  @MainActor func testDisplaySettingsNavigationAndDrafts() throws {
+    guard let path = ProcessInfo.processInfo.environment["COMET_UI_SESSION_FILE"], !path.isEmpty,
+      !path.hasPrefix("$(")
+    else { throw XCTSkip("Set COMET_UI_SESSION_FILE for Display settings UI verification.") }
+    let credentials = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path)))
+        as? [String: Any])
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "--ui-testing", "-ApplePersistenceIgnoreState", "YES", "--session-file", path,
+    ]
+    app.launch()
+    defer { app.terminate() }
+    // Reopen the manager explicitly so scene restoration cannot suppress the imported test connection.
+    app.menuBars.menuBarItems["File"].click()
+    app.menuItems["Connections…"].click()
+    let remote = app.windows["Comet Test Session"]
+    guard remote.waitForExistence(timeout: 15) else {
+      XCTFail("Expected the imported test connection. " + app.debugDescription)
+      return
+    }
+    let trust = remote.sheets.buttons["Trust This Device"].firstMatch
+    if credentials["insecure"] as? Bool == true, trust.waitForExistence(timeout: 8) {
+      trust.click()
+    }
+    let reconnect = remote.buttons["session-connect"].firstMatch
+    if reconnect.exists && reconnect.isEnabled { reconnect.click() }
+    let connected = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in
+        let label = remote.staticTexts["connection-status"]
+        return label.exists && (label.value as? String ?? label.label) == "Connected"
+      }, object: remote)
+    XCTAssertEqual(XCTWaiter.wait(for: [connected], timeout: 30), .completed)
+
+    // The shortcut chooses the originating device and section, including when Settings already exists.
+    remote.buttons["display-toolbar"].firstMatch.click()
+    app.buttons["display-settings-link"].firstMatch.click()
+    let manufacturer = app.textFields["edid-manufacturer"].firstMatch
+    XCTAssertTrue(manufacturer.waitForExistence(timeout: 10))
+    let ready = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in manufacturer.isEnabled }, object: manufacturer)
+    XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+    let original = manufacturer.value as? String ?? ""
+    XCTAssertFalse(original.isEmpty)
+    XCTAssertTrue(app.staticTexts["Comet Test Session"].firstMatch.exists)
+    let apply = app.buttons["edid-apply"].firstMatch
+    XCTAssertFalse(apply.isEnabled)
+
+    // Invalid identity text blocks Apply; a valid changed identity enables it without sending any remote input.
+    manufacturer.click()
+    manufacturer.typeKey("a", modifierFlags: .command)
+    manufacturer.typeText("zz")
+    XCTAssertFalse(apply.isEnabled)
+    XCTAssertTrue(app.staticTexts["edid-validation"].exists)
+    manufacturer.typeKey("a", modifierFlags: .command)
+    manufacturer.typeText(original == "ZZZ" ? "ABC" : "ZZZ")
+    XCTAssertTrue(apply.isEnabled)
+    app.buttons["edid-reload"].firstMatch.click()
+    let reset = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in
+        manufacturer.value as? String == original && !apply.isEnabled
+      }, object: manufacturer)
+    XCTAssertEqual(XCTWaiter.wait(for: [reset], timeout: 10), .completed)
+
+    // A timing profile is also a draft and can be discarded without an EDID hardware write.
+    let resolution = app.popUpButtons["display-target-resolution"].firstMatch
+    resolution.click()
+    app.menuItems["1920 × 1200 · 60 Hz (16:10)"].click()
+    XCTAssertTrue(apply.isEnabled)
+    app.buttons["edid-reload"].firstMatch.click()
+    XCTAssertEqual(
+      XCTWaiter.wait(
+        for: [
+          XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in
+              !apply.isEnabled && manufacturer.isEnabled
+            }, object: apply)
+        ], timeout: 10), .completed)
+
+    // Navigating away in an open Settings window must not prevent the toolbar from returning to Display.
+    app.staticTexts["General"].firstMatch.click()
+    remote.buttons["display-toolbar"].firstMatch.click()
+    app.buttons["display-settings-link"].firstMatch.click()
+    XCTAssertTrue(manufacturer.waitForExistence(timeout: 5))
+    XCTAssertEqual(manufacturer.value as? String, original)
+  }
+
   // The explicit hardware variant observes real video and media ownership without typing remote input.
   @MainActor func testHardwareVideoSurvivesNativeFullscreen() throws {
     guard let path = ProcessInfo.processInfo.environment["COMET_UI_SESSION_FILE"], !path.isEmpty,

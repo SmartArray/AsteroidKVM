@@ -34,6 +34,32 @@ final class ProtocolE2ETests: XCTestCase {
       profile: ConnectionProfile(name: "Fixture", host: "127.0.0.1", port: port, scheme: "http"))
   }
 
+  // Exercise authenticated multipart EDID uploads and byte-exact restoration through the production URLSession.
+  func testEDIDReadApplyRestoreAndAuthentication() async throws {
+    let service = api()
+    do {
+      _ = try await service.readEDID()
+      XCTFail("EDID read accepted unauthenticated credentials")
+    } catch { XCTAssertEqual(error as? CometError, .authentication) }
+    try await service.login(password: "test-password")
+    let empty = try await service.readEDID()
+    XCTAssertNil(empty)
+    let model = try await service.readDisplayModel()
+    XCTAssertEqual(model, "RM1V2")
+    let baseline = try EDIDPreset.fullHD.document()
+    try await service.writeEDID(baseline)
+    let alternative = try EDIDPreset.laptop.document()
+    try await service.writeEDID(alternative)
+    let readback = try await service.readEDID()
+    XCTAssertEqual(readback, alternative)
+    try await service.writeEDID(baseline)
+    let restored = try await service.readEDID()
+    XCTAssertEqual(restored, baseline)
+    let state = try await service.call("/test/state")
+    XCTAssertEqual(state["edid_writes"].number, 3)
+    await service.close()
+  }
+
   // Authentication expiry on one client must not clear the other client's cookies or connection state.
   func testAuthenticationDiscoveryConfigurationAndSessionIsolation() async throws {
     let a = api()

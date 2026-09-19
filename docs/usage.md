@@ -90,3 +90,15 @@ See [verification and performance](verification.md) for measured results and out
 - System identity editing is intentionally reserved, with a provider contract for future preview, validation, apply, and restore operations.
 
 Native composition can be checked locally with `scripts/test.sh --text-input` on an unlocked Mac. It temporarily selects the German input source and restores it, exercising AppKit through the HID queue with a test window supplying focus. The hardware UI suite additionally checks the local preedit indicator and cancellation on live video without committing remote text.
+
+## Display identity and target resolution
+
+Open **Display → Display Settings…** in a remote window to jump to **Settings → Display** with that Comet selected. The settings show the current EDID preference and actual received video dimensions separately. Rotation, local scaling, and encoder controls remain in the toolbar popover; encoder resolution does not set the target desktop resolution.
+
+Choose a preferred EDID mode: **1920×1080**, **1920×1200** (16:10 laptops), or **2560×1440**, approximately **60 Hz**, on recognized Comet models. These complete progressive timing profiles include basic HDMI audio. Choosing a resolution profile replaces the timing template while retaining the edited monitor identity. Unknown models can read their EDID and edit its identity, but cannot select an unverified timing profile.
+
+Manufacturer ID, hexadecimal product code and numeric serial, manufacture week, and year are editable. **Use Example Identity** fills `DEL`, `0xA034`, `0x3031304C`, week `12`, year `2020`; this is an illustrative identity, not a verified Dell display profile. Identity-only edits preserve the original timing and extension bytes. Week `0` means unspecified; existing EDID 1.4 model-year encoding (`255`) is supported.
+
+Edits remain local until **Apply**. **Discard Changes / Reload** reads the device again. Apply checks for concurrent changes, saves the previous known EDID locally, uploads once, and verifies the stored bytes. **Restore Previous EDID** restores that exact backup, including after reopening the app. Backups are scoped to the connection, endpoint, and certificate pin. If firmware exposes only an empty factory default, its exact bytes cannot be backed up or restored.
+
+Applying EDID can briefly interrupt HDMI video. EDID advertises a preferred mode; the target OS decides whether to adopt it, especially with cloned laptop displays. Asteroid shows received video dimensions independently and never automatically restarts the target. After an interrupted or failed upload, reload before retrying; the upload may already have taken effect.

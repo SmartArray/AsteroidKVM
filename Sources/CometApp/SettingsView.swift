@@ -6,22 +6,23 @@ import SwiftUI
 
 struct SettingsView: View {
   @EnvironmentObject var model: AppModel
-  @State private var section = "General"
   @AppStorage("appearance") private var appearance = "System"
   private let sections = [
-    "General", "Connections", "Devices", "Keyboard & Clipboard", "Appearance", "System", "Advanced",
+    "General", "Connections", "Display", "Devices", "Keyboard & Clipboard", "Appearance", "System",
+    "Advanced",
   ]
 
   // Present native settings sections while keeping device selection explicit.
   var body: some View {
     NavigationSplitView {
-      List(sections, id: \.self, selection: $section) { Text($0) }.navigationSplitViewColumnWidth(
-        170)
+      List(sections, id: \.self, selection: $model.settingsSection) { Text($0) }
+        .navigationSplitViewColumnWidth(
+          170)
     } detail: {
       ScrollView {
         VStack(alignment: .leading, spacing: 20) {
-          Text(section).font(.title2.bold())
-          switch section {
+          Text(model.settingsSection).font(.title2.bold())
+          switch model.settingsSection {
           case "General":
             Text(
               "Open a saved Comet from Connections. Each remote window keeps its own video, authentication, and input state."
@@ -32,6 +33,14 @@ struct SettingsView: View {
               "Click the remote display to capture input. The first click captures; subsequent clicks go to the remote computer."
             ).foregroundStyle(.secondary)
           case "Connections": connectionSettings
+          case "Display":
+            devicePicker
+            if let id = model.selectedDevice, let session = model.sessions[id] {
+              DisplaySettingsView(session: session)
+                .id("\(session.id)|\(session.profile.baseURL?.absoluteString ?? "")")
+            } else {
+              Text("Connect a device to configure its display.").foregroundStyle(.secondary)
+            }
           case "Devices":
             devicePicker
             if let id = model.selectedDevice, let session = model.sessions[id] {
@@ -63,10 +72,10 @@ struct SettingsView: View {
           case "System":
             Text("Hardware Identity").font(.headline)
             Text(
-              "Reserved for future hardware identity configuration, including supported USB descriptors and display identity."
+              "Reserved for future hardware identity configuration, including supported USB descriptors. Display identity is available in Display settings."
             )
             Text(
-              "No identity changes are available in this version. Future providers will expose preview, validation, apply, and restore operations only when the device supports them."
+              "USB identity changes are not available in this version. Future providers will expose preview, validation, apply, and restore operations only when the device supports them."
             ).foregroundStyle(.secondary)
           default:
             Text("Native WebRTC and Metal").font(.headline)
