@@ -68,7 +68,7 @@ struct ConnectionManagerView: View {
           Image(systemName: "minus")
         }.disabled(selected == nil).help("Remove Connection")
         Spacer()
-        Text("Comet KVM").font(.caption).foregroundStyle(.secondary)
+        Text("AsteroidKVM").font(.caption).foregroundStyle(.secondary)
       }.padding(12)
     }
     .frame(minWidth: 520, minHeight: 340)

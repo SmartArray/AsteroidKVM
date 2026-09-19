@@ -89,6 +89,23 @@ final class GeometryAndStorageTests: XCTestCase {
       ConnectionProfile(name: "Office", host: "other.local").credentialAccount)
   }
 
+  // Preserve existing saved connections once while giving AsteroidKVM its own Application Support path.
+  func testProfileStoreMigratesLegacyDataWithoutOverwritingNewData() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let legacyURL = directory.appendingPathComponent("CometKVM/profiles.json")
+    let currentURL = directory.appendingPathComponent("AsteroidKVM/profiles.json")
+    let legacy = ConnectionProfile(name: "Legacy", host: "legacy.invalid")
+    try ProfileStore(url: legacyURL).save([legacy])
+    try ProfileStore.migrateIfNeeded(from: legacyURL, to: currentURL)
+    XCTAssertEqual(try ProfileStore(url: currentURL).load(), [legacy])
+
+    let current = ConnectionProfile(name: "Current", host: "current.invalid")
+    try ProfileStore(url: currentURL).save([current])
+    try ProfileStore.migrateIfNeeded(from: legacyURL, to: currentURL)
+    XCTAssertEqual(try ProfileStore(url: currentURL).load(), [current])
+  }
+
   func testInvalidHostsAndPortsCannotInjectCredentialsOrPaths() {
     for host in ["", "comet.local/api", "admin@comet.local", "comet.local?x=1"] {
       XCTAssertNil(ConnectionProfile(name: "Invalid", host: host).baseURL)
@@ -99,7 +116,7 @@ final class GeometryAndStorageTests: XCTestCase {
   }
 
   func testKeychainScopesAndExplicitRemoval() throws {
-    let passwords = PasswordStore(service: "app.cometkvm.tests." + UUID().uuidString)
+    let passwords = PasswordStore(service: "app.asteroidkvm.tests." + UUID().uuidString)
     let profile = ConnectionProfile(name: "Test", host: "keychain.invalid")
     defer { try? passwords.remove(for: profile) }
     try passwords.save("ephemeral-test-password", for: profile)
@@ -108,5 +125,25 @@ final class GeometryAndStorageTests: XCTestCase {
       try passwords.password(for: ConnectionProfile(name: "Other", host: "other.invalid")))
     try passwords.remove(for: profile)
     XCTAssertNil(try passwords.password(for: profile))
+  }
+
+  // Duplicate matching legacy credentials lazily so a bundle identifier rename does not lose remembered passwords.
+  func testKeychainMigratesLegacyCredentialToAsteroidService() throws {
+    let suffix = UUID().uuidString
+    let legacy = PasswordStore(service: "app.asteroidkvm.tests.legacy." + suffix)
+    let current = PasswordStore(
+      service: "app.asteroidkvm.tests.current." + suffix,
+      legacyService: legacy.service)
+    let profile = ConnectionProfile(name: "Migrated", host: "migrated.invalid")
+    defer {
+      try? current.remove(for: profile)
+      try? legacy.remove(for: profile)
+    }
+    try legacy.save("migrated-test-password", for: profile)
+    XCTAssertEqual(try current.password(for: profile), "migrated-test-password")
+    XCTAssertEqual(
+      try PasswordStore(service: current.service).password(for: profile), "migrated-test-password")
+    try current.remove(for: profile)
+    XCTAssertNil(try legacy.password(for: profile))
   }
 }

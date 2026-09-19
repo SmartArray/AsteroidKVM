@@ -122,7 +122,7 @@ import MetalKit
     window.acceptsMouseMovedEvents = true
     window.collectionBehavior.insert(.fullScreenPrimary)
     window.title = session.profile.name
-    window.setFrameAutosaveName("Comet-\(session.id)")
+    window.setFrameAutosaveName("AsteroidKVM-\(session.id)")
     window.toolbarStyle = .unifiedCompact
     if !(window.delegate is FullscreenWindowDelegate) {
       let delegate = FullscreenWindowDelegate(original: window.delegate)

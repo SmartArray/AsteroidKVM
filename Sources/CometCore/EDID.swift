@@ -89,7 +89,8 @@ public enum EDIDPreset: String, CaseIterable, Identifiable, Sendable {
       t[7] << 4 | t[8], 0, 0x08, self == .laptop ? 0x40 : 0x22, 0x21, 0, 0, t[9],
     ]
     b.replaceSubrange(54..<72, with: d.map(UInt8.init))
-    b.replaceSubrange(72..<90, with: [0, 0, 0, 0xfc, 0] + Array("Asteroid KVM\n".utf8))
+    b.replaceSubrange(
+      72..<90, with: [0, 0, 0, 0xfc, 0] + Array("AsteroidKVM\n".utf8) + [0])
     b.replaceSubrange(
       90..<108, with: [0, 0, 0, 0xfd, 0, 50, 75, 30, 95, 26, 0, 10, 32, 32, 32, 32, 32, 32])
     b.replaceSubrange(108..<126, with: [0, 0, 0, 0x10] + [UInt8](repeating: 0, count: 14))

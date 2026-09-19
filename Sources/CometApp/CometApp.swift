@@ -34,7 +34,7 @@ import SwiftUI
         .keyboardShortcut(.escape, modifiers: [.control, .option, .command])
       }
     }
-    WindowGroup("Comet", for: UUID.self) { $id in
+    WindowGroup("AsteroidKVM", for: UUID.self) { $id in
       if let id, let session = model.session(for: id) {
         SessionView(session: session).environmentObject(model)
       } else {

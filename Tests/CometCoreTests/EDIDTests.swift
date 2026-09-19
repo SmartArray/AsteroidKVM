@@ -108,6 +108,29 @@ final class EDIDTests: XCTestCase {
     XCTAssertEqual(writes, 2)
   }
 
+  // Bring forward a recovery baseline without overwriting a new backup or applying any display mutation.
+  @MainActor func testLegacyBackupMigratesToAsteroidStorage() async throws {
+    let original = try EDIDPreset.fullHD.document()
+    let service = EDIDFixture(original)
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let legacy = folder.appendingPathComponent("CometKVM")
+    let current = folder.appendingPathComponent("AsteroidKVM")
+    let oldController = DisplaySettingsController(
+      service: { service }, endpoint: { "migrated-device" }, backupDirectory: legacy)
+    await oldController.reload()
+    oldController.select(.laptop)
+    await oldController.apply()
+    await service.replace(original)
+
+    let migrated = DisplaySettingsController(
+      service: { service }, endpoint: { "migrated-device" }, backupDirectory: current,
+      legacyBackupDirectory: legacy)
+    await migrated.reload()
+    XCTAssertEqual(migrated.previous, original)
+    XCTAssertTrue(migrated.canRestore)
+  }
+
   // A persisted known-good backup must remain usable when current EDID decoding fails after reopening Settings.
   @MainActor func testRestoreDoesNotRequireReadableCurrentEDID() async throws {
     let original = try EDIDPreset.fullHD.document()

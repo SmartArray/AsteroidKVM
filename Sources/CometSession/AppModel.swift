@@ -19,7 +19,7 @@ import CometMedia
   public var launchSessionID: UUID?
   public let testing = ProcessInfo.processInfo.arguments.contains("--ui-testing")
 
-  // UI tests use an isolated store; normal sessions never import the hardware test file implicitly.
+  // UI tests use an isolated store; production sessions migrate saved data to the renamed app namespace.
   public init(
     profileStoreURL: URL? = nil,
     mediaFactory: @escaping @MainActor (CometAPI, FrameMailbox) -> any MediaConnection = {
@@ -29,11 +29,20 @@ import CometMedia
     self.mediaFactory = mediaFactory
     let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[
       0]
-    let path =
-      testing
+    let path = testing
       ? FileManager.default.temporaryDirectory.appendingPathComponent(
-        "CometKVM-UITests/profiles.json") : support.appendingPathComponent("CometKVM/profiles.json")
+        "AsteroidKVM-UITests/profiles.json")
+      : support.appendingPathComponent("AsteroidKVM/profiles.json")
+    let legacyPath = support.appendingPathComponent("CometKVM/profiles.json")
+    var migrationError: Error?
+    if !testing, profileStoreURL == nil {
+      do {
+        try ProfileStore.migrateIfNeeded(from: legacyPath, to: path)
+        Self.migratePreferences()
+      } catch { migrationError = error }
+    }
     store = ProfileStore(url: profileStoreURL ?? path)
+    if let migrationError { self.error = migrationError.localizedDescription }
     do { profiles = testing ? [] : try store.load() } catch {
       self.error = error.localizedDescription
     }
@@ -47,6 +56,17 @@ import CometMedia
         [weak self] _ in Task { @MainActor in self?.sessions.values.forEach { $0.wake() } }
       })
     importExplicitSession()
+  }
+
+  // Copy only this app's named preferences so the new bundle identifier keeps the user's local choices.
+  private static func migratePreferences() {
+    guard let legacy = UserDefaults(suiteName: "app.cometkvm.CometKVM") else { return }
+    let current = UserDefaults.standard
+    for key in [
+      "appearance", "agentClickPreviewsEnabled", "agentCodexPath", "agentModel", "agentThinkingLevel",
+    ] where current.object(forKey: key) == nil {
+      if let value = legacy.object(forKey: key) { current.set(value, forKey: key) }
+    }
   }
 
   // Persist only profile preferences and explicitly remembered Keychain credentials.

@@ -69,9 +69,9 @@ jobs:
       # Check signing and both architectures before wrapping the bundle to preserve permissions and symlinks.
       - name: Verify and package app
         run: |
-          app_path="build/DerivedData/Build/Products/Release/CometKVM.app"
+          app_path="build/DerivedData/Build/Products/Release/AsteroidKVM.app"
           codesign --verify --deep --strict "$app_path"
-          lipo "$app_path/Contents/MacOS/CometKVM" -verify_arch arm64 x86_64
+          lipo "$app_path/Contents/MacOS/AsteroidKVM" -verify_arch arm64 x86_64
           lipo "$app_path/Contents/Frameworks/WebRTC.framework/WebRTC" -verify_arch arm64 x86_64
           mkdir -p build/artifacts
           ditto -c -k --sequesterRsrc --keepParent "$app_path" build/artifacts/AsteroidKVM-macOS-universal.zip

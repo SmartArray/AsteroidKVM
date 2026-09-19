@@ -83,4 +83,4 @@ System identity editing is intentionally reserved by the specification. HEVC, di
 
 ## Release artifact
 
-`./scripts/build.sh` builds `build/DerivedData/Build/Products/Release/CometKVM.app`. The app executable and embedded WebRTC framework both contain `arm64` and `x86_64` architectures. The locally ad-hoc signed bundle passes `codesign --verify --deep --strict`. Upstream WebRTC notices are included in `Contents/Resources/ThirdPartyNotices.txt`. Developer ID signing and notarization are not part of this local build.
+`./scripts/build.sh` builds `build/DerivedData/Build/Products/Release/AsteroidKVM.app`. The app executable and embedded WebRTC framework both contain `arm64` and `x86_64` architectures. The locally ad-hoc signed bundle passes `codesign --verify --deep --strict`. Upstream WebRTC notices are included in `Contents/Resources/ThirdPartyNotices.txt`. Developer ID signing and notarization are not part of this local build.

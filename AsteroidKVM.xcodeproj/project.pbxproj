@@ -15,7 +15,7 @@
 			"path" = "Sources/CometApp/AgentChatView.swift";
 			"sourceTree" = "<group>";
 		};
-		"75F00A99E7A5A6724276BC10" = {
+		"F1325941676E229E72161C8E" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "C8295A1A01CED3D190727BF1";
 		};
@@ -25,7 +25,7 @@
 			"path" = "Sources/CometApp/AgentOptionsPopover.swift";
 			"sourceTree" = "<group>";
 		};
-		"FA7002DDF318D7006D3C3B91" = {
+		"67F0900C4F29BE1A6188D64F" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "C4ABD47EF10F2FD9F62F2A59";
 		};
@@ -35,7 +35,7 @@
 			"path" = "Sources/CometApp/CometApp.swift";
 			"sourceTree" = "<group>";
 		};
-		"CC480C589886A3711D36148B" = {
+		"897F07CE08F70BD488E13D02" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "3FAA345547E9EB730A282822";
 		};
@@ -45,7 +45,7 @@
 			"path" = "Sources/CometApp/ConnectionManagerView.swift";
 			"sourceTree" = "<group>";
 		};
-		"540527F99439D8DDFF771CB5" = {
+		"A7B43CBBBAC5F53514202149" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "D73F31A2D8737ABB86C43D35";
 		};
@@ -55,7 +55,7 @@
 			"path" = "Sources/CometApp/DisplaySettingsView.swift";
 			"sourceTree" = "<group>";
 		};
-		"D230DF156241F7731600447D" = {
+		"CF0A3454A2DD16CA9FAFB585" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "8BC3259E92F7C6EE05F15ECA";
 		};
@@ -65,7 +65,7 @@
 			"path" = "Sources/CometApp/JigglerSettingsView.swift";
 			"sourceTree" = "<group>";
 		};
-		"66CE97741507B2C7CF3C87A6" = {
+		"7D9ED400E9441C3EE529B3C0" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "91A8936FD9EF20917381D3ED";
 		};
@@ -75,7 +75,7 @@
 			"path" = "Sources/CometApp/RemoteDisplayView.swift";
 			"sourceTree" = "<group>";
 		};
-		"C268076064B85D2FA0A249BD" = {
+		"919806CC27BC4C006310E5B3" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "1DCB73069E5B79BFBD4C96F5";
 		};
@@ -85,7 +85,7 @@
 			"path" = "Sources/CometApp/SessionView.swift";
 			"sourceTree" = "<group>";
 		};
-		"2A3AF27AEB07BB44729CD918" = {
+		"F63A5B69D599D239FF05EFD4" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "E8759855BCFAC9341DD552C9";
 		};
@@ -95,68 +95,68 @@
 			"path" = "Sources/CometApp/SettingsView.swift";
 			"sourceTree" = "<group>";
 		};
-		"D9D1D533E3D65C5A272EB75F" = {
+		"742B2CA2A75CADA148ED1E87" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "BE9BF2566BB59AA03DF66CF9";
 		};
-		"20E3D79CC4450B6E7DED7F36" = {
+		"3A8052B8F051E374C46D23F0" = {
 			"isa" = "PBXGroup";
 			"children" = ("C8295A1A01CED3D190727BF1", "C4ABD47EF10F2FD9F62F2A59", "3FAA345547E9EB730A282822", "D73F31A2D8737ABB86C43D35", "8BC3259E92F7C6EE05F15ECA", "91A8936FD9EF20917381D3ED", "1DCB73069E5B79BFBD4C96F5", "E8759855BCFAC9341DD552C9", "BE9BF2566BB59AA03DF66CF9", "F8DE933081D38EA706A53A8D", "99E38A031DA5313CE8FCA26C");
-			"name" = "CometKVM";
+			"name" = "AsteroidKVM";
 			"sourceTree" = "<group>";
 		};
-		"8E09F4E178031165AC3BBAE5" = {
+		"AA31C1689ECDE197F9DFFC16" = {
 			"isa" = "PBXFileReference";
 			"explicitFileType" = "wrapper.application";
-			"path" = "CometKVM.app";
+			"path" = "AsteroidKVM.app";
 			"sourceTree" = "BUILT_PRODUCTS_DIR";
 		};
-		"56F592A9B6D4ADF67F3DF434" = {
+		"6D572CEB9005447B9E9A5899" = {
 			"isa" = "XCSwiftPackageProductDependency";
 			"package" = "F58117D5A5E2E2F07B7A5553";
 			"productName" = "CometCore";
 		};
-		"01B1F7DAC7C692E860A0C451" = {
+		"B17B74358E870C538E96524D" = {
 			"isa" = "XCSwiftPackageProductDependency";
 			"package" = "F58117D5A5E2E2F07B7A5553";
 			"productName" = "CometMedia";
 		};
-		"5E2B2C7DEE361285DF96DB18" = {
+		"EC5E7778451F1C220783C935" = {
 			"isa" = "XCSwiftPackageProductDependency";
 			"package" = "F58117D5A5E2E2F07B7A5553";
 			"productName" = "CometAgent";
 		};
-		"8FF20A77E7A535C1C4CD6F90" = {
+		"E9A98F0C6E713C98C405917C" = {
 			"isa" = "XCSwiftPackageProductDependency";
 			"package" = "F58117D5A5E2E2F07B7A5553";
 			"productName" = "CometSession";
 		};
-		"D4301510529472BC6F547899" = {
+		"8466FAB0087CB83531985A4F" = {
 			"isa" = "PBXBuildFile";
-			"productRef" = "56F592A9B6D4ADF67F3DF434";
+			"productRef" = "6D572CEB9005447B9E9A5899";
 		};
-		"B44DCE02C97DD5462A0C9C6C" = {
+		"78FE98C96E509C72D308B3CA" = {
 			"isa" = "PBXBuildFile";
-			"productRef" = "01B1F7DAC7C692E860A0C451";
+			"productRef" = "B17B74358E870C538E96524D";
 		};
-		"DD2CF899C8F65225E46013CB" = {
+		"A48A754B89A5E34CA7E3D382" = {
 			"isa" = "PBXBuildFile";
-			"productRef" = "5E2B2C7DEE361285DF96DB18";
+			"productRef" = "EC5E7778451F1C220783C935";
 		};
-		"812323D17ED3F072A04207C4" = {
+		"D0852B3DE5B58AA8C3387D8B" = {
 			"isa" = "PBXBuildFile";
-			"productRef" = "8FF20A77E7A535C1C4CD6F90";
+			"productRef" = "E9A98F0C6E713C98C405917C";
 		};
-		"F9C01E3D977903D0F76D5D1D" = {
+		"C99F1240DC33CA07A4BA3882" = {
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
-			"files" = ("75F00A99E7A5A6724276BC10", "FA7002DDF318D7006D3C3B91", "CC480C589886A3711D36148B", "540527F99439D8DDFF771CB5", "D230DF156241F7731600447D", "66CE97741507B2C7CF3C87A6", "C268076064B85D2FA0A249BD", "2A3AF27AEB07BB44729CD918", "D9D1D533E3D65C5A272EB75F");
+			"files" = ("F1325941676E229E72161C8E", "67F0900C4F29BE1A6188D64F", "897F07CE08F70BD488E13D02", "A7B43CBBBAC5F53514202149", "CF0A3454A2DD16CA9FAFB585", "7D9ED400E9441C3EE529B3C0", "919806CC27BC4C006310E5B3", "F63A5B69D599D239FF05EFD4", "742B2CA2A75CADA148ED1E87");
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
-		"2DB1F41994B797A872CFAFF9" = {
+		"F12EA19E5CD4069719411A8C" = {
 			"isa" = "PBXFrameworksBuildPhase";
 			"buildActionMask" = 2147483647;
-			"files" = ("D4301510529472BC6F547899", "B44DCE02C97DD5462A0C9C6C", "DD2CF899C8F65225E46013CB", "812323D17ED3F072A04207C4");
+			"files" = ("8466FAB0087CB83531985A4F", "78FE98C96E509C72D308B3CA", "A48A754B89A5E34CA7E3D382", "D0852B3DE5B58AA8C3387D8B");
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
 		"F8DE933081D38EA706A53A8D" = {
@@ -185,11 +185,11 @@
 			"files" = ("698EABFAA7572B4BC0080605", "88AB45472ADB433A7356367B");
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
-		"C4505736BE722503090BB76E" = {
+		"A8CF73E56896D07F63F6C514" = {
 			"isa" = "XCBuildConfiguration";
 			"name" = "Debug";
 			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometKVM";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVM";
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
 				"SWIFT_VERSION" = "5.0";
 				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
@@ -202,23 +202,24 @@
 				"INFOPLIST_FILE" = "Resources/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
 				"CURRENT_PROJECT_VERSION" = "1";
-				"INFOPLIST_KEY_CFBundleDisplayName" = "Comet KVM";
+				"INFOPLIST_KEY_CFBundleDisplayName" = "AsteroidKVM";
+				"INFOPLIST_KEY_CFBundleName" = "AsteroidKVM";
 				"INFOPLIST_KEY_NSMicrophoneUsageDescription" = "Forward your microphone to the computer connected to Comet when you enable microphone forwarding.";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.utilities";
 				"INFOPLIST_KEY_NSPrincipalClass" = "NSApplication";
 				"INFOPLIST_KEY_NSHighResolutionCapable" = "YES";
-				"INFOPLIST_KEY_NSLocalNetworkUsageDescription" = "Connect to your Comet KVM appliances on the local network.";
+				"INFOPLIST_KEY_NSLocalNetworkUsageDescription" = "Connect to your GL.iNet Comet appliances on the local network.";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
 				"DEBUG_INFORMATION_FORMAT" = "dwarf";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
 				"ONLY_ACTIVE_ARCH" = "YES";
 			};
 		};
-		"0084B8B9F20CC7197DE45763" = {
+		"01FBFDCC2CC551BDA7F25044" = {
 			"isa" = "XCBuildConfiguration";
 			"name" = "Release";
 			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometKVM";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVM";
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
 				"SWIFT_VERSION" = "5.0";
 				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
@@ -231,32 +232,33 @@
 				"INFOPLIST_FILE" = "Resources/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
 				"CURRENT_PROJECT_VERSION" = "1";
-				"INFOPLIST_KEY_CFBundleDisplayName" = "Comet KVM";
+				"INFOPLIST_KEY_CFBundleDisplayName" = "AsteroidKVM";
+				"INFOPLIST_KEY_CFBundleName" = "AsteroidKVM";
 				"INFOPLIST_KEY_NSMicrophoneUsageDescription" = "Forward your microphone to the computer connected to Comet when you enable microphone forwarding.";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.utilities";
 				"INFOPLIST_KEY_NSPrincipalClass" = "NSApplication";
 				"INFOPLIST_KEY_NSHighResolutionCapable" = "YES";
-				"INFOPLIST_KEY_NSLocalNetworkUsageDescription" = "Connect to your Comet KVM appliances on the local network.";
+				"INFOPLIST_KEY_NSLocalNetworkUsageDescription" = "Connect to your GL.iNet Comet appliances on the local network.";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
 				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
 			};
 		};
-		"3F74AB8A9F352669C2D832DC" = {
+		"530F472BADFF1AB6EDEB721E" = {
 			"isa" = "XCConfigurationList";
-			"buildConfigurations" = ("C4505736BE722503090BB76E", "0084B8B9F20CC7197DE45763");
+			"buildConfigurations" = ("A8CF73E56896D07F63F6C514", "01FBFDCC2CC551BDA7F25044");
 			"defaultConfigurationIsVisible" = 0;
 			"defaultConfigurationName" = "Release";
 		};
-		"8A90A6BDD02FC1C2F95C3016" = {
+		"370F2713D58F5AFBD8B4D2B2" = {
 			"isa" = "PBXNativeTarget";
-			"buildConfigurationList" = "3F74AB8A9F352669C2D832DC";
-			"buildPhases" = ("F9C01E3D977903D0F76D5D1D", "2DB1F41994B797A872CFAFF9", "2AC7AB26953A78AD46B49603");
+			"buildConfigurationList" = "530F472BADFF1AB6EDEB721E";
+			"buildPhases" = ("C99F1240DC33CA07A4BA3882", "F12EA19E5CD4069719411A8C", "2AC7AB26953A78AD46B49603");
 			"buildRules" = ();
 			"dependencies" = ();
-			"name" = "CometKVM";
-			"packageProductDependencies" = ("56F592A9B6D4ADF67F3DF434", "01B1F7DAC7C692E860A0C451", "5E2B2C7DEE361285DF96DB18", "8FF20A77E7A535C1C4CD6F90");
-			"productName" = "CometKVM";
-			"productReference" = "8E09F4E178031165AC3BBAE5";
+			"name" = "AsteroidKVM";
+			"packageProductDependencies" = ("6D572CEB9005447B9E9A5899", "B17B74358E870C538E96524D", "EC5E7778451F1C220783C935", "E9A98F0C6E713C98C405917C");
+			"productName" = "AsteroidKVM";
+			"productReference" = "AA31C1689ECDE197F9DFFC16";
 			"productType" = "com.apple.product-type.application";
 		};
 		"49C8D2E3742CEFE67BDCA174" = {
@@ -265,7 +267,7 @@
 			"path" = "Tests/CometCoreTests/AgentHardwareE2ETests.swift";
 			"sourceTree" = "<group>";
 		};
-		"7EDED067BB64F642EC9B8089" = {
+		"82B7C2B111C70F603E130B38" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "49C8D2E3742CEFE67BDCA174";
 		};
@@ -275,7 +277,7 @@
 			"path" = "Tests/CometCoreTests/AgentSecurityTests.swift";
 			"sourceTree" = "<group>";
 		};
-		"3BECD5CA884C37A178B6594B" = {
+		"4C4D4C08E9918BBC9D0893EC" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "84180C1295ABED5C96121431";
 		};
@@ -285,7 +287,7 @@
 			"path" = "Tests/CometCoreTests/AgentTests.swift";
 			"sourceTree" = "<group>";
 		};
-		"2170CA2152EF818B4EEE826F" = {
+		"9E38EB77AF9A918F404BACF7" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "3D8779C4E7F8A1F2784CC3FE";
 		};
@@ -295,7 +297,7 @@
 			"path" = "Tests/CometCoreTests/EDIDHardwareTests.swift";
 			"sourceTree" = "<group>";
 		};
-		"108656075FE83D924D2BAB19" = {
+		"1E0DDADF7FD41F7A0A708035" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "2BBAB64F5134911C965155A8";
 		};
@@ -305,7 +307,7 @@
 			"path" = "Tests/CometCoreTests/EDIDTests.swift";
 			"sourceTree" = "<group>";
 		};
-		"D3CB5A6AC4B935B4653EC93E" = {
+		"ED99C36C51A191D42CDD9506" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "3FC7D434125C3E079435D4E4";
 		};
@@ -315,7 +317,7 @@
 			"path" = "Tests/CometCoreTests/GeometryAndStorageTests.swift";
 			"sourceTree" = "<group>";
 		};
-		"9D67465B26D0CEB9D0D43C90" = {
+		"4028C0F92CF432AB2121BC77" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "1605437A1DACB178CC2D93AC";
 		};
@@ -325,7 +327,7 @@
 			"path" = "Tests/CometCoreTests/HardwareE2ETests.swift";
 			"sourceTree" = "<group>";
 		};
-		"708493E5A1A19E159C9D640C" = {
+		"4BAC53BF4287AF0D1BB8C43C" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "011F0AD834BD13AC45DD47A0";
 		};
@@ -335,7 +337,7 @@
 			"path" = "Tests/CometCoreTests/InputTests.swift";
 			"sourceTree" = "<group>";
 		};
-		"A8CD2DD8D8ED47F974763207" = {
+		"4D7A498D1236F3D70582247F" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "0A7710DD58150DFD07D0D709";
 		};
@@ -345,7 +347,7 @@
 			"path" = "Tests/CometCoreTests/LocalWebRTCPeer.swift";
 			"sourceTree" = "<group>";
 		};
-		"B3D2C87A4BCF866CBA426B3D" = {
+		"314A5134BCF459B8103DE3A7" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "0EA6ACF9FA671A8EF8A12B4B";
 		};
@@ -355,7 +357,7 @@
 			"path" = "Tests/CometCoreTests/MediaTests.swift";
 			"sourceTree" = "<group>";
 		};
-		"AA8455D52500A523F584997A" = {
+		"F789935ADE445E72319A6D33" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "F37FCBB48859E6A34A05BAA1";
 		};
@@ -365,7 +367,7 @@
 			"path" = "Tests/CometCoreTests/NativeCompositionTests.swift";
 			"sourceTree" = "<group>";
 		};
-		"54A2013B07BD030C8DDB9268" = {
+		"68D964EE503F3BDD34814822" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "CE8BA413CD34F241C99E0B0B";
 		};
@@ -375,7 +377,7 @@
 			"path" = "Tests/CometCoreTests/ProtocolE2ETests.swift";
 			"sourceTree" = "<group>";
 		};
-		"D06E837A7E1E427D6D8DCCB0" = {
+		"F79D541225961CBA56191D15" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "6A576CCD5BCC2125E70C835D";
 		};
@@ -385,7 +387,7 @@
 			"path" = "Tests/CometCoreTests/RemoteSurfaceLifecycleTests.swift";
 			"sourceTree" = "<group>";
 		};
-		"1F711FC83177440BD538CCAA" = {
+		"A38F9BB775E59AD6C92A087B" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "13BA354DB62D2E65AF146498";
 		};
@@ -395,7 +397,7 @@
 			"path" = "Tests/CometCoreTests/SecurityTests.swift";
 			"sourceTree" = "<group>";
 		};
-		"6DBEB2759D25D793B979AC8C" = {
+		"CDE456D0B9663CA2EB4C11A9" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "E00FC5A6FC8217CF8A3573A0";
 		};
@@ -405,75 +407,75 @@
 			"path" = "Tests/CometCoreTests/TransportSecurityTests.swift";
 			"sourceTree" = "<group>";
 		};
-		"705CFC837F772D788C093661" = {
+		"884D5EA1CEDE8735723A19D4" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "FF52CE61DAACF416A92DFF8A";
 		};
-		"E3BB084A8F47D9F0FA322CDC" = {
+		"FEDC1618AF439EA1057F85F5" = {
 			"isa" = "PBXGroup";
 			"children" = ("49C8D2E3742CEFE67BDCA174", "84180C1295ABED5C96121431", "3D8779C4E7F8A1F2784CC3FE", "2BBAB64F5134911C965155A8", "3FC7D434125C3E079435D4E4", "1605437A1DACB178CC2D93AC", "011F0AD834BD13AC45DD47A0", "0A7710DD58150DFD07D0D709", "0EA6ACF9FA671A8EF8A12B4B", "F37FCBB48859E6A34A05BAA1", "CE8BA413CD34F241C99E0B0B", "6A576CCD5BCC2125E70C835D", "13BA354DB62D2E65AF146498", "E00FC5A6FC8217CF8A3573A0", "FF52CE61DAACF416A92DFF8A");
-			"name" = "CometCoreTests";
+			"name" = "AsteroidKVMCoreTests";
 			"sourceTree" = "<group>";
 		};
-		"3306C52EF298082E5CD44520" = {
+		"BC52D3569E4E80A128F00396" = {
 			"isa" = "PBXFileReference";
 			"explicitFileType" = "wrapper.cfbundle";
-			"path" = "CometCoreTests.xctest";
+			"path" = "AsteroidKVMCoreTests.xctest";
 			"sourceTree" = "BUILT_PRODUCTS_DIR";
 		};
-		"2F762487D7F20DB3730DFFE0" = {
+		"70FAFED79596022939A5E66C" = {
 			"isa" = "XCSwiftPackageProductDependency";
 			"package" = "F58117D5A5E2E2F07B7A5553";
 			"productName" = "CometCore";
 		};
-		"FE261D9E7B9626DAFD0A7B70" = {
+		"8D17F4F1F8A3FD4C7EFE5D53" = {
 			"isa" = "XCSwiftPackageProductDependency";
 			"package" = "F58117D5A5E2E2F07B7A5553";
 			"productName" = "CometMedia";
 		};
-		"77346429AE19F435CFA30976" = {
+		"C459E4FB0C950C256C94F6A7" = {
 			"isa" = "XCSwiftPackageProductDependency";
 			"package" = "F58117D5A5E2E2F07B7A5553";
 			"productName" = "CometAgent";
 		};
-		"8229954DF04343C1F9974F05" = {
+		"17D5F96374EAC85C3C318894" = {
 			"isa" = "XCSwiftPackageProductDependency";
 			"package" = "F58117D5A5E2E2F07B7A5553";
 			"productName" = "CometSession";
 		};
-		"B2F6F7E6522A91DA7E982DB2" = {
+		"D245E62E87862FD8CBA720F0" = {
 			"isa" = "PBXBuildFile";
-			"productRef" = "2F762487D7F20DB3730DFFE0";
+			"productRef" = "70FAFED79596022939A5E66C";
 		};
-		"AFF45CE76A7F8820EC8A94CE" = {
+		"FE1526FC5E59461C81241D7C" = {
 			"isa" = "PBXBuildFile";
-			"productRef" = "FE261D9E7B9626DAFD0A7B70";
+			"productRef" = "8D17F4F1F8A3FD4C7EFE5D53";
 		};
-		"6D45E9CCD2B2A0BD6E7686B4" = {
+		"644D7CD6277BCC9BFF406993" = {
 			"isa" = "PBXBuildFile";
-			"productRef" = "77346429AE19F435CFA30976";
+			"productRef" = "C459E4FB0C950C256C94F6A7";
 		};
-		"48B80CA69D509E99D0C99894" = {
+		"620CB6096580A260AFB23A54" = {
 			"isa" = "PBXBuildFile";
-			"productRef" = "8229954DF04343C1F9974F05";
+			"productRef" = "17D5F96374EAC85C3C318894";
 		};
-		"C2819A4D681BABCB713B32FD" = {
+		"3C5673A1737C6961C781543E" = {
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
-			"files" = ("7EDED067BB64F642EC9B8089", "3BECD5CA884C37A178B6594B", "2170CA2152EF818B4EEE826F", "108656075FE83D924D2BAB19", "D3CB5A6AC4B935B4653EC93E", "9D67465B26D0CEB9D0D43C90", "708493E5A1A19E159C9D640C", "A8CD2DD8D8ED47F974763207", "B3D2C87A4BCF866CBA426B3D", "AA8455D52500A523F584997A", "54A2013B07BD030C8DDB9268", "D06E837A7E1E427D6D8DCCB0", "1F711FC83177440BD538CCAA", "6DBEB2759D25D793B979AC8C", "705CFC837F772D788C093661");
+			"files" = ("82B7C2B111C70F603E130B38", "4C4D4C08E9918BBC9D0893EC", "9E38EB77AF9A918F404BACF7", "1E0DDADF7FD41F7A0A708035", "ED99C36C51A191D42CDD9506", "4028C0F92CF432AB2121BC77", "4BAC53BF4287AF0D1BB8C43C", "4D7A498D1236F3D70582247F", "314A5134BCF459B8103DE3A7", "F789935ADE445E72319A6D33", "68D964EE503F3BDD34814822", "F79D541225961CBA56191D15", "A38F9BB775E59AD6C92A087B", "CDE456D0B9663CA2EB4C11A9", "884D5EA1CEDE8735723A19D4");
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
-		"3EAB9C0B9DFF7D8DB4727074" = {
+		"04AEF97F998D1B2F0A82D0DE" = {
 			"isa" = "PBXFrameworksBuildPhase";
 			"buildActionMask" = 2147483647;
-			"files" = ("B2F6F7E6522A91DA7E982DB2", "AFF45CE76A7F8820EC8A94CE", "6D45E9CCD2B2A0BD6E7686B4", "48B80CA69D509E99D0C99894");
+			"files" = ("D245E62E87862FD8CBA720F0", "FE1526FC5E59461C81241D7C", "644D7CD6277BCC9BFF406993", "620CB6096580A260AFB23A54");
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
-		"0961EE524A6C7B08E315E92B" = {
+		"61D9BBC9F7B57950C3F1B1B2" = {
 			"isa" = "XCBuildConfiguration";
 			"name" = "Debug";
 			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometCoreTests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVMCoreTests";
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
 				"SWIFT_VERSION" = "5.0";
 				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
@@ -489,11 +491,11 @@
 				"ONLY_ACTIVE_ARCH" = "YES";
 			};
 		};
-		"ECFB78E667413205D149CC86" = {
+		"EB4C1D35B25E19380976AB36" = {
 			"isa" = "XCBuildConfiguration";
 			"name" = "Release";
 			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometCoreTests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVMCoreTests";
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
 				"SWIFT_VERSION" = "5.0";
 				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
@@ -507,22 +509,22 @@
 				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
 			};
 		};
-		"260135341E6AB05F5FDDFD0D" = {
+		"257174400596069F4E15DDF8" = {
 			"isa" = "XCConfigurationList";
-			"buildConfigurations" = ("0961EE524A6C7B08E315E92B", "ECFB78E667413205D149CC86");
+			"buildConfigurations" = ("61D9BBC9F7B57950C3F1B1B2", "EB4C1D35B25E19380976AB36");
 			"defaultConfigurationIsVisible" = 0;
 			"defaultConfigurationName" = "Release";
 		};
-		"6CDED899A448D11B6D183FE7" = {
+		"55DB8E8AD9C3E97E28F00328" = {
 			"isa" = "PBXNativeTarget";
-			"buildConfigurationList" = "260135341E6AB05F5FDDFD0D";
-			"buildPhases" = ("C2819A4D681BABCB713B32FD", "3EAB9C0B9DFF7D8DB4727074");
+			"buildConfigurationList" = "257174400596069F4E15DDF8";
+			"buildPhases" = ("3C5673A1737C6961C781543E", "04AEF97F998D1B2F0A82D0DE");
 			"buildRules" = ();
 			"dependencies" = ();
-			"name" = "CometCoreTests";
-			"packageProductDependencies" = ("2F762487D7F20DB3730DFFE0", "FE261D9E7B9626DAFD0A7B70", "77346429AE19F435CFA30976", "8229954DF04343C1F9974F05");
-			"productName" = "CometCoreTests";
-			"productReference" = "3306C52EF298082E5CD44520";
+			"name" = "AsteroidKVMCoreTests";
+			"packageProductDependencies" = ("70FAFED79596022939A5E66C", "8D17F4F1F8A3FD4C7EFE5D53", "C459E4FB0C950C256C94F6A7", "17D5F96374EAC85C3C318894");
+			"productName" = "AsteroidKVMCoreTests";
+			"productReference" = "BC52D3569E4E80A128F00396";
 			"productType" = "com.apple.product-type.bundle.unit-test";
 		};
 		"909A6CAA5D8AB54BA54C82E0" = {
@@ -531,29 +533,29 @@
 			"path" = "Tests/CometUITests/CometUITests.swift";
 			"sourceTree" = "<group>";
 		};
-		"D6899BC00912180654BFB5CB" = {
+		"4A01C04F8F8B2CB036A97732" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "909A6CAA5D8AB54BA54C82E0";
 		};
-		"1079D3C6B18A3688440D356B" = {
+		"D2CBD192FAB66F33707006B6" = {
 			"isa" = "PBXGroup";
 			"children" = ("909A6CAA5D8AB54BA54C82E0");
-			"name" = "CometUITests";
+			"name" = "AsteroidKVMUITests";
 			"sourceTree" = "<group>";
 		};
-		"55B25D524564D682F32A7413" = {
+		"2C7BA0A40AEFE8E6EB9D0D46" = {
 			"isa" = "PBXFileReference";
 			"explicitFileType" = "wrapper.cfbundle";
-			"path" = "CometUITests.xctest";
+			"path" = "AsteroidKVMUITests.xctest";
 			"sourceTree" = "BUILT_PRODUCTS_DIR";
 		};
-		"EBE31B9853B606BECD752A71" = {
+		"8BE8A2893A9801B0B057888F" = {
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
-			"files" = ("D6899BC00912180654BFB5CB");
+			"files" = ("4A01C04F8F8B2CB036A97732");
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
-		"3D2CB904993ACF537C04B963" = {
+		"7622F597942F16D0D58BCA41" = {
 			"isa" = "PBXFrameworksBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = ();
@@ -563,19 +565,19 @@
 			"isa" = "PBXContainerItemProxy";
 			"containerPortal" = "F6F4DA8D93E88A08220E03B7";
 			"proxyType" = 1;
-			"remoteGlobalIDString" = "8A90A6BDD02FC1C2F95C3016";
-			"remoteInfo" = "CometKVM";
+			"remoteGlobalIDString" = "370F2713D58F5AFBD8B4D2B2";
+			"remoteInfo" = "AsteroidKVM";
 		};
 		"6176B977F600F04EFDE7793A" = {
 			"isa" = "PBXTargetDependency";
-			"target" = "8A90A6BDD02FC1C2F95C3016";
+			"target" = "370F2713D58F5AFBD8B4D2B2";
 			"targetProxy" = "3DDD014B50A4CB7CB4B4C5A6";
 		};
-		"A836CF036C2CDCA4E73ABE74" = {
+		"183B213A0F5A7C67EEBB4177" = {
 			"isa" = "XCBuildConfiguration";
 			"name" = "Debug";
 			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometUITests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVMUITests";
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
 				"SWIFT_VERSION" = "5.0";
 				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
@@ -585,18 +587,18 @@
 				"ENABLE_APP_SANDBOX" = "NO";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
 				"ENABLE_TESTABILITY" = "YES";
-				"TEST_TARGET_NAME" = "CometKVM";
+				"TEST_TARGET_NAME" = "AsteroidKVM";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
 				"DEBUG_INFORMATION_FORMAT" = "dwarf";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
 				"ONLY_ACTIVE_ARCH" = "YES";
 			};
 		};
-		"3E06A32C844542C8761AE452" = {
+		"7EB5018CBE37044291FA78EA" = {
 			"isa" = "XCBuildConfiguration";
 			"name" = "Release";
 			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.cometkvm.CometUITests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVMUITests";
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
 				"SWIFT_VERSION" = "5.0";
 				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
@@ -606,38 +608,38 @@
 				"ENABLE_APP_SANDBOX" = "NO";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
 				"ENABLE_TESTABILITY" = "YES";
-				"TEST_TARGET_NAME" = "CometKVM";
+				"TEST_TARGET_NAME" = "AsteroidKVM";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
 				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
 			};
 		};
-		"598C01279302D824988E67FE" = {
+		"89372AC2BD03CB7BC51B19CC" = {
 			"isa" = "XCConfigurationList";
-			"buildConfigurations" = ("A836CF036C2CDCA4E73ABE74", "3E06A32C844542C8761AE452");
+			"buildConfigurations" = ("183B213A0F5A7C67EEBB4177", "7EB5018CBE37044291FA78EA");
 			"defaultConfigurationIsVisible" = 0;
 			"defaultConfigurationName" = "Release";
 		};
-		"BF2162B6D9AC0A0956C4E115" = {
+		"AD3A50AF68E84DC2A4FA461C" = {
 			"isa" = "PBXNativeTarget";
-			"buildConfigurationList" = "598C01279302D824988E67FE";
-			"buildPhases" = ("EBE31B9853B606BECD752A71", "3D2CB904993ACF537C04B963");
+			"buildConfigurationList" = "89372AC2BD03CB7BC51B19CC";
+			"buildPhases" = ("8BE8A2893A9801B0B057888F", "7622F597942F16D0D58BCA41");
 			"buildRules" = ();
 			"dependencies" = ("6176B977F600F04EFDE7793A");
-			"name" = "CometUITests";
+			"name" = "AsteroidKVMUITests";
 			"packageProductDependencies" = ();
-			"productName" = "CometUITests";
-			"productReference" = "55B25D524564D682F32A7413";
+			"productName" = "AsteroidKVMUITests";
+			"productReference" = "2C7BA0A40AEFE8E6EB9D0D46";
 			"productType" = "com.apple.product-type.bundle.ui-testing";
 		};
 		"FE0A091FDBFB3E9C31B7A1BD" = {
 			"isa" = "PBXGroup";
-			"children" = ("8E09F4E178031165AC3BBAE5", "3306C52EF298082E5CD44520", "55B25D524564D682F32A7413");
+			"children" = ("AA31C1689ECDE197F9DFFC16", "BC52D3569E4E80A128F00396", "2C7BA0A40AEFE8E6EB9D0D46");
 			"name" = "Products";
 			"sourceTree" = "<group>";
 		};
 		"2EB2D8158FC6EF9EB19CB439" = {
 			"isa" = "PBXGroup";
-			"children" = ("20E3D79CC4450B6E7DED7F36", "E3BB084A8F47D9F0FA322CDC", "1079D3C6B18A3688440D356B", "FE0A091FDBFB3E9C31B7A1BD");
+			"children" = ("3A8052B8F051E374C46D23F0", "FEDC1618AF439EA1057F85F5", "D2CBD192FAB66F33707006B6", "FE0A091FDBFB3E9C31B7A1BD");
 			"sourceTree" = "<group>";
 		};
 		"BFD315016DE16320F7E2120C" = {
@@ -688,7 +690,7 @@
 			"productRefGroup" = "FE0A091FDBFB3E9C31B7A1BD";
 			"projectDirPath" = "";
 			"projectRoot" = "";
-			"targets" = ("8A90A6BDD02FC1C2F95C3016", "6CDED899A448D11B6D183FE7", "BF2162B6D9AC0A0956C4E115");
+			"targets" = ("370F2713D58F5AFBD8B4D2B2", "55DB8E8AD9C3E97E28F00328", "AD3A50AF68E84DC2A4FA461C");
 		};
 	};
 	"rootObject" = "F6F4DA8D93E88A08220E03B7";

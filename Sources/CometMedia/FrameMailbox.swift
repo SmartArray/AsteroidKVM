@@ -56,7 +56,7 @@ public final class FrameMailbox: NSObject, RTCVideoRenderer, @unchecked Sendable
   private var metrics = VideoMetrics()
   private var forceCopy = false
   private let copyQueue = DispatchQueue(
-    label: "app.cometkvm.texture-fallback", qos: .userInteractive)
+    label: "app.asteroidkvm.texture-fallback", qos: .userInteractive)
   public override init() { super.init() }
 
   // Read dimensions from each retained pixel buffer; this advisory callback must not mutate UI state.

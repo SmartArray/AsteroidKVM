@@ -1,24 +1,26 @@
-# Comet KVM usage guide
+# AsteroidKVM usage guide
 
 A native macOS client for GL.iNet Comet / GLKVM, built with SwiftUI, AppKit, native WebRTC, Metal, and Apple Vision. Requires macOS 14 or later. The WebRTC dependency is pinned to **153.0.0** and includes Apple Silicon and Intel binaries.
 
 ## Build and run
 
-Open **CometKVM.xcodeproj**, select **CometKVM → My Mac**, and run. Xcode resolves the pinned package on the first build. No Homebrew dependencies are required; tests also use the system Python 3.
+Open **AsteroidKVM.xcodeproj**, select **AsteroidKVM → My Mac**, and run. Xcode resolves the pinned package on the first build. No Homebrew dependencies are required; tests also use the system Python 3.
 
 ```sh
 ./scripts/build.sh
-open build/DerivedData/Build/Products/Release/CometKVM.app
+open build/DerivedData/Build/Products/Release/AsteroidKVM.app
 ```
 
 The generated app is locally ad-hoc signed. Developer ID signing and notarization are separate distribution steps. The checked-in project can be regenerated with `python3 scripts/generate-project.py` after adding source files.
+
+Existing CometKVM profiles, remembered passwords, display recovery backups, appearance, and Agent preferences migrate to AsteroidKVM on first launch. The previous files and Keychain entries remain in place until you remove them yourself.
 
 Add a connection using its hostname, scheme, port, and account. Passwords are stored only in memory unless **Remember password in Keychain** is selected. A self-signed certificate requires approval of its SHA-256 fingerprint for that specific host and port. Logout does not delete saved passwords.
 
 For an explicitly supplied, ephemeral test session:
 
 ```sh
-open build/DerivedData/Build/Products/Release/CometKVM.app --args \
+open build/DerivedData/Build/Products/Release/AsteroidKVM.app --args \
   --session-file "$HOME/.cache/qrx/comet-session.json"
 ```
 

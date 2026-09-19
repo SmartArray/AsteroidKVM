@@ -14,7 +14,7 @@ import Foundation
   private var sequence = 0
   private var pending: [Int: CheckedContinuation<JSONValue, Error>] = [:]
   private var deadlines: [Int: Task<Void, Never>] = [:]
-  private let writes = DispatchQueue(label: "app.cometkvm.codex.write")
+  private let writes = DispatchQueue(label: "app.asteroidkvm.codex.write")
   private var generation = UUID()
   private var queuedWriteBytes = 0
 
@@ -54,7 +54,7 @@ import Foundation
     self.directory =
       directory
       ?? FileManager.default.temporaryDirectory.appendingPathComponent(
-        "CometKVM-Agent", isDirectory: true)
+        "AsteroidKVM-Agent", isDirectory: true)
     self.arguments =
       arguments ?? ["app-server", "--listen", "stdio://"]
       + Self.configuration.sorted { $0.key < $1.key }.flatMap {
@@ -91,7 +91,7 @@ import Foundation
     process = child
     input = stdin.fileHandleForWriting
     let reader = stdout.fileHandleForReading
-    DispatchQueue(label: "app.cometkvm.codex.read").async { [weak self] in
+    DispatchQueue(label: "app.asteroidkvm.codex.read").async { [weak self] in
       var buffer = Data()
       while true {
         let chunk = reader.availableData

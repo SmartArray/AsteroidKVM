@@ -1,4 +1,4 @@
-Comet KVM — Third-party notices
+AsteroidKVM — Third-party notices
 
 Native WebRTC 153.0.0 is distributed by https://github.com/stasel/WebRTC.
 The native framework and Swift package retain their upstream licenses below.

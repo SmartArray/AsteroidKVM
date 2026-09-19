@@ -108,7 +108,7 @@ import Foundation
           "initialize",
           .object([
             "clientInfo": .object([
-              "name": .string("comet_kvm_models"), "version": .string("1.0.0"),
+              "name": .string("asteroid_kvm_models"), "version": .string("1.0.0"),
             ])
           ]))
         try connection.notify("initialized", .object([:]))
@@ -209,7 +209,7 @@ import Foundation
             "initialize",
             .object([
               "clientInfo": .object([
-                "name": .string("comet_kvm"), "title": .string("Comet KVM"),
+                "name": .string("asteroid_kvm"), "title": .string("AsteroidKVM"),
                 "version": .string("1.0.0"),
               ]),
               "capabilities": .object(["experimentalApi": .bool(true)]),
@@ -381,7 +381,7 @@ import Foundation
         try? transport?.reject(
           id: event["id"],
           message:
-            "Only Comet remote-screen tools are available. Ask the user in chat if you need clarification."
+            "Only AsteroidKVM remote-screen tools are available. Ask the user in chat if you need clarification."
         )
         return
       }

@@ -21,21 +21,23 @@ import Foundation
   private let endpoint: () -> String
   private let beforeApply: () -> Void
   private let backupDirectory: URL
+  private let legacyBackupDirectory: URL?
   private var loadedEndpoint: String?
 
   // Dependencies are resolved at operation start so reconnects use fresh credentials without carrying drafts across hosts.
   public init(
     service: @escaping () -> (any EDIDService)?, endpoint: @escaping () -> String,
-    backupDirectory: URL? = nil, beforeApply: @escaping () -> Void = {}
+    backupDirectory: URL? = nil, legacyBackupDirectory: URL? = nil,
+    beforeApply: @escaping () -> Void = {}
   ) {
     self.service = service
     self.endpoint = endpoint
     self.beforeApply = beforeApply
-    self.backupDirectory =
-      backupDirectory
-      ?? FileManager.default.urls(
-        for: .applicationSupportDirectory,
-        in: .userDomainMask)[0].appendingPathComponent("CometKVM/EDIDBackups", isDirectory: true)
+    let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    self.backupDirectory = backupDirectory
+      ?? support.appendingPathComponent("AsteroidKVM/EDIDBackups", isDirectory: true)
+    self.legacyBackupDirectory = legacyBackupDirectory ?? (backupDirectory == nil
+      ? support.appendingPathComponent("CometKVM/EDIDBackups", isDirectory: true) : nil)
   }
 
   // Only confirmed hardware models enable the curated timing templates.
@@ -205,13 +207,25 @@ import Foundation
 
   // Hash the connection UUID and endpoint to prevent file-path injection and restoration onto another device.
   private func backupURL(_ key: String) -> URL {
+    backupURL(key, in: backupDirectory)
+  }
+
+  // Use the same opaque filename while checking the prior namespace so recovery remains device-bound.
+  private func backupURL(_ key: String, in directory: URL) -> URL {
     let name = SHA256.hash(data: Data(key.utf8)).map { String(format: "%02x", $0) }.joined()
-    return backupDirectory.appendingPathComponent(name + ".hex")
+    return directory.appendingPathComponent(name + ".hex")
   }
   private func loadBackup(_ key: String) throws -> EDIDDocument? {
     let url = backupURL(key)
-    guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-    return try EDIDDocument(hex: String(contentsOf: url, encoding: .utf8))
+    if FileManager.default.fileExists(atPath: url.path) {
+      return try EDIDDocument(hex: String(contentsOf: url, encoding: .utf8))
+    }
+    guard let legacyBackupDirectory else { return nil }
+    let legacyURL = backupURL(key, in: legacyBackupDirectory)
+    guard FileManager.default.fileExists(atPath: legacyURL.path) else { return nil }
+    let document = try EDIDDocument(hex: String(contentsOf: legacyURL, encoding: .utf8))
+    try saveBackup(document, key: key)
+    return document
   }
   private func saveBackup(_ value: EDIDDocument?, key: String) throws {
     try FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)

@@ -58,19 +58,19 @@ groups = []
 targets = []
 for name, source, kind, dependencies in [
     (
-        "CometKVM",
+        "AsteroidKVM",
         "Sources/CometApp",
         "com.apple.product-type.application",
         ["CometCore", "CometMedia", "CometAgent", "CometSession"],
     ),
     (
-        "CometCoreTests",
+        "AsteroidKVMCoreTests",
         "Tests/CometCoreTests",
         "com.apple.product-type.bundle.unit-test",
         ["CometCore", "CometMedia", "CometAgent", "CometSession"],
     ),
     (
-        "CometUITests",
+        "AsteroidKVMUITests",
         "Tests/CometUITests",
         "com.apple.product-type.bundle.ui-testing",
         [],
@@ -91,7 +91,7 @@ for name, source, kind, dependencies in [
     groups.append(
         obj(name + "Group", "PBXGroup", children=files, name=name, sourceTree="<group>")
     )
-    ext = "app" if name == "CometKVM" else "xctest"
+    ext = "app" if name == "AsteroidKVM" else "xctest"
     product = obj(
         name + "Product",
         "PBXFileReference",
@@ -129,7 +129,7 @@ for name, source, kind, dependencies in [
     )
     # Ship dependency license notices inside the app so the binary carries its redistribution terms.
     phases = [sources, frameworks]
-    if name == "CometKVM":
+    if name == "AsteroidKVM":
         notice = obj(
             "ThirdPartyNotices",
             "PBXFileReference",
@@ -160,7 +160,7 @@ for name, source, kind, dependencies in [
             )
         )
     settings = dict(
-        PRODUCT_BUNDLE_IDENTIFIER="app.cometkvm." + name,
+        PRODUCT_BUNDLE_IDENTIFIER="app.asteroidkvm." + name,
         PRODUCT_NAME="$(TARGET_NAME)",
         SWIFT_VERSION="5.0",
         MACOSX_DEPLOYMENT_TARGET="14.0",
@@ -175,36 +175,37 @@ for name, source, kind, dependencies in [
         ],
         ENABLE_TESTABILITY="YES",
     )
-    if name == "CometKVM":
+    if name == "AsteroidKVM":
         settings.update(
             INFOPLIST_FILE="Resources/Info.plist",
             MARKETING_VERSION="1.0.0",
             CURRENT_PROJECT_VERSION="1",
         )
         settings.update(
-            INFOPLIST_KEY_CFBundleDisplayName="Comet KVM",
+            INFOPLIST_KEY_CFBundleDisplayName="AsteroidKVM",
+            INFOPLIST_KEY_CFBundleName="AsteroidKVM",
             INFOPLIST_KEY_NSMicrophoneUsageDescription="Forward your microphone to the computer connected to Comet when you enable microphone forwarding.",
             INFOPLIST_KEY_LSApplicationCategoryType="public.app-category.utilities",
             INFOPLIST_KEY_NSPrincipalClass="NSApplication",
             INFOPLIST_KEY_NSHighResolutionCapable="YES",
-            INFOPLIST_KEY_NSLocalNetworkUsageDescription="Connect to your Comet KVM appliances on the local network.",
+            INFOPLIST_KEY_NSLocalNetworkUsageDescription="Connect to your GL.iNet Comet appliances on the local network.",
         )
     target_dependencies = []
-    if name == "CometUITests":
-        settings["TEST_TARGET_NAME"] = "CometKVM"
+    if name == "AsteroidKVMUITests":
+        settings["TEST_TARGET_NAME"] = "AsteroidKVM"
         proxy = obj(
             "UIProxy",
             "PBXContainerItemProxy",
             containerPortal=oid("Project"),
             proxyType=1,
-            remoteGlobalIDString=oid("CometKVMTarget"),
-            remoteInfo="CometKVM",
+            remoteGlobalIDString=oid("AsteroidKVMTarget"),
+            remoteInfo="AsteroidKVM",
         )
         target_dependencies.append(
             obj(
                 "UIDependency",
                 "PBXTargetDependency",
-                target=oid("CometKVMTarget"),
+                target=oid("AsteroidKVMTarget"),
                 targetProxy=proxy,
             )
         )
@@ -278,7 +279,7 @@ def encode(value, level=0):
     return str(value) if isinstance(value, int) else json.dumps(value)
 
 
-folder = root / "CometKVM.xcodeproj"
+folder = root / "AsteroidKVM.xcodeproj"
 folder.mkdir(exist_ok=True)
 (folder / "project.pbxproj").write_text(
     "// !$*UTF8*$!\n"
@@ -299,15 +300,15 @@ schemes.mkdir(parents=True, exist_ok=True)
 
 # Point shared schemes at the generated native targets using the same deterministic identifiers.
 def reference(name):
-    return f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{oid(name+"Target")}" BuildableName="{name}.{"app" if name == "CometKVM" else "xctest"}" BlueprintName="{name}" ReferencedContainer="container:CometKVM.xcodeproj"/>'
+    return f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{oid(name+"Target")}" BuildableName="{name}.{"app" if name == "AsteroidKVM" else "xctest"}" BlueprintName="{name}" ReferencedContainer="container:AsteroidKVM.xcodeproj"/>'
 
 
-(schemes / "CometKVM.xcscheme").write_text(f"""<?xml version="1.0" encoding="UTF-8"?>
+(schemes / "AsteroidKVM.xcscheme").write_text(f"""<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="2660" version="1.3">
-<BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">{reference('CometKVM')}</BuildActionEntry></BuildActionEntries></BuildAction>
-<TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES"><Testables><TestableReference skipped="NO">{reference('CometCoreTests')}</TestableReference><TestableReference skipped="NO">{reference('CometUITests')}</TestableReference></Testables></TestAction>
-<LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" debugServiceExtension="internal" allowLocationSimulation="YES"><BuildableProductRunnable runnableDebuggingMode="0">{reference('CometKVM')}</BuildableProductRunnable></LaunchAction>
-<ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES"><BuildableProductRunnable runnableDebuggingMode="0">{reference('CometKVM')}</BuildableProductRunnable></ProfileAction>
+<BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">{reference('AsteroidKVM')}</BuildActionEntry></BuildActionEntries></BuildAction>
+<TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES"><Testables><TestableReference skipped="NO">{reference('AsteroidKVMCoreTests')}</TestableReference><TestableReference skipped="NO">{reference('AsteroidKVMUITests')}</TestableReference></Testables></TestAction>
+<LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" debugServiceExtension="internal" allowLocationSimulation="YES"><BuildableProductRunnable runnableDebuggingMode="0">{reference('AsteroidKVM')}</BuildableProductRunnable></LaunchAction>
+<ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES"><BuildableProductRunnable runnableDebuggingMode="0">{reference('AsteroidKVM')}</BuildableProductRunnable></ProfileAction>
 <AnalyzeAction buildConfiguration="Debug"/><ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES"/>
 </Scheme>""")
-print("Generated CometKVM.xcodeproj")
+print("Generated AsteroidKVM.xcodeproj")

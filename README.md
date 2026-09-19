@@ -1,6 +1,6 @@
 <div align="center">
 
-# ☄️ Asteroid KVM
+# AsteroidKVM
 
 **🤖 Agent automation · ⌨️ Native keys · ⚡ Fast rendering**
 
@@ -13,7 +13,7 @@ Control a remote computer yourself, or give Codex a task and watch it work.
 
 </div>
 
-![Asteroid KVM displaying a remote Windows desktop with a browser and PowerShell, native toolbar controls, and connection status](docs/screenshots/remote-display.png)
+![AsteroidKVM displaying a remote Windows desktop with a browser and PowerShell, native toolbar controls, and connection status](docs/screenshots/remote-display.png)
 
 *The real client connected to a Windows desktop. Keyboard, display, text recognition, and Agent controls stay within reach.*
 
@@ -91,10 +91,10 @@ You need **macOS 14 or later**, a reachable **Comet / GLKVM appliance**, and **X
 ./scripts/build.sh
 
 # Launch the client.
-open build/DerivedData/Build/Products/Release/CometKVM.app
+open build/DerivedData/Build/Products/Release/AsteroidKVM.app
 ```
 
-You can also open `CometKVM.xcodeproj`, select **CometKVM → My Mac**, and run. Xcode resolves the pinned WebRTC package automatically.
+You can also open `AsteroidKVM.xcodeproj`, select **AsteroidKVM → My Mac**, and run. Xcode resolves the pinned WebRTC package automatically.
 
 1. **Add your Comet** with its hostname, port, and account.
 2. **Connect and click the display** to capture input. The first click captures; subsequent clicks reach the remote machine.

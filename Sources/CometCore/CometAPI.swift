@@ -130,7 +130,7 @@ public actor CometAPI {
     request.timeoutInterval = timeout
     request.httpMethod = method
     request.httpBody = body
-    request.setValue("CometKVM/1.0 macOS", forHTTPHeaderField: "User-Agent")
+    request.setValue("AsteroidKVM/1.0 macOS", forHTTPHeaderField: "User-Agent")
     if let token {
       request.setValue("auth_token=\(token)", forHTTPHeaderField: "Cookie")
       request.setValue(token, forHTTPHeaderField: "Token")

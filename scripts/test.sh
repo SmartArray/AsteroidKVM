@@ -24,16 +24,16 @@ case "${1:-local}" in
     swift test --filter EDIDHardwareTests
     ;;
   --ui)
-    xcodebuild -project CometKVM.xcodeproj -scheme CometKVM -destination 'platform=macOS' \
+    xcodebuild -project AsteroidKVM.xcodeproj -scheme AsteroidKVM -destination 'platform=macOS' \
       -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath .build/xcode-packages \
-      -only-testing:CometUITests test
+      -only-testing:AsteroidKVMUITests test
     ;;
   --ui-hardware)
     export TEST_RUNNER_COMET_UI_SESSION_FILE="${COMET_E2E_SESSION:-$HOME/.cache/qrx/comet-session.json}"
     test -r "$TEST_RUNNER_COMET_UI_SESSION_FILE"
-    xcodebuild -project CometKVM.xcodeproj -scheme CometKVM -destination 'platform=macOS' \
+    xcodebuild -project AsteroidKVM.xcodeproj -scheme AsteroidKVM -destination 'platform=macOS' \
       -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath .build/xcode-packages \
-      -only-testing:CometUITests test
+      -only-testing:AsteroidKVMUITests test
     ;;
   --text-input)
     # Interpret German dead keys through AppKit and the real HID queue, restoring the prior input source.
