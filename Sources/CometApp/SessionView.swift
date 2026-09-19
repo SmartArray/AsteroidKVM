@@ -300,8 +300,13 @@ struct DisplayPopover: View {
         Divider()
         Text("Comet Video Encoder").font(.subheadline.bold())
         if session.state.params.isEmpty {
-          Text("Connect to discover video controls supported by this Comet.").foregroundStyle(
-            .secondary)
+          // Missing encoder metadata does not imply that the authenticated video/input session is disconnected.
+          Text(
+            session.active
+              ? "No encoder settings were reported by this Comet."
+              : "Connect to discover video controls supported by this Comet."
+          )
+          .foregroundStyle(.secondary)
         } else {
           Menu("Quality Preset") {
             ForEach(VideoPreset.firmwarePresets) { preset in
@@ -309,6 +314,7 @@ struct DisplayPopover: View {
                 !preset.supported(by: session.state))
             }
           }
+          .accessibilityIdentifier("video-quality-presets")
           ForEach(
             [
               ("desired_fps", "Frame rate"), ("h264_bitrate", "Bitrate (kbps)"),

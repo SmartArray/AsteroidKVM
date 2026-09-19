@@ -54,6 +54,10 @@ H.264 is supported by the pinned native decoder. H.265 is visibly unavailable be
 
 The companion mapped-text extension is specified in [spec.md](spec.md); it is absent from the inspected public HID source and was confirmed separately through the live capability and acknowledgment contract. No device credentials, private configuration dump, or public frontend bundle is included in this repository.
 
+## Live encoder state
+
+`GET /api/streamer` provides the complete discovery snapshot. WebSocket `streamer` events are partial updates: status-only events must not remove discovered encoder parameters or their limits. The native state reducer merges partial objects, replaces explicitly supplied arrays/scalars/nulls, and replaces `features` as a complete capability set, matching the firmware's [streamer granularity contract](https://github.com/gl-inet/glkvm/blob/main/kvmd/apps/kvmd/streamer.py). Missing encoder metadata on an active session is reported separately from a disconnected session.
+
 ## EDID configuration
 
 Display settings use the appliance web client's `GET /api/upgrade/get_edid` (`result.edid`, whitespace-separated or contiguous hex) and multipart `POST /api/upgrade/edid` (text field `edid`). `GET /api/upgrade/version` supplies the real Comet `model`; the legacy `/api/info` platform model is not used for mode support. The optional EDID catalog endpoint is not required. Authentication and certificate policy are inherited from the connection; a rejected session is not interpreted as unsupported EDID.

@@ -176,6 +176,29 @@ public struct DeviceState: Sendable {
   }
   public var params: [String: JSONValue] { streamer["params"].object }
   public var online: Bool? { streamer["streamer"]["source"]["online"].bool }
+
+  // Live streamer events are patches: status-only events must retain discovered encoder parameters and limits.
+  public mutating func applyStreamerUpdate(_ update: JSONValue) {
+    guard case .object(let fields) = update else { return }
+    var current = streamer.object
+    for (key, value) in fields {
+      // Firmware defines features as a complete set; other sections may contain partial nested updates.
+      current[key] =
+        key == "features" ? value : Self.mergeStreamerField(current[key] ?? .null, value)
+    }
+    streamer = .object(current)
+  }
+
+  // Preserve omitted fields while honoring explicit nulls, scalar changes, and replacement arrays.
+  private static func mergeStreamerField(_ old: JSONValue, _ update: JSONValue) -> JSONValue {
+    guard case .object(let fields) = update else { return update }
+    var result = old.object
+    for (key, value) in fields {
+      result[key] = mergeStreamerField(result[key] ?? .null, value)
+    }
+    return .object(result)
+  }
+
 }
 
 // Reserve a typed extension point for future identity workflows without fabricating API support.

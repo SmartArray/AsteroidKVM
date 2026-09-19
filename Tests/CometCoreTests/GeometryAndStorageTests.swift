@@ -3,6 +3,31 @@ import CometCore
 import XCTest
 
 final class GeometryAndStorageTests: XCTestCase {
+  // Streamer patches retain omitted settings but replace full capability sets and explicit null/array values.
+  func testStreamerPatchSemantics() throws {
+    var state = DeviceState()
+    state.streamer = try JSONValue.decode(
+      Data(
+        #"{"features":{"h264":true,"quality":true},"params":{"h264_bitrate":5000,"desired_fps":60},"limits":{"desired_fps":{"min":0,"max":70},"available_resolutions":["1920x1080"]},"streamer":{"source":{"online":true,"resolution":{"width":1920,"height":1080}}}}"#
+          .utf8))
+    state.applyStreamerUpdate(
+      try JSONValue.decode(
+        Data(
+          #"{"features":{"h264":false},"params":{"h264_bitrate":null},"limits":{"desired_fps":{"max":60},"available_resolutions":[]},"streamer":null}"#
+            .utf8)))
+    XCTAssertNil(state.streamer["features"]["quality"].bool)
+    XCTAssertEqual(state.streamer["features"]["h264"].bool, false)
+    XCTAssertEqual(state.params["h264_bitrate"], .null)
+    XCTAssertEqual(state.params["desired_fps"]?.number, 60)
+    XCTAssertEqual(state.streamer["limits"]["desired_fps"]["min"].number, 0)
+    XCTAssertEqual(state.streamer["limits"]["desired_fps"]["max"].number, 60)
+    XCTAssertEqual(state.streamer["limits"]["available_resolutions"].array, [])
+    XCTAssertEqual(state.streamer["streamer"], .null)
+    let before = state.streamer
+    state.applyStreamerUpdate(.null)
+    XCTAssertEqual(state.streamer, before)
+  }
+
   // Click previews must map back to the exact source location across rotation, cropping, Retina, and pixel aspect.
   func testClickPreviewUsesTheInversePointerTransform() {
     for rotation in [0, 90, 180, 270] {

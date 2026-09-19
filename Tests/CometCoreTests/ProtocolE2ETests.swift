@@ -60,6 +60,31 @@ final class ProtocolE2ETests: XCTestCase {
     await service.close()
   }
 
+  // Drive the production state receiver with status and parameter patches that previously erased quality controls.
+  @MainActor func testPartialStreamerEventsKeepEncoderControls() async throws {
+    let session = SessionController(
+      profile: ConnectionProfile(
+        name: "Encoder patches", host: "127.0.0.1", port: port, scheme: "http"),
+      password: "test-password", mediaFactory: { _, _ in FixtureMedia() })
+    session.connect()
+    try await waitUntil { session.active }
+    let limits = session.state.streamer["limits"]
+    session.output?.enqueue([HIDEvent("test_streamer_updates", [:])])
+    await session.output?.flush()
+    try await waitUntil {
+      session.state.streamer["streamer"]["source"]["captured_fps"].number == 31
+    }
+    XCTAssertEqual(session.phase, .connected)
+    XCTAssertEqual(session.state.params["h264_bitrate"]?.number, 8000)
+    XCTAssertEqual(session.state.params["desired_fps"]?.number, 60)
+    XCTAssertEqual(session.state.params["h264_gop"]?.number, 60)
+    XCTAssertEqual(session.state.streamer["limits"], limits)
+    XCTAssertEqual(session.state.streamer["streamer"]["source"]["resolution"]["width"].number, 1920)
+    XCTAssertTrue(
+      VideoPreset.firmwarePresets.contains { $0.name == "High" && $0.supported(by: session.state) })
+    await session.disconnect()
+  }
+
   // Authentication expiry on one client must not clear the other client's cookies or connection state.
   func testAuthenticationDiscoveryConfigurationAndSessionIsolation() async throws {
     let a = api()

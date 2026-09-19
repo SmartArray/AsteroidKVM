@@ -259,7 +259,7 @@ import CometMedia
               configureInput()
             }
           case "streamer":
-            state.streamer = event
+            state.applyStreamerUpdate(event)
             if active { phase = state.online == false ? .noSignal : .connected }
           case "mapped_text_result":
             if event["mapped"].bool == false {

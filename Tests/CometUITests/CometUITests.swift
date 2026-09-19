@@ -41,6 +41,20 @@ final class CometUITests: XCTestCase {
 
     // The shortcut chooses the originating device and section, including when Settings already exists.
     remote.buttons["display-toolbar"].firstMatch.click()
+
+    // Live status patches must not remove encoder controls discovered at connection time.
+    let presets = app.descendants(matching: .any).matching(identifier: "video-quality-presets")
+      .firstMatch
+    XCTAssertTrue(presets.waitForExistence(timeout: 5))
+    let disappeared = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in !presets.exists }, object: presets)
+    XCTAssertEqual(XCTWaiter.wait(for: [disappeared], timeout: 3), .timedOut)
+    presets.click()
+    XCTAssertTrue(app.menuItems["High"].isEnabled)
+    app.typeKey(.escape, modifierFlags: [])
+    if !app.buttons["display-settings-link"].firstMatch.exists {
+      remote.buttons["display-toolbar"].firstMatch.click()
+    }
     app.buttons["display-settings-link"].firstMatch.click()
     let manufacturer = app.textFields["edid-manufacturer"].firstMatch
     XCTAssertTrue(manufacturer.waitForExistence(timeout: 10))

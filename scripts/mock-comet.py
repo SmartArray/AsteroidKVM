@@ -234,6 +234,11 @@ class Handler(BaseHTTPRequestHandler):
                             },
                         }
                     )
+                # Reproduce Comet's partial streamer events on the actual session WebSocket.
+                elif event["event_type"] == "test_streamer_updates":
+                    send({"event_type": "streamer", "event": {"streamer": {"source": {"online": False}}}})
+                    send({"event_type": "streamer", "event": {"params": {"h264_bitrate": 8000}}})
+                    send({"event_type": "streamer", "event": {"streamer": {"source": {"online": True, "captured_fps": 31}}}})
                 elif event["event_type"] == "ping":
                     send({"event_type": "pong", "event": {}})
         except (OSError, ValueError):
