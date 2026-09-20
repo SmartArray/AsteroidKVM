@@ -565,6 +565,24 @@ final class CometUITests: XCTestCase {
     XCTAssertFalse(native.isEnabled)
     app.typeKey(.escape, modifierFlags: [])
 
+    // The new toolbar exposes opt-in controls and opens session history independently of connectivity.
+    session.buttons["transcription-toolbar"].firstMatch.click()
+    let transcription = app.checkBoxes["transcription-toggle"].firstMatch
+    XCTAssertTrue(transcription.waitForExistence(timeout: 5))
+    transcription.click()
+    XCTAssertTrue(app.staticTexts["Connect the remote display before transcribing"].waitForExistence(timeout: 5))
+    app.buttons["transcription-history-link"].firstMatch.click()
+    XCTAssertTrue(app.staticTexts["transcript-empty"].waitForExistence(timeout: 5))
+    app.buttons["transcript-clear"].firstMatch.click()
+    XCTAssertTrue(app.staticTexts["transcript-empty"].exists)
+    app.typeKey("w", modifierFlags: .command)
+
+    // Settings navigation from the popover must select the new section without exposing or editing the API key.
+    session.buttons["transcription-toolbar"].firstMatch.click()
+    app.buttons["transcription-settings-link"].firstMatch.click()
+    XCTAssertTrue(app.secureTextFields["transcription-api-key"].waitForExistence(timeout: 5))
+    app.typeKey("w", modifierFlags: .command)
+
     // Check actual window geometry so dispatching the shortcut alone cannot masquerade as fullscreen.
     let originalFrame = session.frame
     app.typeKey("f", modifierFlags: [.control, .command])

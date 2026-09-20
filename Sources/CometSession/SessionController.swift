@@ -8,10 +8,14 @@ import CometMedia
 
 @MainActor public final class SessionController: ObservableObject, Identifiable {
   public let id: UUID
+  // Keep transcript history with the connection rather than the transient popover or transcript window.
+  public let transcription = TranscriptionController()
+  public var onMediaStarting: (() -> Void)?
   @Published public private(set) var profile: ConnectionProfile {
     didSet {
       // Invalidate context on every identity mutation; endpoint sanitization happens before publishing the value.
       if profile.agentIdentity != oldValue.agentIdentity {
+        transcription.clear()
         pendingCertificate = nil
         onAgentIdentityChanged?()
       }
@@ -104,6 +108,8 @@ import CometMedia
     var updated = profile
     change(&updated)
     profile = updated.securingReplacement(of: profile)
+    // Playback capture cannot transcribe a muted track; do not leave a silent API session running.
+    if profile.muted, transcription.active { transcription.stop(reason: "Stopped because remote playback was muted") }
     configureInput()
     onProfileChanged?(profile)
     media?.setMuted(profile.muted)
@@ -132,6 +138,7 @@ import CometMedia
 
   // Connect in stages, with capability discovery preceding any optional input or device controls.
   private func establish() async {
+    onMediaStarting?()
     let ticket = generation
     phase = reconnectAttempt == 0 ? .connecting : .reconnecting
     message = nil
@@ -275,6 +282,7 @@ import CometMedia
 
   // Reconnection invalidates pending input and uses a cancellable bounded backoff, including wake recovery.
   private func connectionFailed(_ error: Error) {
+    transcription.stop(reason: "Stopped because the remote connection was lost")
     onAgentInterruption?()
     guard shouldReconnect, phase != .reconnecting else { return }
     releaseCapture()
@@ -306,6 +314,7 @@ import CometMedia
 
   // Invalidate queued work and release input before the Mac sleeps.
   public func suspend() {
+    transcription.stop(reason: "Stopped for sleep · restart transcription when connected")
     onAgentInterruption?()
     guard shouldReconnect else { return }
     releaseCapture()
@@ -346,6 +355,7 @@ import CometMedia
 
   // Flush key releases before closing a socket; server disconnect cleanup is the final backstop.
   public func disconnect(logout: Bool = false) async {
+    transcription.stop(reason: "Stopped on disconnect")
     onAgentInterruption?()
     shouldReconnect = false
     generation = UUID()
@@ -377,6 +387,7 @@ import CometMedia
 
   // Cancel owned tasks, media, sockets, and API transport before another connection is established.
   private func cleanConnections() async {
+    transcription.stop(reason: "Stopped when the connection changed")
     receiveTask?.cancel()
     heartbeatTask?.cancel()
     receiveTask = nil

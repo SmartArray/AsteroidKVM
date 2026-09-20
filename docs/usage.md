@@ -63,6 +63,16 @@ The agent can observe, click/double-click, press balanced key chords, type, scro
 
 Chat storage is limited to 1,000 messages, 64 KiB per message including its ID, and 1 MiB total UTF-8 text/ID data. Exceeding a limit stops the agent; use **New Conversation** to clear history. Model-generated links permit only HTTP/HTTPS and show their destination for confirmation before opening a browser. Local files and custom application schemes are blocked. [Security review and fixes](security.md).
 
+## Live audio transcription
+
+Open **Settings → Transcription** to save an OpenAI API key in Keychain and optionally select the spoken language. The integration uses `gpt-live-transcribe` through OpenAI’s [Realtime transcription API](https://developers.openai.com/api/docs/guides/realtime-transcription). API billing is separate from Codex and ChatGPT subscriptions.
+
+In a remote window, open the **Transcription** toolbar button (caption bubble), then enable **Transcribe remote audio**. The popover also links to the full settings and session transcript. Playback continues normally. The bottom caption strip scrolls toward the newest text; click it to open the complete session history. **Clear** stops transcription and wipes the local history, including pending events. Enable transcription again to begin a fresh provider session.
+
+This version copies AsteroidKVM playback through macOS ScreenCaptureKit because the bundled macOS WebRTC library does not expose an audio-sample callback. Allow macOS screen/system-audio recording permission when prompted. Only AsteroidKVM’s process audio is included; no microphone or other applications are captured, and no screen frames are sent. Keep **Mute remote playback** off and only one remote session connected. Starting another connection, disconnecting, sleeping, muting playback, or changing transcription settings stops transcription and requires an explicit restart.
+
+Audio is transmitted only while enabled and is not saved to disk. Transcript history stays in session memory, with a 4 MiB / 10,000-segment limit; reaching a limit stops transcription rather than silently deleting older text. Network backlog is limited to two seconds of audio and stops on overflow. Changing the target identity clears the transcript.
+
 ## Tests
 
 ```sh

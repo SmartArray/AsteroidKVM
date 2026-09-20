@@ -57,6 +57,12 @@ import SwiftUI
         Text("Open a Comet connection to use the agent.").padding()
       }
     }.defaultSize(width: 640, height: 760)
+    // One transcript window per remote session shares its live history with the rolling status strip.
+    WindowGroup("Transcript", id: "transcript", for: UUID.self) { $id in
+      if let id, let session = model.sessions[id] {
+        TranscriptWindow(controller: session.transcription, name: session.profile.name)
+      } else { Text("This session is no longer open.").padding() }
+    }.defaultSize(width: 640, height: 500)
     Settings { SettingsView().environmentObject(model) }
   }
 }

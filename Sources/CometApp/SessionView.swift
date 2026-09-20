@@ -11,6 +11,7 @@ struct SessionView: View {
   @Environment(\.openSettings) private var openSettings
   @State private var keyboardOpen = false
   @State private var displayOpen = false
+  @State private var transcriptionOpen = false
   @State private var diagnosticsOpen = false
   @State private var rebootConfirm = false
   @State private var loginPassword = ""
@@ -21,7 +22,7 @@ struct SessionView: View {
       // Local controls keep focus while open; activating an unobstructed display grants remote input automatically.
       RemoteDisplayView(
         session: session,
-        allowsAutomaticCapture: !keyboardOpen && !displayOpen && !diagnosticsOpen && !rebootConfirm)
+        allowsAutomaticCapture: !keyboardOpen && !displayOpen && !transcriptionOpen && !diagnosticsOpen && !rebootConfirm)
       if !session.active && !session.ocrSelecting {
         VStack(spacing: 16) {
           Image(systemName: "desktopcomputer").font(.system(size: 42)).foregroundStyle(.secondary)
@@ -90,6 +91,23 @@ struct SessionView: View {
           }
         }
         .accessibilityIdentifier("display-toolbar")
+        // Audio controls release remote input before showing local settings or transcript history.
+        Button {
+          session.releaseCapture()
+          transcriptionOpen.toggle()
+        } label: { Label("Transcription", systemImage: "captions.bubble") }
+        .popover(isPresented: $transcriptionOpen) {
+          TranscriptionPopover(controller: session.transcription,
+            setEnabled: { model.setTranscription($0, for: session) },
+            openHistory: {
+              transcriptionOpen = false
+              showTranscript()
+            }, openSettings: {
+              transcriptionOpen = false
+              model.settingsSection = "Transcription"
+              openSettings()
+            })
+        }.accessibilityIdentifier("transcription-toolbar")
         // Bind the native toggle to OCR state so Escape, completion, and another click clear its highlight.
         Toggle(
           isOn: Binding(
@@ -158,6 +176,7 @@ struct SessionView: View {
   // Show connection and capture state without permanent technical statistics.
   private var statusBar: some View {
     VStack(spacing: 0) {
+      TranscriptStrip(controller: session.transcription, open: showTranscript)
       if let message = session.message {
         HStack {
           Image(systemName: "info.circle")
@@ -200,6 +219,12 @@ struct SessionView: View {
       }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 12).padding(.vertical, 7)
         .background(.bar)
     }
+  }
+
+  // Opening history must leave typing focus in its local window instead of forwarding it to the remote machine.
+  private func showTranscript() {
+    session.releaseCapture()
+    openWindow(id: "transcript", value: session.id)
   }
 }
 

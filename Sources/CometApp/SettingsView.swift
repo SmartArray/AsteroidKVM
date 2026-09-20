@@ -8,7 +8,7 @@ struct SettingsView: View {
   @EnvironmentObject var model: AppModel
   @AppStorage("appearance") private var appearance = "System"
   private let sections = [
-    "General", "Connections", "Display", "Devices", "Keyboard & Clipboard", "Appearance", "System",
+    "General", "Connections", "Display", "Devices", "Transcription", "Keyboard & Clipboard", "Appearance", "System",
     "Advanced",
   ]
 
@@ -33,6 +33,7 @@ struct SettingsView: View {
               "Click the remote display to capture input. The first click captures; subsequent clicks go to the remote computer."
             ).foregroundStyle(.secondary)
           case "Connections": connectionSettings
+          case "Transcription": TranscriptionSettingsView()
           case "Display":
             devicePicker
             if let id = model.selectedDevice, let session = model.sessions[id] {
