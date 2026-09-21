@@ -9,7 +9,7 @@ Control a remote computer yourself, or give Codex a task and watch it work.
 
 **macOS 14+** · **Apple Silicon & Intel builds** · **SwiftUI + AppKit** · **WebRTC + Metal**
 
-[Get started](#get-started) · [🤖 Agent](#agent-give-your-remote-machine-a-task) · [⌨️ Native keys](#native-keys-type-with-your-macs-layout) · [⚡ Fast rendering](#fast-rendering-keep-the-remote-screen-moving) · [Verification](docs/verification.md)
+[Get started](#get-started) · [🤖 Agent](#agent-give-your-remote-machine-a-task) · [⌨️ Native keys](#native-keys-type-with-your-macs-layout) · [⚡ Fast rendering](#fast-rendering-keep-the-remote-screen-moving) · [🎙️ Live transcription](#live-transcription-follow-the-remote-audio) · [Verification](docs/verification.md)
 
 </div>
 
@@ -22,6 +22,19 @@ Control a remote computer yourself, or give Codex a task and watch it work.
 | Describe a task. Codex reads the screen, clicks, types, and checks the result. Pause or take over whenever you need. | Use the characters resolved by your Mac’s keyboard layout, including umlauts and symbols, with supported Comet firmware. | Native WebRTC, VideoToolbox H.264 decoding, and Metal presentation keep the video path short and frame queues bounded. |
 
 **🌙 Dark mode:** follow your Mac’s appearance or choose Light or Dark in **Settings → Appearance**. Native windows, controls, and Agent chat adapt to your preference.
+
+<a id="live-transcription-follow-the-remote-audio"></a>
+
+## 🎙️ Live transcription: follow the remote audio
+
+Turn remote sound into rolling captions while it continues playing normally. The fixed two-line strip follows partial speech as it arrives; each new utterance pushes the oldest line away. Click the strip for the complete session transcript, selectable text, and a **Clear** action that also stops transmission.
+
+- **Opt in per session:** transcription starts only from the caption-bubble control in the remote toolbar.
+- **Keep playback audible:** macOS copies AsteroidKVM’s playback for transcription without muting or rerouting the speakers.
+- **Know which key is active:** the OpenAI API key stays in Keychain, appears only as a masked fingerprint, and can be validated without capturing or sending audio.
+- **Keep capture scoped:** ScreenCaptureKit includes only AsteroidKVM’s process audio—never the microphone, other applications, or screen frames.
+
+This experimental feature uses OpenAI `gpt-live-transcribe`; API usage is billed separately from ChatGPT and Codex. macOS asks for Screen & System Audio Recording permission on first use. Keep one remote session connected and playback unmuted. [Transcription setup and limits →](docs/usage.md#live-audio-transcription)
 
 <a id="agent-give-your-remote-machine-a-task"></a>
 
@@ -139,9 +152,9 @@ Run the same unit selection locally with `./scripts/test.sh --unit`; it includes
 | Module | Responsibility |
 | :--- | :--- |
 | `CometCore` | Device protocol, profiles, credentials, input ordering, and geometry |
-| `CometMedia` | WebRTC, decoder frames, Metal rendering, and local OCR |
+| `CometMedia` | WebRTC, decoder frames, Metal rendering, local OCR, and scoped playback-audio capture |
 | `CometAgent` | Codex transport, conversation state, and bounded remote actions |
-| `CometSession` | Per-device lifecycle and the adapter connecting agent actions to KVM input |
+| `CometSession` | Per-device lifecycle, Realtime transcription, and the adapter connecting agent actions to KVM input |
 | `CometApp` | Native windows, settings, remote display, and chat |
 
 [Architecture](docs/architecture.md) · [Usage guide](docs/usage.md) · [API compatibility](docs/api-compatibility.md) · [Verification](docs/verification.md) · [Specification](docs/spec.md)
