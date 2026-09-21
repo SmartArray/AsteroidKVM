@@ -16,6 +16,7 @@ struct TranscriptionPopover: View {
       Toggle("Transcribe remote audio", isOn: Binding(get: { controller.active }, set: setEnabled))
         .accessibilityIdentifier("transcription-toggle")
       Text(controller.status).font(.caption).foregroundStyle(.secondary)
+        .lineLimit(3).frame(minHeight: 42, alignment: .topLeading)
       Text("Sends AsteroidKVM playback audio to OpenAI. API billing applies. Keep only one remote session connected and playback unmuted.")
         .font(.caption).foregroundStyle(.secondary)
       Divider()
@@ -23,7 +24,7 @@ struct TranscriptionPopover: View {
         .accessibilityIdentifier("transcription-history-link")
       Button("Transcription Settings…", action: openSettings)
         .accessibilityIdentifier("transcription-settings-link")
-    }.padding(18).frame(width: 330)
+    }.padding(18).frame(width: 330, height: 280, alignment: .topLeading)
   }
 }
 

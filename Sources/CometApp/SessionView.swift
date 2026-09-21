@@ -12,6 +12,7 @@ struct SessionView: View {
   @State private var keyboardOpen = false
   @State private var displayOpen = false
   @State private var transcriptionOpen = false
+  @State private var transcriptionStartTask: Task<Void, Never>?
   @State private var diagnosticsOpen = false
   @State private var rebootConfirm = false
   @State private var loginPassword = ""
@@ -98,7 +99,7 @@ struct SessionView: View {
         } label: { Label("Transcription", systemImage: "captions.bubble") }
         .popover(isPresented: $transcriptionOpen) {
           TranscriptionPopover(controller: session.transcription,
-            setEnabled: { model.setTranscription($0, for: session) },
+            setEnabled: setTranscription,
             openHistory: {
               transcriptionOpen = false
               showTranscript()
@@ -171,6 +172,10 @@ struct SessionView: View {
         get: { session.ocrText != nil }, set: { if !$0 { session.ocrText = nil } })
     ) { OCRResultView(session: session) }
     .onAppear { model.selectedDevice = session.id }
+    .onDisappear {
+      transcriptionStartTask?.cancel()
+      transcriptionStartTask = nil
+    }
   }
 
   // Show connection and capture state without permanent technical statistics.
@@ -225,6 +230,24 @@ struct SessionView: View {
   private func showTranscript() {
     session.releaseCapture()
     openWindow(id: "transcript", value: session.id)
+  }
+
+  // Close the popover before macOS presents capture permission so AppKit never resizes it behind a modal dialog.
+  private func setTranscription(_ enabled: Bool) {
+    transcriptionStartTask?.cancel()
+    transcriptionStartTask = nil
+    guard enabled else {
+      model.setTranscription(false, for: session)
+      return
+    }
+    transcriptionOpen = false
+    transcriptionStartTask = Task { @MainActor in
+      do { try await Task.sleep(for: .milliseconds(300)) }
+      catch { return }
+      guard !Task.isCancelled else { return }
+      model.setTranscription(true, for: session)
+      transcriptionStartTask = nil
+    }
   }
 }
 
