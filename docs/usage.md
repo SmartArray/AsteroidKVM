@@ -65,7 +65,7 @@ Chat storage is limited to 1,000 messages, 64 KiB per message including its ID, 
 
 ## Live audio transcription
 
-Open **Settings → Transcription** to save an OpenAI API key in Keychain and optionally select the spoken language. The integration uses `gpt-live-transcribe` through OpenAI’s [Realtime transcription API](https://developers.openai.com/api/docs/guides/realtime-transcription). API billing is separate from Codex and ChatGPT subscriptions.
+Open **Settings → Transcription** to save an OpenAI API key in Keychain and optionally select the spoken language. The masked key fingerprint identifies the active Keychain entry. **Test API Key** opens and configures the production transcription session without capturing or sending audio, then reports safe provider error codes when access is rejected. The integration uses `gpt-live-transcribe` through OpenAI’s [Realtime transcription API](https://developers.openai.com/api/docs/guides/realtime-transcription). API billing is separate from Codex and ChatGPT subscriptions.
 
 In a remote window, open the **Transcription** toolbar button (caption bubble), then enable **Transcribe remote audio**. The popover also links to the full settings and session transcript. Playback continues normally. The bottom caption strip scrolls toward the newest text; click it to open the complete session history. **Clear** stops transcription and wipes the local history, including pending events. Enable transcription again to begin a fresh provider session.
 

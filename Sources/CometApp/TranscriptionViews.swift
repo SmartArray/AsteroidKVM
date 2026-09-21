@@ -121,7 +121,12 @@ struct TranscriptionSettingsView: View {
   @AppStorage("transcriptionLanguage") private var language = ""
   @State private var key = ""
   @State private var saved = false
+  @State private var fingerprint: String?
   @State private var message: String?
+  @State private var messageIsError = false
+  @State private var testing = false
+  @State private var testConnection: RealtimeTranscription?
+  @State private var testTask: Task<Void, Never>?
 
   // Never load a saved key into the text field or UserDefaults; changing credentials stops active transmissions.
   var body: some View {
@@ -131,19 +136,47 @@ struct TranscriptionSettingsView: View {
       LabeledContent("Model", value: "gpt-live-transcribe")
       SecureField(saved ? "Replace saved OpenAI API key" : "OpenAI API key", text: $key)
         .textFieldStyle(.roundedBorder).accessibilityIdentifier("transcription-api-key")
+      if let fingerprint { LabeledContent("Saved key", value: fingerprint) }
       HStack {
         Button("Save in Keychain") {
+          cancelKeyTest()
           stopAll()
-          do { try TranscriptionCredentials.save(key); key = ""; saved = true; message = "API key saved." }
-          catch { message = "Could not save the API key in Keychain." }
+          do {
+            try TranscriptionCredentials.save(key)
+            fingerprint = TranscriptionCredentials.fingerprint(key)
+            key = ""
+            saved = true
+            messageIsError = false
+            message = "API key saved."
+          } catch {
+            messageIsError = true
+            message = "Could not save the API key in Keychain."
+          }
         }.disabled(key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        Button(testing ? "Testing…" : "Test API Key") { testSavedKey() }
+          .disabled(!saved || testing)
+          .accessibilityIdentifier("transcription-test-key")
         Button("Remove API Key", role: .destructive) {
+          cancelKeyTest()
           stopAll()
-          do { try TranscriptionCredentials.remove(); saved = false; key = ""; message = "API key removed." }
-          catch { message = "Could not remove the API key from Keychain." }
+          do {
+            try TranscriptionCredentials.remove()
+            saved = false
+            fingerprint = nil
+            key = ""
+            messageIsError = false
+            message = "API key removed."
+          } catch {
+            messageIsError = true
+            message = "Could not remove the API key from Keychain."
+          }
         }.disabled(!saved)
       }
-      if let message { Text(message).font(.caption).foregroundStyle(.secondary) }
+      if testing { ProgressView().controlSize(.small) }
+      if let message {
+        Text(message).font(.caption).foregroundStyle(messageIsError ? Color.red : .secondary)
+          .textSelection(.enabled)
+      }
       Picker("Spoken language", selection: $language) {
         Text("Automatic").tag("")
         ForEach(["en", "de", "fr", "es", "it", "pt", "nl", "ja", "ko", "zh"], id: \.self) {
@@ -155,9 +188,60 @@ struct TranscriptionSettingsView: View {
       Text("Keep one remote session connected and Mute remote playback off. Connecting another session, disconnecting, sleeping, or changing these settings stops transcription. Click the caption strip to read or clear the full session history.")
         .foregroundStyle(.secondary)
     }.onAppear {
-      do { saved = try TranscriptionCredentials.read()?.isEmpty == false }
-      catch { message = "Could not access Keychain." }
+      do {
+        let stored = try TranscriptionCredentials.read()
+        saved = stored?.isEmpty == false
+        fingerprint = stored.flatMap { $0.isEmpty ? nil : TranscriptionCredentials.fingerprint($0) }
+      } catch {
+        messageIsError = true
+        message = "Could not access Keychain."
+      }
+    }.onDisappear {
+      cancelKeyTest()
     }
+  }
+
+  // Validate the exact production session without starting ScreenCaptureKit or transmitting any audio.
+  private func testSavedKey() {
+    cancelKeyTest()
+    testing = true
+    messageIsError = false
+    message = "Opening a transcription session without audio…"
+    testTask = Task { @MainActor in
+      do {
+        guard let stored = try TranscriptionCredentials.read(), !stored.isEmpty else {
+          throw TranscriptionError("No saved API key was found in Keychain.")
+        }
+        let connection = RealtimeTranscription()
+        testConnection = connection
+        try await connection.connect(key: stored, language: language)
+        connection.close()
+        guard !Task.isCancelled else { return }
+        testConnection = nil
+        testTask = nil
+        testing = false
+        messageIsError = false
+        message = "API key and gpt-live-transcribe access verified. No audio was sent."
+      } catch {
+        testConnection?.close()
+        guard !Task.isCancelled else { return }
+        testConnection = nil
+        testTask = nil
+        testing = false
+        messageIsError = true
+        message = (error as? TranscriptionError)?.message
+          ?? "Could not connect to OpenAI. Check the network and try again."
+      }
+    }
+  }
+
+  // Cancel validation before credentials change or the Settings window closes so late results cannot replace status.
+  private func cancelKeyTest() {
+    testTask?.cancel()
+    testTask = nil
+    testConnection?.close()
+    testConnection = nil
+    testing = false
   }
 
   // Require a deliberate restart after changes so existing provider sessions never retain old settings silently.

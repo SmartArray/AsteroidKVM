@@ -39,22 +39,31 @@ import Foundation
       catch {}
     }
     defer { deadline.cancel() }
-    var transcription: [String: JSONValue] = ["model": .string("gpt-live-transcribe")]
-    if !language.isEmpty { transcription["languages"] = .array([.string(language)]) }
-    try await send(.object([
-      "type": .string("session.update"),
-      "session": .object([
-        "type": .string("transcription"),
-        "audio": .object(["input": .object([
-          "format": .object(["type": .string("audio/pcm"), "rate": .number(24000)]),
-          "transcription": .object(transcription),
-          "turn_detection": .object(["type": .string("server_vad"), "silence_duration_ms": .number(500)]),
-        ])]),
-      ]),
-    ]))
-    for _ in 0..<20 {
-      let event = try await receive()
-      if event["type"].text == "session.updated" { return }
+    do {
+      var transcription: [String: JSONValue] = ["model": .string("gpt-live-transcribe")]
+      if !language.isEmpty { transcription["languages"] = .array([.string(language)]) }
+      try await send(.object([
+        "type": .string("session.update"),
+        "session": .object([
+          "type": .string("transcription"),
+          "audio": .object(["input": .object([
+            "format": .object(["type": .string("audio/pcm"), "rate": .number(24000)]),
+            "transcription": .object(transcription),
+            "turn_detection": .object(["type": .string("server_vad"), "silence_duration_ms": .number(500)]),
+          ])]),
+        ]),
+      ]))
+      for _ in 0..<20 {
+        let event = try await receive()
+        if event["type"].text == "session.updated" { return }
+      }
+    } catch let error as TranscriptionError {
+      throw error
+    } catch {
+      if let status = (socket.response as? HTTPURLResponse)?.statusCode, status >= 400 {
+        throw Self.connectionError(status)
+      }
+      throw error
     }
     throw TranscriptionError("OpenAI did not confirm transcription settings.")
   }
@@ -135,6 +144,20 @@ import Foundation
         || punctuation.contains(byte)
     }) else { return nil }
     return value
+  }
+
+  // Translate WebSocket handshake status into guidance when no structured provider event is available.
+  private static func connectionError(_ status: Int) -> TranscriptionError {
+    switch status {
+    case 401:
+      return TranscriptionError("OpenAI rejected the saved API key (HTTP 401). Replace it in Transcription settings.")
+    case 403:
+      return TranscriptionError("The saved API key cannot open Realtime transcription (HTTP 403). Check its project permissions.")
+    case 429:
+      return TranscriptionError("OpenAI refused the session because of quota or rate limits (HTTP 429).")
+    default:
+      return TranscriptionError("OpenAI could not open a transcription session (HTTP \(status)).")
+    }
   }
 
   // Invalidate all network work and discard ephemeral credential-bearing requests on stop.

@@ -60,6 +60,14 @@ public enum TranscriptionCredentials {
   private static let profile = ConnectionProfile(name: "OpenAI", host: "api.openai.com")
   private static let store = PasswordStore(service: "app.asteroidkvm.openai-transcription")
   public static func read() throws -> String? { try store.password(for: profile) }
+
+  // Reveal only the key family and final four characters so users can identify the saved Keychain entry safely.
+  public static func fingerprint(_ key: String) -> String {
+    let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+    let family = trimmed.hasPrefix("sk-proj-") ? "sk-proj-…" : "sk-…"
+    return family + String(trimmed.suffix(4))
+  }
+
   public static func save(_ key: String) throws {
     try store.save(key.trimmingCharacters(in: .whitespacesAndNewlines), for: profile)
   }
