@@ -33,41 +33,78 @@ struct TranscriptStrip: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   let open: () -> Void
 
-  // Keep only a short rolling tail in the status strip; the complete retained transcript stays in its own window.
-  private var tail: String {
-    String(controller.transcript.segments.suffix(4).map(\.text).joined(separator: " ").suffix(600))
-      .replacingOccurrences(of: "\n", with: " ")
+  // Keep exactly the two newest nonempty utterances; the complete retained transcript stays in its own window.
+  private var visibleSegments: [TranscriptSegment] {
+    Array(controller.transcript.segments.filter { !$0.text.isEmpty }.suffix(2))
   }
+
+  // Flatten the two visible rows for VoiceOver while preserving the visual row boundary in the strip.
+  private var accessibleText: String {
+    visibleSegments.map { clean($0.text) }.joined(separator: " ")
+  }
+
   var body: some View {
     if controller.active || !controller.transcript.segments.isEmpty {
       Button(action: open) {
         HStack(spacing: 10) {
           Image(systemName: "captions.bubble.fill")
             .foregroundStyle(controller.active ? Color.purple : .secondary)
-          ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-              HStack(spacing: 0) {
-                Text(tail.isEmpty ? controller.status : tail).fixedSize()
-                Color.clear.frame(width: 1, height: 1).id("latest")
+          VStack(alignment: .leading, spacing: 2) {
+            // Reserve the upper row until a second utterance arrives so the strip never changes height.
+            if visibleSegments.count < 2 { Color.clear.frame(height: 18) }
+            if visibleSegments.isEmpty {
+              TranscriptStripLine(text: controller.status)
+            } else {
+              ForEach(visibleSegments) { segment in
+                TranscriptStripLine(text: clean(segment.text))
+                  .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .top).combined(with: .opacity)))
               }
             }
-            .allowsHitTesting(false)
-            .frame(height: 20)
-            .onChange(of: tail) { _, _ in
-              withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
-                proxy.scrollTo("latest", anchor: .trailing)
-              }
-            }
-            .onAppear { proxy.scrollTo("latest", anchor: .trailing) }
           }
+          .frame(maxWidth: .infinity, minHeight: 38, maxHeight: 38, alignment: .bottomLeading)
+          .clipped()
+          .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: visibleSegments.map(\.id))
           Image(systemName: "arrow.up.right.square").foregroundStyle(.secondary)
         }.font(.callout).padding(.horizontal, 12).padding(.vertical, 9)
           .contentShape(Rectangle())
       }.buttonStyle(.plain).background(.bar)
         .help("Open the complete session transcript")
-        .accessibilityLabel("Session transcript: " + (tail.isEmpty ? controller.status : tail))
+        .accessibilityLabel("Session transcript: "
+          + (accessibleText.isEmpty ? controller.status : accessibleText))
         .accessibilityIdentifier("transcript-strip")
       Divider()
+    }
+  }
+
+  // Collapse provider newlines so each utterance remains one visual row in the rolling two-line strip.
+  private func clean(_ text: String) -> String {
+    text.replacingOccurrences(of: "\n", with: " ")
+  }
+}
+
+private struct TranscriptStripLine: View {
+  let text: String
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+  // Follow partial text toward its trailing edge while keeping earlier complete utterances on their own row.
+  var body: some View {
+    ScrollViewReader { proxy in
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: 0) {
+          Text(text).lineLimit(1).fixedSize(horizontal: true, vertical: false)
+          Color.clear.frame(width: 1, height: 1).id("trailing")
+        }
+      }
+      .allowsHitTesting(false)
+      .frame(height: 18)
+      .onChange(of: text) { _, _ in
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) {
+          proxy.scrollTo("trailing", anchor: .trailing)
+        }
+      }
+      .onAppear { proxy.scrollTo("trailing", anchor: .trailing) }
     }
   }
 }
