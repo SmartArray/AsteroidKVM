@@ -42,6 +42,7 @@ import Foundation
     do {
       var transcription: [String: JSONValue] = ["model": .string("gpt-live-transcribe")]
       if !language.isEmpty { transcription["languages"] = .array([.string(language)]) }
+      // Let the selected model supply its supported default VAD; explicit tuning is rejected by some endpoints.
       try await send(.object([
         "type": .string("session.update"),
         "session": .object([
@@ -49,7 +50,6 @@ import Foundation
           "audio": .object(["input": .object([
             "format": .object(["type": .string("audio/pcm"), "rate": .number(24000)]),
             "transcription": .object(transcription),
-            "turn_detection": .object(["type": .string("server_vad"), "silence_duration_ms": .number(500)]),
           ])]),
         ]),
       ]))
