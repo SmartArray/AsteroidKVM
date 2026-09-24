@@ -95,6 +95,12 @@ public struct ConnectionProfile: Codable, Identifiable, Equatable, Sendable {
   public var certificateSHA256: String?
   public var keymap = "en-us"
   public var nativeLayout = false
+  // Optional storage keeps profiles saved before this preference compatible with decoding.
+  private var nativeTypingIntervalOverride: Int?
+  public var nativeTypingIntervalMilliseconds: Int {
+    get { min(1000, max(0, nativeTypingIntervalOverride ?? 120)) }
+    set { nativeTypingIntervalOverride = min(1000, max(0, newValue)) }
+  }
   public var pasteEnabled = true
   public var scaleMode = ScaleMode.fit
   public var rotation = 0

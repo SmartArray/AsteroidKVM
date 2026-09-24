@@ -172,6 +172,7 @@ public struct InputEngine: Sendable {
   private var pasteRunning = false
   private var keys: Set<String> = []
   private var buttons: Set<String> = []
+  public var nativeTypingIntervalMilliseconds = 120
   private let send: Send
   private let printText: Paste
   public private(set) var pasting = false
@@ -293,7 +294,10 @@ public struct InputEngine: Sendable {
 
             // Firmware acknowledges mapped text before USB reports necessarily settle. Hardware verification
             // showed burst characters losing modifiers; this bounded cadence preserves the daemon's sequences.
-            if event.type == "mapped_text" { try await Task.sleep(for: .milliseconds(120)) }
+            if event.type == "mapped_text" {
+              let interval = min(1000, max(0, nativeTypingIntervalMilliseconds))
+              if interval > 0 { try await Task.sleep(for: .milliseconds(interval)) }
+            }
           case .paste(let text, let keymap):
             pasteRunning = true
             defer { pasteRunning = false }

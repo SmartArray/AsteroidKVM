@@ -2,6 +2,7 @@
 import XCTest
 
 @testable import CometCore
+import CometSession
 
 final class InputTests: XCTestCase {
   func testPhysicalRepeatIsOwnedByTargetAndReleaseIsBalanced() {
@@ -107,6 +108,32 @@ final class InputTests: XCTestCase {
     XCTAssertTrue(committed.allSatisfy { $0.payload["keymap"].text == "de" })
     input.mappedTextSupported = false
     XCTAssertTrue(input.commitText("~").isEmpty)
+  }
+
+  func testNativeTypingIntervalPersistenceAndLegacyDefault() throws {
+    var profile = ConnectionProfile(name: "Typing", host: "fixture.invalid")
+    let legacy = try JSONEncoder().encode(profile)
+    XCTAssertEqual(
+      try JSONDecoder().decode(ConnectionProfile.self, from: legacy).nativeTypingIntervalMilliseconds,
+      120)
+    profile.nativeTypingIntervalMilliseconds = 0
+    let saved = try JSONEncoder().encode(profile)
+    XCTAssertEqual(
+      try JSONDecoder().decode(ConnectionProfile.self, from: saved).nativeTypingIntervalMilliseconds,
+      0)
+    profile.nativeTypingIntervalMilliseconds = -10
+    XCTAssertEqual(profile.nativeTypingIntervalMilliseconds, 0)
+    profile.nativeTypingIntervalMilliseconds = 2000
+    XCTAssertEqual(profile.nativeTypingIntervalMilliseconds, 1000)
+  }
+
+  @MainActor func testTypingIntervalUpdatesActiveOutput() {
+    let session = SessionController(profile: ConnectionProfile(name: "Typing", host: "fixture.invalid"))
+    let output = HIDOutput(send: { _ in }, paste: { _, _ in })
+    session.output = output
+    session.updateProfile { $0.nativeTypingIntervalMilliseconds = 30 }
+    XCTAssertEqual(output.nativeTypingIntervalMilliseconds, 30)
+    output.stop()
   }
 
   // Awaited transport work must not let subsequent HID events overtake a paste barrier.

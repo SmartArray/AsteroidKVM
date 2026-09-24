@@ -51,6 +51,12 @@ struct SettingsView: View {
                 .secondary)
             }
           case "Keyboard & Clipboard":
+            devicePicker
+            if let id = model.selectedDevice, let session = model.sessions[id] {
+              NativeTypingSettings(session: session)
+            } else {
+              Text("Select a connection to configure its typing interval.").foregroundStyle(.secondary)
+            }
             Text(
               "Target layouts, Native Keyboard Layout, and paste are configured per connection using the Keyboard toolbar."
             )
@@ -292,6 +298,30 @@ struct DeviceSettings: View {
           }
         }.padding(8)
       }
+    }
+  }
+}
+
+// Store pacing per connection and apply changes to the active output queue.
+struct NativeTypingSettings: View {
+  @ObservedObject var session: SessionController
+
+  var body: some View {
+    GroupBox("Native Keyboard Layout") {
+      VStack(alignment: .leading, spacing: 10) {
+        Stepper(
+          "Typing interval: \(session.profile.nativeTypingIntervalMilliseconds) ms",
+          value: Binding(
+            get: { session.profile.nativeTypingIntervalMilliseconds },
+            set: { value in session.updateProfile { $0.nativeTypingIntervalMilliseconds = value } }),
+          in: 0...1000, step: 10
+        ).accessibilityIdentifier("native-typing-interval")
+        Text("Delay after each character when Use Native Keyboard Layout is enabled. Lower values type faster; 0 ms removes the added delay. If symbols become incorrect, increase the interval. Default: 120 ms.")
+          .font(.caption).foregroundStyle(.secondary)
+        Button("Reset to 120 ms") {
+          session.updateProfile { $0.nativeTypingIntervalMilliseconds = 120 }
+        }.disabled(session.profile.nativeTypingIntervalMilliseconds == 120)
+      }.frame(maxWidth: .infinity, alignment: .leading)
     }
   }
 }

@@ -99,6 +99,7 @@ import CometMedia
     input.mappedTextSupported = state.mappedText
     input.keymap = profile.keymap
     input.pasteEnabled = profile.pasteEnabled
+    output?.nativeTypingIntervalMilliseconds = profile.nativeTypingIntervalMilliseconds
   }
 
   // Release capture before a preference change can alter input interpretation.
@@ -174,6 +175,7 @@ import CometMedia
         send: { event in
           try await ws.send(.string(String(decoding: event.json.data(), as: UTF8.self)))
         }, paste: { text, keymap in try await api.paste(text, keymap: keymap) })
+      output.nativeTypingIntervalMilliseconds = profile.nativeTypingIntervalMilliseconds
       output.onPasteChanged = { [weak self] busy in self?.pasting = busy }
       output.onError = { [weak self] error in
         self?.message = error.localizedDescription
