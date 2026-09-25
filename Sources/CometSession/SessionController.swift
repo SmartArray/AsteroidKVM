@@ -15,6 +15,7 @@ import CometMedia
     didSet {
       // Invalidate context on every identity mutation; endpoint sanitization happens before publishing the value.
       if profile.agentIdentity != oldValue.agentIdentity {
+        mcpServer.revokeAccess()
         transcription.clear()
         pendingCertificate = nil
         onAgentIdentityChanged?()
@@ -43,6 +44,14 @@ import CometMedia
   @Published public var agentOwnsInput = false
   // Preview coordinates are local presentation state and never enter screenshots or the HID queue.
   @Published public var agentClickPreview: AgentClickPreview?
+  var automationLease: UUID?
+  public lazy var mcpServer = DeviceMCPServer(session: self)
+
+  public func interruptAutomation() {
+    mcpServer.stopAutomation()
+    onAgentInterruption?()
+  }
+
   public var onAgentInterruption: (() -> Void)?
   public var onAgentIdentityChanged: (() -> Void)?
   public var onCapture: ((UUID) -> Void)?
@@ -57,7 +66,7 @@ import CometMedia
         + "|" + (self.profile.certificateSHA256 ?? "system-trust")
     },
     beforeApply: { [weak self] in
-      self?.onAgentInterruption?()
+      self?.interruptAutomation()
       self?.releaseCapture()
     })
 
@@ -104,7 +113,7 @@ import CometMedia
 
   // Release capture before a preference change can alter input interpretation.
   public func updateProfile(_ change: (inout ConnectionProfile) -> Void) {
-    onAgentInterruption?()
+    interruptAutomation()
     releaseCapture()
     var updated = profile
     change(&updated)
@@ -112,12 +121,14 @@ import CometMedia
     // Playback capture cannot transcribe a muted track; do not leave a silent API session running.
     if profile.muted, transcription.active { transcription.stop(reason: "Stopped because remote playback was muted") }
     configureInput()
+    mcpServer.configure()
     onProfileChanged?(profile)
     media?.setMuted(profile.muted)
   }
   // Editing endpoint identity ends the old session before adopting new credentials or certificate policy.
   public func replaceProfile(_ updated: ConnectionProfile, password: String?) async {
     await disconnect()
+    if let password, !password.isEmpty { mcpServer.revokeAccess() }
     self.profile = updated.securingReplacement(of: profile)
     self.password = password?.isEmpty == false ? password : nil
     suppliedToken = nil
@@ -126,7 +137,10 @@ import CometMedia
 
   // Open or establish the selected session using its own profile and credentials.
   public func connect(password: String? = nil) {
-    if let password { self.password = password }
+    if let password {
+      if self.password != password { mcpServer.revokeAccess() }
+      self.password = password
+    }
     guard !active, connectTask == nil else { return }
     shouldReconnect = true
     let ticket = generation
@@ -179,7 +193,7 @@ import CometMedia
       output.onPasteChanged = { [weak self] busy in self?.pasting = busy }
       output.onError = { [weak self] error in
         self?.message = error.localizedDescription
-        self?.onAgentInterruption?()
+        self?.interruptAutomation()
         self?.releaseCapture()
       }
       self.output = output
@@ -285,7 +299,7 @@ import CometMedia
   // Reconnection invalidates pending input and uses a cancellable bounded backoff, including wake recovery.
   private func connectionFailed(_ error: Error) {
     transcription.stop(reason: "Stopped because the remote connection was lost")
-    onAgentInterruption?()
+    interruptAutomation()
     guard shouldReconnect, phase != .reconnecting else { return }
     releaseCapture()
     phase = .reconnecting
@@ -317,7 +331,7 @@ import CometMedia
   // Invalidate queued work and release input before the Mac sleeps.
   public func suspend() {
     transcription.stop(reason: "Stopped for sleep · restart transcription when connected")
-    onAgentInterruption?()
+    interruptAutomation()
     guard shouldReconnect else { return }
     releaseCapture()
     generation = UUID()
@@ -348,7 +362,7 @@ import CometMedia
 
   // Grant input only to an active session after the registry releases its other sessions.
   public func capture() {
-    onAgentInterruption?()
+    interruptAutomation()
     guard active, !pasting, !ocrSelecting, !ocrBusy else { return }
     onCapture?(id)
     captured = true
@@ -358,7 +372,7 @@ import CometMedia
   // Flush key releases before closing a socket; server disconnect cleanup is the final backstop.
   public func disconnect(logout: Bool = false) async {
     transcription.stop(reason: "Stopped on disconnect")
-    onAgentInterruption?()
+    interruptAutomation()
     shouldReconnect = false
     generation = UUID()
     connectTask?.cancel()
@@ -419,7 +433,7 @@ import CometMedia
 
   // Native paste locks live input for the operation and never retains clipboard text after completion.
   public func paste() {
-    onAgentInterruption?()
+    interruptAutomation()
     guard active, !pasting, let text = NSPasteboard.general.string(forType: .string) else { return }
     _ = input.releaseAll()
     output?.paste(text, keymap: profile.keymap)
@@ -427,7 +441,7 @@ import CometMedia
 
   // Send balanced remote shortcut transitions through the session’s ordered input queue.
   public func shortcut(_ codes: [String]) {
-    onAgentInterruption?()
+    interruptAutomation()
     guard active, !pasting else { return }
     releaseCapture()
     output?.enqueue(codes.map { .key($0, true) } + codes.reversed().map { .key($0, false) })
@@ -435,7 +449,7 @@ import CometMedia
 
   // Mutate just the chosen encoder field and debounce controls that can generate repeated changes.
   public func setVideo(_ changes: [String: String], debounce: Bool = false) {
-    onAgentInterruption?()
+    interruptAutomation()
     guard let api else { return }
     let key = changes.keys.sorted().joined(separator: ",")
     settingsTasks[key]?.cancel()
@@ -450,7 +464,7 @@ import CometMedia
 
   // Apply only the chosen USB function and refresh the device’s resulting state.
   public func setDevice(_ key: String, value: Bool) {
-    onAgentInterruption?()
+    interruptAutomation()
     performSetting(
       "device:" + key,
       operation: { api in
@@ -461,7 +475,7 @@ import CometMedia
 
   // Write a confirmed device parameter through the session-owned settings lifecycle.
   public func setSystemParameter(_ key: String, value: String) {
-    onAgentInterruption?()
+    interruptAutomation()
     performSetting(
       "system:" + key,
       operation: { api in
@@ -471,7 +485,7 @@ import CometMedia
 
   // Update a supported HID option and read its actual resulting state.
   public func setHID(_ key: String, value: String) {
-    onAgentInterruption?()
+    interruptAutomation()
     performSetting(
       "hid:" + key,
       operation: { api in
@@ -536,7 +550,7 @@ import CometMedia
 
   // Release capture before restarting the selected appliance and entering reconnection.
   public func reboot() {
-    onAgentInterruption?()
+    interruptAutomation()
     guard active, let api else { return }
     let ticket = generation
     releaseCapture()
@@ -551,7 +565,7 @@ import CometMedia
 
   // Selection freezes a retained renderer frame; recognition results and images are cleared on dismissal.
   public func startOCR() {
-    onAgentInterruption?()
+    interruptAutomation()
     releaseCapture()
     guard mailbox.snapshot() != nil else {
       message = "Text Recognition needs a received video frame."

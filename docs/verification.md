@@ -56,7 +56,7 @@ The final local native sender sample received 90 frames, presented 89, and measu
 
 ## Hardware typing findings
 
-The remote Windows editor used German target layout `de`. Initial burst transmission produced incorrect modifiers despite successful mapped acknowledgments. Fast HTTP paste also corrupted some symbols. Production output now waits 120 ms after each mapped event and requests the firmware's `slow=true` paste mode. The successful hardware test uses these production paths, without adding test-only character delays.
+The remote Windows editor used German target layout `de`. Initial burst transmission produced incorrect modifiers despite successful mapped acknowledgments. Fast HTTP paste also corrupted some symbols. The successful hardware run used a 120 ms interval after each mapped event and the firmware's `slow=true` paste mode through production paths, without test-only character delays. The current default is 50 ms and remains configurable per connection; hardware acceptance at this new default has not yet been repeated.
 
 The test checks ordered successful acknowledgments for every scalar, then recognizes unique per-run mapped, paste, and completion markers from the decoded remote video. German `äöüÄÖÜß`, `@`, `€`, brackets, braces, backslash, and pipe were also visually inspected in the returned frame. OCR is not relied upon for exact punctuation equality. Isolating the ASCII markers on separate lines avoids the editor's spelling underlines reducing OCR accuracy.
 

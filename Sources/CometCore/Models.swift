@@ -94,11 +94,13 @@ public struct ConnectionProfile: Codable, Identifiable, Equatable, Sendable {
   public var rememberPassword = false
   public var certificateSHA256: String?
   public var keymap = "en-us"
+  public var mcp: MCPPreferences?
   public var nativeLayout = false
   // Optional storage keeps profiles saved before this preference compatible with decoding.
+  public static let defaultNativeTypingIntervalMilliseconds = 50
   private var nativeTypingIntervalOverride: Int?
   public var nativeTypingIntervalMilliseconds: Int {
-    get { min(1000, max(0, nativeTypingIntervalOverride ?? 120)) }
+    get { min(1000, max(0, nativeTypingIntervalOverride ?? Self.defaultNativeTypingIntervalMilliseconds)) }
     set { nativeTypingIntervalOverride = min(1000, max(0, newValue)) }
   }
   public var pasteEnabled = true
@@ -221,4 +223,12 @@ public protocol HardwareIdentityProvider: Sendable {
 
   // Reserve restoration of a previously captured identity state.
   func restore() async throws
+}
+
+// Optional profile storage preserves older saved connections. Tokens stay in Keychain.
+public struct MCPPreferences: Codable, Equatable, Sendable {
+  public var enabled = false
+  public var port = 9101
+  public var allowControl = false
+  public init() {}
 }

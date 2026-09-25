@@ -29,7 +29,7 @@ import SwiftUI
           "f", modifiers: [.control, .command])
         Button("Release Remote Input") {
           model.agents.values.forEach { $0.pause() }
-          model.sessions.values.forEach { $0.releaseCapture() }
+          model.sessions.values.forEach { $0.mcpServer.pauseControl(); $0.interruptAutomation(); $0.releaseCapture() }
         }
         .keyboardShortcut(.escape, modifiers: [.control, .option, .command])
       }
@@ -76,7 +76,7 @@ import SwiftUI
     guard let model else { return .terminateNow }
     Task {
       model.agents.values.forEach { $0.stop() }
-      for session in model.sessions.values { await session.disconnect() }
+      for session in model.sessions.values { session.mcpServer.disable(); await session.disconnect() }
       sender.reply(toApplicationShouldTerminate: true)
     }
     return .terminateLater

@@ -56,6 +56,7 @@ import CometMedia
         [weak self] _ in Task { @MainActor in self?.sessions.values.forEach { $0.wake() } }
       })
     importExplicitSession()
+    for profile in profiles where profile.mcp?.enabled == true { _ = session(for: profile.id) }
   }
 
   // Copy only this app's named preferences so the new bundle identifier keeps the user's local choices.
@@ -90,6 +91,7 @@ import CometMedia
 
   // Disconnect the selected session before removing its saved profile; password removal stays explicit.
   public func remove(_ profile: ConnectionProfile) async {
+    sessions[profile.id]?.mcpServer.disable()
     agents.removeValue(forKey: profile.id)?.stop()
     await sessions[profile.id]?.disconnect()
     sessions.removeValue(forKey: profile.id)
@@ -128,6 +130,7 @@ import CometMedia
     }
     sessions[profile.id] = session
     selectedDevice = profile.id
+    session.mcpServer.configure()
     return session
   }
 

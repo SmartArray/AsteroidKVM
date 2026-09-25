@@ -68,6 +68,15 @@ struct SessionView: View {
         }.help("Connections")
       }
       ToolbarItemGroup(placement: .primaryAction) {
+        if session.agentOwnsInput {
+          Button {
+            session.mcpServer.pauseControl()
+            session.interruptAutomation()
+            session.releaseCapture()
+          } label: { Label("Stop Automation", systemImage: "stop.circle") }
+          .help("Stop automation and release input (⌃⌥⌘Esc)")
+          .accessibilityIdentifier("stop-automation")
+        }
         Button {
           session.releaseCapture()
           keyboardOpen.toggle()

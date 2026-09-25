@@ -2,14 +2,14 @@
 
 # AsteroidKVM
 
-**🤖 Agent automation · ⌨️ Native keys · ⚡ Fast rendering**
+**🤖 Agent automation · 🔌 Per-device MCP · ⌨️ Native keys · ⚡ Fast rendering**
 
 A native macOS client for GL.iNet Comet / GLKVM.<br>
 Control a remote computer yourself, or give Codex a task and watch it work.
 
 **macOS 14+** · **Apple Silicon & Intel builds** · **SwiftUI + AppKit** · **WebRTC + Metal**
 
-[Get started](#get-started) · [🤖 Agent](#agent-give-your-remote-machine-a-task) · [⌨️ Native keys](#native-keys-type-with-your-macs-layout) · [⚡ Fast rendering](#fast-rendering-keep-the-remote-screen-moving) · [🎙️ Live transcription](#live-transcription-follow-the-remote-audio) · [Verification](docs/verification.md)
+[Get started](#get-started) · [🔌 MCP](#mcp-access) · [🤖 Agent](#agent-give-your-remote-machine-a-task) · [⌨️ Native keys](#native-keys-type-with-your-macs-layout) · [⚡ Fast rendering](#fast-rendering-keep-the-remote-screen-moving) · [🎙️ Live transcription](#live-transcription-follow-the-remote-audio) · [Verification](docs/verification.md)
 
 </div>
 
@@ -35,6 +35,20 @@ Turn remote sound into rolling captions while it continues playing normally. The
 - **Keep capture scoped:** ScreenCaptureKit includes only AsteroidKVM’s process audio—never the microphone, other applications, or screen frames.
 
 This experimental feature uses OpenAI `gpt-live-transcribe`; API usage is billed separately from ChatGPT and Codex. macOS asks for Screen & System Audio Recording permission on first use. Keep one remote session connected and playback unmuted. [Transcription setup and limits →](docs/usage.md#live-audio-transcription)
+
+<a id="mcp-access"></a>
+
+## 🔌 MCP: one endpoint per device
+
+Connect external automation clients to a saved KVM through its own local MCP server. Each device has a separate endpoint and access token, so a client cannot switch to another device or follow whichever window is focused.
+
+- **Observe:** request live screenshots, crop screen regions, read OCR text with coordinates, and wait for visual changes.
+- **Act:** type text, click, double-click, scroll, drag, or send key combinations such as **Ctrl + Alt + Delete**.
+- **Choose access:** start with read-only access or enable keyboard and mouse control per device. Tokens stay in Keychain.
+- **Stay in control:** manual takeover and **Stop Automation** release input. Exclusive control, timeouts, and action IDs prevent competing controllers and duplicate action retries within a client session.
+- **See activity:** inspect connected clients and recent actions without storing typed text or screenshots in the activity history.
+
+Open **Settings → MCP**, select a device, enable its server, and click **Copy MCP Configuration**. Keep AsteroidKVM running and the KVM connected for screen and input tools. Clients need Streamable HTTP support and an Authorization header. Screenshots are requested from the live feed; continuous video streaming is not exposed through MCP. [Setup, tools, and recovery behavior →](docs/mcp.md)
 
 <a id="agent-give-your-remote-machine-a-task"></a>
 
@@ -73,6 +87,8 @@ Your Mac already knows what you meant to type. **Use Native Keyboard Layout** fo
 ```
 
 Those characters were verified in a real Windows editor using the German target layout. Physical shortcuts retain their USB key identities, including left/right modifiers; physical key repeat remains owned by the remote OS.
+
+Native typing defaults to a **50 ms interval** between characters. Adjust it per connection in **Settings → Keyboard & Clipboard**, from 0 to 1,000 ms; increase it if symbols become incorrect. Saved custom intervals are preserved.
 
 The client also includes clipboard text paste, remote keyboard shortcuts, and **local text recognition**: select an area of the remote screen and extract its text with Apple Vision on your Mac.
 

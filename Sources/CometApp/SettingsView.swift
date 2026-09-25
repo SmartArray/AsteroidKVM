@@ -8,7 +8,7 @@ struct SettingsView: View {
   @EnvironmentObject var model: AppModel
   @AppStorage("appearance") private var appearance = "System"
   private let sections = [
-    "General", "Connections", "Display", "Devices", "Transcription", "Keyboard & Clipboard", "Appearance", "System",
+    "General", "Connections", "Display", "Devices", "Transcription", "Keyboard & Clipboard", "MCP", "Appearance", "System",
     "Advanced",
   ]
 
@@ -66,6 +66,17 @@ struct SettingsView: View {
             Text(
               "Clipboard content is never stored. Paste operations send at most 16,384 Unicode scalars and are never automatically retried."
             )
+          case "MCP":
+            devicePicker
+            Group {
+              if let id = model.selectedDevice, let session = model.sessions[id] {
+                MCPSettingsView(session: session, server: session.mcpServer).id(id)
+              } else {
+                Text("Select a connection to configure its MCP server.").foregroundStyle(.secondary)
+              }
+            }.task(id: model.selectedDevice) {
+              if let id = model.selectedDevice { _ = model.session(for: id) }
+            }
           case "Appearance":
             Picker("Appearance", selection: $appearance) {
               Text("System").tag("System")
@@ -316,12 +327,107 @@ struct NativeTypingSettings: View {
             set: { value in session.updateProfile { $0.nativeTypingIntervalMilliseconds = value } }),
           in: 0...1000, step: 10
         ).accessibilityIdentifier("native-typing-interval")
-        Text("Delay after each character when Use Native Keyboard Layout is enabled. Lower values type faster; 0 ms removes the added delay. If symbols become incorrect, increase the interval. Default: 120 ms.")
+        Text("Delay after each character when Use Native Keyboard Layout is enabled. Lower values type faster; 0 ms removes the added delay. If symbols become incorrect, increase the interval. Default: \(ConnectionProfile.defaultNativeTypingIntervalMilliseconds) ms.")
           .font(.caption).foregroundStyle(.secondary)
-        Button("Reset to 120 ms") {
-          session.updateProfile { $0.nativeTypingIntervalMilliseconds = 120 }
-        }.disabled(session.profile.nativeTypingIntervalMilliseconds == 120)
+        Button("Reset to \(ConnectionProfile.defaultNativeTypingIntervalMilliseconds) ms") {
+          session.updateProfile { $0.nativeTypingIntervalMilliseconds = ConnectionProfile.defaultNativeTypingIntervalMilliseconds }
+        }.disabled(session.profile.nativeTypingIntervalMilliseconds == ConnectionProfile.defaultNativeTypingIntervalMilliseconds)
       }.frame(maxWidth: .infinity, alignment: .leading)
     }
+  }
+}
+
+
+struct MCPSettingsView: View {
+  @EnvironmentObject var model: AppModel
+  @ObservedObject var session: SessionController
+  @ObservedObject var server: DeviceMCPServer
+  @State private var port = ""
+  @State private var notice: String?
+
+  private func update(_ change: (inout MCPPreferences) -> Void) {
+    session.updateProfile {
+      var preferences = $0.mcp ?? MCPPreferences()
+      change(&preferences)
+      $0.mcp = preferences
+    }
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      Text("Give an MCP client access to this device only. Keep AsteroidKVM running and connect the device for screen and input tools.")
+      Toggle("Enable MCP for this device", isOn: Binding(
+        get: { session.profile.mcp?.enabled ?? false },
+        set: { value in
+          var selectedPort = session.profile.mcp?.port ?? 9101
+          if value, session.profile.mcp == nil {
+            let used = Set(model.sessions.values.filter { $0.id != session.id && $0.profile.mcp?.enabled == true }
+              .compactMap { $0.profile.mcp?.port })
+            while used.contains(selectedPort), selectedPort < 65535 { selectedPort += 1 }
+          }
+          update { $0.enabled = value; $0.port = selectedPort }
+          port = String(selectedPort)
+        }))
+        .accessibilityIdentifier("mcp-enable")
+      HStack {
+        TextField("Local port", text: $port).frame(width: 160)
+          .accessibilityIdentifier("mcp-port")
+        Button("Apply Port") {
+          guard let value = Int(port), (1024...65535).contains(value) else {
+            notice = "Choose a port between 1024 and 65535."; return
+          }
+          update { $0.port = value }; notice = nil
+        }
+      }
+      Toggle("Allow keyboard and mouse control", isOn: Binding(
+        get: { session.profile.mcp?.allowControl ?? false },
+        set: { value in update { $0.allowControl = value } }))
+      Text("When off, clients can only inspect the screen, read text, and wait for changes.")
+        .font(.caption).foregroundStyle(.secondary)
+      LabeledContent("Endpoint", value: server.endpoint).textSelection(.enabled)
+      LabeledContent("Status", value: server.status)
+      HStack {
+        Button("Copy MCP Configuration") {
+          do {
+            let configuration = try server.configuration()
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(configuration, forType: .string)
+            notice = "Configuration copied, including this device’s access token."
+          } catch { notice = error.localizedDescription }
+        }.disabled(session.profile.mcp?.enabled != true)
+        Button("Regenerate Token") { server.regenerateToken() }
+          .disabled(session.profile.mcp?.enabled != true)
+      }
+      Text("Each device needs a different port. Tokens are stored in Keychain. Regenerating a token disconnects existing MCP clients.")
+        .font(.caption).foregroundStyle(.secondary)
+      HStack {
+        Button("Stop Automation") {
+          server.pauseControl(); session.interruptAutomation(); session.releaseCapture()
+        }.accessibilityIdentifier("mcp-stop")
+        if server.paused {
+          Button("Resume MCP Control") { server.resumeControl() }
+        }
+      }
+      Text("Stop shortcut: ⌃⌥⌘Esc while AsteroidKVM is active. Manual takeover pauses MCP control until you resume it here.")
+        .font(.caption).foregroundStyle(.secondary)
+      if let notice { Text(notice).font(.caption) }
+      Divider()
+      Text("Connected Clients").font(.headline)
+      if server.clients.isEmpty { Text("No MCP clients connected.").foregroundStyle(.secondary) }
+      ForEach(Array(server.clients.enumerated()), id: \.offset) { _, name in Text(name) }
+      Text("Clients expire after five minutes without requests. Input ownership expires after 30 idle seconds; operations time out after two minutes.")
+        .font(.caption).foregroundStyle(.secondary)
+      Text("Recent Activity").font(.headline)
+      Text("Kept in memory only. Typed text and screenshots are not included.").font(.caption).foregroundStyle(.secondary)
+      ForEach(server.history.prefix(20)) { item in
+        HStack {
+          Text(item.date, style: .time)
+          Text(item.client)
+          Text(item.tool).font(.system(.caption, design: .monospaced))
+          Spacer()
+          Text(item.outcome)
+        }.font(.caption)
+      }
+    }.onAppear { port = String(session.profile.mcp?.port ?? 9101) }
   }
 }

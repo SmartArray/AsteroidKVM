@@ -56,8 +56,10 @@ import UniformTypeIdentifiers
     else {
       throw AgentError("Enable keyboard, mouse, and absolute mouse mode before starting the agent.")
     }
+    guard !session.agentOwnsInput else { throw AgentError("Another controller owns this device. Stop it before taking control.") }
     session.releaseCapture()
     lease = UUID()
+    session.automationLease = lease
     leasedIdentity = identity
     screenSize = nil
     lastActionFrame = nil
@@ -66,8 +68,11 @@ import UniformTypeIdentifiers
 
   // Invalidating the lease stops the next character or transition even if Codex interruption is delayed.
   public func release() {
-    session?.agentClickPreview = nil
+    let owns = lease != nil && session?.automationLease == lease
     lease = nil
+    guard owns else { return }
+    session?.automationLease = nil
+    session?.agentClickPreview = nil
     leasedIdentity = nil
     screenSize = nil
     session?.agentOwnsInput = false
@@ -115,6 +120,12 @@ import UniformTypeIdentifiers
     sourceSize = frame.size
     lastActionFrame = nil
     return result
+  }
+
+  // MCP observations use the same source-pixel geometry without acquiring input for reads.
+  func prepare(screen: AgentScreen, source: CGSize) {
+    screenSize = CGSize(width: screen.width, height: screen.height)
+    sourceSize = source
   }
 
   // Every transition is balanced and awaited; text uses individual characters so Pause bounds residual typing.
@@ -180,10 +191,36 @@ import UniformTypeIdentifiers
     try check(ticket)
   }
 
+  func drag(x: Int, y: Int, toX: Int, toY: Int, duration: Int) async throws {
+    let ticket = try checkedLease()
+    guard let size = screenSize, session?.mailbox.snapshot()?.size == sourceSize else {
+      throw AgentError("Remote geometry changed. Read the screen again.")
+    }
+    func move(_ x: Double, _ y: Double) -> HIDEvent {
+      HIDEvent("mouse_move", ["to": .object([
+        "x": .number((x / max(1, size.width - 1) * 65535 - 32768).rounded()),
+        "y": .number((y / max(1, size.height - 1) * 65535 - 32768).rounded())])])
+    }
+    try await send([move(Double(x), Double(y)), .button("left", true)], ticket)
+    let steps = max(2, duration / 20)
+    for step in 1...steps {
+      try await Task.sleep(for: .milliseconds(duration / steps))
+      guard session?.mailbox.snapshot()?.size == sourceSize else { throw AgentError("Remote geometry changed during drag.") }
+      let fraction = Double(step) / Double(steps)
+      try await send([move(Double(x) + Double(toX - x) * fraction, Double(y) + Double(toY - y) * fraction)], ticket)
+    }
+    try await send([.button("left", false)], ticket)
+  }
+
+  func horizontalScroll(_ delta: Int) async throws {
+    let ticket = try checkedLease()
+    try await send([HIDEvent("mouse_wheel", ["delta": .object(["x": .number(Double(delta)), "y": .number(0)]), "squash": .bool(false)])], ticket)
+  }
+
   // Recheck the lease after every await because a pause, disconnect, or manual capture may have intervened.
   private func checkedLease() throws -> UUID {
     try Task.checkCancellation()
-    guard let lease, leasedIdentity == identity, available, session?.agentOwnsInput == true else {
+    guard let lease, leasedIdentity == identity, available, session?.agentOwnsInput == true, session?.automationLease == lease else {
       throw AgentError("Remote control is paused or disconnected.")
     }
     return lease

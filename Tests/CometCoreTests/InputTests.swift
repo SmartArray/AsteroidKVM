@@ -115,12 +115,16 @@ final class InputTests: XCTestCase {
     let legacy = try JSONEncoder().encode(profile)
     XCTAssertEqual(
       try JSONDecoder().decode(ConnectionProfile.self, from: legacy).nativeTypingIntervalMilliseconds,
-      120)
+      50)
     profile.nativeTypingIntervalMilliseconds = 0
     let saved = try JSONEncoder().encode(profile)
     XCTAssertEqual(
       try JSONDecoder().decode(ConnectionProfile.self, from: saved).nativeTypingIntervalMilliseconds,
       0)
+    profile.nativeTypingIntervalMilliseconds = 120
+    XCTAssertEqual(
+      try JSONDecoder().decode(ConnectionProfile.self, from: JSONEncoder().encode(profile)).nativeTypingIntervalMilliseconds,
+      120)
     profile.nativeTypingIntervalMilliseconds = -10
     XCTAssertEqual(profile.nativeTypingIntervalMilliseconds, 0)
     profile.nativeTypingIntervalMilliseconds = 2000
@@ -130,6 +134,7 @@ final class InputTests: XCTestCase {
   @MainActor func testTypingIntervalUpdatesActiveOutput() {
     let session = SessionController(profile: ConnectionProfile(name: "Typing", host: "fixture.invalid"))
     let output = HIDOutput(send: { _ in }, paste: { _, _ in })
+    XCTAssertEqual(output.nativeTypingIntervalMilliseconds, 50)
     session.output = output
     session.updateProfile { $0.nativeTypingIntervalMilliseconds = 30 }
     XCTAssertEqual(output.nativeTypingIntervalMilliseconds, 30)

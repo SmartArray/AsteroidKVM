@@ -172,7 +172,7 @@ public struct InputEngine: Sendable {
   private var pasteRunning = false
   private var keys: Set<String> = []
   private var buttons: Set<String> = []
-  public var nativeTypingIntervalMilliseconds = 120
+  public var nativeTypingIntervalMilliseconds = ConnectionProfile.defaultNativeTypingIntervalMilliseconds
   private let send: Send
   private let printText: Paste
   public private(set) var pasting = false

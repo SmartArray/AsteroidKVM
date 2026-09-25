@@ -8,7 +8,7 @@ case "${1:-local}" in
     ;;
   --unit)
     # Keep hosted CI deterministic: these suites use local fixtures and never require GPU, UI, or account access.
-    swift test --filter 'CometCoreTests\.(InputTests|GeometryAndStorageTests|AgentTests|SecurityTests|AgentSecurityTests|TransportSecurityTests|EDIDTests|TranscriptionTests)/' \
+    swift test --filter 'CometCoreTests\.(MCPTests|InputTests|GeometryAndStorageTests|AgentTests|SecurityTests|AgentSecurityTests|TransportSecurityTests|EDIDTests|TranscriptionTests)/' \
       --skip 'AgentTests/testInstalledCodexVisionAndDynamicToolEndToEnd'
     ;;
   --hardware)
