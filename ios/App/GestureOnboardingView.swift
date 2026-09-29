@@ -174,54 +174,66 @@ private struct OnboardingPager<Content: View>: View {
   private var palette: GuidePalette { GuidePalette(dark: colorScheme == .dark) }
 
   var body: some View {
-    NavigationStack {
-      GeometryReader { geometry in
-        VStack(spacing: 0) {
-          HStack {
-            if geometry.size.height >= 450 { Text("ASTEROIDKVM").tracking(2) }
-            Spacer()
-            Text(String(format: "%02d / 04", page + 1)).monospacedDigit()
-          }
-          .font(.caption.weight(.semibold)).foregroundStyle(palette.secondary)
-          .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-          .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 8)
-          .accessibilityElement(children: .ignore).accessibilityLabel("Page \(page + 1) of 4")
-          .accessibilityValue(colorScheme == .dark ? "Dark appearance" : "Light appearance")
-          .accessibilityIdentifier(progressID)
-          .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment: change(1)
-            case .decrement: change(-1)
-            @unknown default: break
-            }
-          }
-          TabView(selection: $page) {
-            ForEach(0..<4) { index in
-              ScrollView {
+    GeometryReader { geometry in
+      VStack(spacing: 0) {
+        TabView(selection: $page) {
+          ForEach(0..<4) { index in
+            ScrollView {
+              VStack(spacing: 0) {
+                pageHeader(index, height: geometry.size.height)
                 content(index, geometry.size)
                   .padding(.horizontal, 24).padding(.vertical, 16)
                   .frame(maxWidth: .infinity)
               }
-              .accessibilityIdentifier("\(progressID)-page-\(index)")
-              .tag(index)
             }
+            .contentMargins(.top, 54, for: .scrollContent)
+            .accessibilityIdentifier("\(progressID)-page-\(index)")
+            .tag(index)
           }
-          .tabViewStyle(.page(indexDisplayMode: .never))
-          .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: page)
-          navigation
         }
-        .background(palette.background.ignoresSafeArea())
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: page)
+        navigation
       }
-      .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
-      .toolbarBackground(palette.background, for: .navigationBar)
-      .toolbarBackground(.visible, for: .navigationBar)
-      .toolbar {
-        ToolbarItem(placement: .topBarTrailing) {
-          Button("Skip", action: finish).foregroundStyle(palette.secondary)
+      .background(palette.background.ignoresSafeArea())
+      .overlay(alignment: .top) {
+        ZStack {
+          Text(title).font(.headline).foregroundStyle(palette.primary)
+            .accessibilityAddTraits(.isHeader)
+          HStack {
+            Spacer()
+            Button("Skip", action: finish)
+              .font(.body).foregroundStyle(palette.secondary)
+              .padding(.horizontal, 14).frame(minHeight: 44)
+          }
         }
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .padding(.horizontal, 16).frame(height: 54)
       }
       .tint(palette.accent)
     }
+  }
+
+  private func pageHeader(_ index: Int, height: CGFloat) -> some View {
+    HStack {
+      if height >= 450 { Text("ASTEROIDKVM").tracking(2) }
+      Spacer()
+      Text(String(format: "%02d / 04", index + 1)).monospacedDigit()
+    }
+    .font(.caption.weight(.semibold)).foregroundStyle(palette.secondary)
+    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+    .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 8)
+    .accessibilityElement(children: .ignore).accessibilityLabel("Page \(index + 1) of 4")
+    .accessibilityValue(colorScheme == .dark ? "Dark appearance" : "Light appearance")
+    .accessibilityIdentifier(progressID)
+    .accessibilityAdjustableAction { direction in
+      switch direction {
+      case .increment: change(1)
+      case .decrement: change(-1)
+      @unknown default: break
+      }
+    }
+    .accessibilityHidden(index != page)
   }
 
   private var navigation: some View {
@@ -291,7 +303,7 @@ struct AppOnboardingView: View {
     "Add your Comet’s address and sign in. Test the connection, save a profile, and choose whether to remember your password in Keychain.",
   ]
   private let footnotes: [LocalizedStringKey] = [
-    "Swipe to explore", "A gesture guide is waiting at your first connection.",
+    "Swipe to see what’s possible", "A gesture guide is waiting at your first connection.",
     "Touch, keyboard and pointer. Your choice.",
     "You’ll need a Comet KVM and a network route to it.",
   ]

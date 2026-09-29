@@ -77,6 +77,12 @@ Verification exercises fresh first launch, forward/backward swipes, first/last p
 
 Five iPhone UI cases passed in `/tmp/AsteroidKVM-Welcome-iPhone.xcresult`, and four iPad cases passed in `/tmp/AsteroidKVM-Welcome-iPad.xcresult`, including the loopback-server check that no authentication starts before the gesture guide dismisses. `/tmp/AsteroidKVM-Welcome-Final.xcresult` passed both first-launch persistence and the welcome-to-gesture-guide swipe flow after the layout correction, without the frame warning. Both generic Simulator and unsigned device builds passed; the local ZIP artifacts were refreshed. Visual evidence is saved under `build/screenshots/ios-welcome-*`. No physical KVM was used for this onboarding work.
 
+## Transparent onboarding headers
+
+Both tours now scroll beneath a transparent overlay header, with space reserved for the title and Skip button at the top of each page. The brand/page row scrolls with the content. This avoids a native navigation-bar safe-area interaction that disrupted paging after vertical scrolling. The welcome prompt is now “Swipe to see what’s possible.”
+
+Generic Simulator and unsigned device builds passed. Three focused iPhone UI tests passed in `/tmp/AsteroidKVM-Transparent-Overlay.xcresult`: gesture swiping/vertical scrolling, the first-use guide at the largest accessibility text size, and dark welcome/replay/persistence/large-text navigation. Scrolled screenshots verify both transparent headers. The updated welcome layout was also visually checked on iPad.
+
 ## Local build artifacts
 
 - `build/AsteroidKVM-iOS-Simulator.zip`: installable Simulator app, both simulator architectures.
