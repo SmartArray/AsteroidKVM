@@ -48,7 +48,7 @@ Connect external automation clients to a saved KVM through its own local MCP ser
 - **Stay in control:** manual takeover and **Stop Automation** release input. Exclusive control, timeouts, and action IDs prevent competing controllers and duplicate action retries within a client session.
 - **See activity:** inspect connected clients and recent actions without storing typed text or screenshots in the activity history.
 
-**Optional local UI perception:** run the local OmniParser service, then configure it in **Settings → Local UI Parsing**. Models load once, prefer MPS where supported, and fall back to CPU. Structured inspection sends no screenshot to the MCP client; `screen.image` is an explicit escape hatch. [Install and configure local perception →](docs/local-ui-perception.md)
+**Optional local UI perception:** open **Settings → Local UI Parsing → Install Local Parser**, then **Start**. The app downloads a verified Apple Silicon Python runtime and pinned models into Application Support; no Terminal, Git, or system Python is required. Start/Stop, Update / Repair, and optional startup with the app are built in. Models load once, prefer MPS where supported, and fall back to CPU. Structured inspection sends no screenshot to the MCP client; `screen.image` is an explicit escape hatch. [Install and configure local perception →](docs/local-ui-perception.md)
 
 Open **Settings → MCP**, select a device, enable its server, and click **Copy MCP Configuration**. Keep AsteroidKVM running and the KVM connected for screen and input tools. Clients need Streamable HTTP support and an Authorization header. Screenshots are requested from the live feed; continuous video streaming is not exposed through MCP. [Setup, tools, and recovery behavior →](docs/mcp.md)
 

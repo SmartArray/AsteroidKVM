@@ -71,6 +71,9 @@ jobs:
         run: |
           app_path="build/DerivedData/Build/Products/Release/AsteroidKVM.app"
           codesign --verify --deep --strict "$app_path"
+          for resource in server.py backend.py setup.py requirements.lock parser-runtime.json; do
+            test -s "$app_path/Contents/Resources/$resource"
+          done
           lipo "$app_path/Contents/MacOS/AsteroidKVM" -verify_arch arm64 x86_64
           lipo "$app_path/Contents/Frameworks/WebRTC.framework/WebRTC" -verify_arch arm64 x86_64
           mkdir -p build/artifacts

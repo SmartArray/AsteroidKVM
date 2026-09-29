@@ -2,7 +2,41 @@
 
 AsteroidKVM exposes application-owned `screen.*` MCP tools backed by a separate localhost parser service. Swift never imports Python or PyTorch. Structured inspection returns text and geometry, not an image. The existing JPEG and HID tools remain available if parsing is disabled or unavailable.
 
-## Local service setup
+## Install from the app (recommended)
+
+On an Apple Silicon Mac, open **Settings → Local UI Parsing**:
+
+1. Choose **Managed by AsteroidKVM** and click **Install Local Parser**.
+2. Wait for the download and verification steps. Initial setup requires internet access and at least 8 GB of free disk space. You can cancel; an existing installation remains intact.
+3. Click **Start**. The app configures the access token automatically and reports readiness and the selected inference device.
+4. Optionally enable **Start parser when AsteroidKVM opens**. Otherwise, click Start when you need it.
+5. Open **Settings → UI Parsing Debug** to capture one image and inspect boxes, or enable the KVM's MCP endpoint for agent access.
+
+No Terminal, Homebrew, Git, system Python, or developer tools are needed. Runtime and model files live in:
+
+```text
+~/Library/Application Support/AsteroidKVM/OmniParser/
+```
+
+**Stop** frees the managed service's model memory. Quitting AsteroidKVM also stops it; the service watches its parent so an app crash does not leave it running. **Update / Repair** installs the version approved by the installed app, not arbitrary latest model/code releases. Install a newer AsteroidKVM app to receive newer approved parser versions. It stages a separate runtime and switches the active record only after all downloads and verification succeed. A failed update leaves the previous installed files available for Start. An update stops the app-owned service and restarts it after a successful replacement if it was running.
+
+Changing the device or port requires saving settings, then stopping and starting the service. The runtime prefers MPS and supports CPU fallback. The managed installation currently supports native Apple Silicon apps; Intel builds can still connect to an independently managed CPU service.
+
+### What gets downloaded
+
+The signed/ad-hoc-signed app bundle carries the service scripts, `parser-runtime.json`, and a fully pinned `requirements.lock`. The installer uses real upstream downloads, without requiring a separately published AsteroidKVM runtime asset:
+
+- [Astral Python Build Standalone](https://github.com/astral-sh/python-build-standalone/releases): a pinned, relocatable CPython 3.12 Apple Silicon archive, verified against its bundled SHA-256 and byte count.
+- [PyPI](https://pypi.org/): pinned binary wheels with required SHA-256 hashes. Source builds are disabled.
+- Microsoft OmniParser detector code at a pinned Git commit and checksum; model weights and Florence custom code at pinned Hugging Face commits; EasyOCR's versioned English weights.
+
+Only Install/Update performs these network downloads. Normal inference stays offline. Downloaded dependencies retain their package license metadata; model/code terms belong to their upstream distributions. The existing release workflow includes and checks the installer resources in the downloadable app archive.
+
+The app serializes installation/service ownership with a local file lock. It never terminates an external daemon. If another service occupies the configured port, stop that service or choose a free port. **Open Installation Folder** provides access to a bounded `install-error.log` after a failed setup and the managed service's `service.log`. Tokens are not printed; the service token is mode 0600 and its app credential is kept in Keychain.
+
+## External service / developer setup
+
+Existing manually configured services remain supported. Choose **External local service**, enter the loopback host, port and token, then **Save and Check Connection**. AsteroidKVM does not start or stop these daemons. Configuration is shared by connections, while parsed frames and element IDs remain device-specific.
 
 For developers running the service from a checkout, Python **3.12** (or 3.11 with `requirements.txt`) is required. Use a permanent location rather than `.build`, which is only suitable for disposable development/test environments:
 
@@ -19,7 +53,7 @@ python3.12 -m venv "$PARSER_ROOT/venv"
 
 Keep the foreground terminal open and stop with Ctrl+C. Alternatively, `manage.py install --model-root "$PARSER_ROOT/models" --device auto --port 9120`, using that same virtual environment's Python, explicitly installs a per-user launchd daemon. `manage.py status`, `restart`, and `stop` manage that independently running daemon.
 
-Configure the host and port in **Settings → Local UI Parsing**. Copy the service token with `pbcopy < "$PARSER_ROOT/models/service.token"` and paste it into the app's secure token field.
+Copy an external service token with `pbcopy < "$PARSER_ROOT/models/service.token"` and paste it into the app's secure token field. Managed installations do this automatically.
 
 ## Agent-facing tools
 

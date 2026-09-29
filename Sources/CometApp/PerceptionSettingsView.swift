@@ -4,6 +4,7 @@ import SwiftUI
 
 struct PerceptionSettingsView: View {
   @ObservedObject private var service = LocalPerception.shared
+  @ObservedObject private var runtime = LocalParserManager.shared
   @State private var draft = PerceptionSettings()
   @State private var token = ""
   @State private var error: String?
@@ -14,10 +15,80 @@ struct PerceptionSettingsView: View {
       Text(
         "Parse KVM screens locally. All connections share the parser; each device keeps its own element IDs and cache."
       )
+      Picker(
+        "Parser service",
+        selection: Binding(
+          get: { service.usesManagedService }, set: { service.setManagedService($0) })
+      ) {
+        Text("Managed by AsteroidKVM").tag(true)
+        Text("External local service").tag(false)
+      }.disabled(runtime.busy || runtime.running)
+      if service.usesManagedService {
+        GroupBox("Local Parser Installation") {
+          VStack(alignment: .leading, spacing: 12) {
+            Text(
+              "Install Python, the parser, and its models on this Mac. No Terminal or developer tools are needed. Downloads require internet and at least 8 GB of free disk space; screen parsing stays local."
+            )
+            .font(.caption).foregroundStyle(.secondary)
+            Text(runtime.status).textSelection(.enabled).accessibilityIdentifier(
+              "parser-install-status")
+            if runtime.busy {
+              if let progress = runtime.progress {
+                ProgressView(value: progress)
+              } else {
+                ProgressView().controlSize(.small)
+              }
+              Button("Cancel") { runtime.cancel() }
+            }
+            HStack {
+              Button(runtime.installedVersion == nil ? "Install Local Parser" : "Update / Repair") {
+                runtime.install(restartSettings: draft) {
+                  try service.useManagedInstallation(draft)
+                  draft = service.settings
+                }
+              }.disabled(runtime.busy || !runtime.supported)
+                .accessibilityIdentifier("parser-install")
+              if runtime.installedVersion != nil {
+                Button("Start") {
+                  do {
+                    try service.useManagedInstallation(draft)
+                    draft = service.settings
+                    error = nil
+                    runtime.start(settings: service.settings) { await service.checkHealth() }
+                  } catch { self.error = error.localizedDescription }
+                }.disabled(runtime.busy || runtime.running)
+                  .accessibilityIdentifier("parser-start")
+                Button("Stop") { runtime.stop() }
+                  .disabled(!runtime.running || runtime.busy)
+                  .accessibilityIdentifier("parser-stop")
+              }
+            }
+            if !runtime.supported {
+              Text("The managed parser requires Apple Silicon.").foregroundStyle(.secondary)
+            }
+            if runtime.installedVersion != nil || runtime.error != nil {
+              Button("Open Installation Folder") { NSWorkspace.shared.open(runtime.root) }
+            }
+            if let error = runtime.error {
+              Text(error).foregroundStyle(.red).textSelection(.enabled)
+            }
+            Toggle(
+              "Start parser when AsteroidKVM opens",
+              isOn: Binding(
+                get: { service.startWithApp }, set: { service.setStartWithApp($0) }))
+            Text(
+              "The managed service stops when AsteroidKVM quits. Update / Repair installs the parser version included with this app."
+            )
+            .font(.caption).foregroundStyle(.secondary)
+          }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
+        }
+      }
       Toggle("Enable local UI parsing", isOn: $draft.enabled).accessibilityIdentifier(
         "perception-enable")
-      TextField("Service host", text: $draft.host)
-      SecureField("Service token (leave blank to keep saved token)", text: $token)
+      if !service.usesManagedService {
+        TextField("Service host", text: $draft.host)
+        SecureField("Service token (leave blank to keep saved token)", text: $token)
+      }
       TextField("Service port", value: $draft.port, format: .number.grouping(.never))
       Picker("Preferred inference device", selection: $draft.preferredDevice) {
         Text("Automatic (prefer MPS)").tag("auto")
@@ -55,7 +126,7 @@ struct PerceptionSettingsView: View {
         Button("Save and Check Connection") {
           do {
             try service.save(
-              draft, token: token.isEmpty ? nil : token)
+              draft, token: service.usesManagedService || token.isEmpty ? nil : token)
             token = ""
             error = nil
             checking = true
@@ -82,7 +153,7 @@ struct PerceptionSettingsView: View {
       }
       if let error { Text(error).foregroundStyle(.red) }
       Text(
-        "Start the local parser service before checking the connection. Raw screenshots and keyboard/mouse tools remain available if parsing is disabled."
+        "Install and Start the managed parser above, or connect an external local service. Disabling parsing does not stop an already running service; use Stop to free its memory. Raw screenshots and keyboard/mouse tools remain available."
       )
       .font(.caption).foregroundStyle(.secondary)
     }.onAppear { draft = service.settings }

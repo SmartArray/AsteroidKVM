@@ -150,12 +150,19 @@ for name, source, kind, dependencies in [
         )
         objects[groups[-1]]["children"].append(icon)
         icon_build = obj("AppIconBuild", "PBXBuildFile", fileRef=icon)
+        # Installer resources ship inside the app; users never need the source checkout or Git.
+        parser_resources = []
+        for filename in ["server.py", "backend.py", "setup.py", "requirements.lock", "parser-runtime.json"]:
+            ref = obj("ParserResource" + filename, "PBXFileReference", lastKnownFileType="text",
+                      path="services/omniparser/" + filename, sourceTree="<group>")
+            objects[groups[-1]]["children"].append(ref)
+            parser_resources.append(obj("ParserResourceBuild" + filename, "PBXBuildFile", fileRef=ref))
         phases.append(
             obj(
                 "AppResources",
                 "PBXResourcesBuildPhase",
                 buildActionMask=2147483647,
-                files=[notice_build, icon_build],
+                files=[notice_build, icon_build] + parser_resources,
                 runOnlyForDeploymentPostprocessing=0,
             )
         )

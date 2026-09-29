@@ -71,12 +71,19 @@ import SwiftUI
 @MainActor final class CometApplicationDelegate: NSObject, NSApplicationDelegate {
   weak var model: AppModel?
 
+  func applicationDidFinishLaunching(_ notification: Notification) {
+    guard !ProcessInfo.processInfo.arguments.contains("--ui-testing") else { return }
+    LocalPerception.shared.startManagedIfRequested()
+  }
+
   // Allow each session to release input before the application finishes quitting.
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-    guard let model else { return .terminateNow }
     Task {
-      model.agents.values.forEach { $0.stop() }
-      for session in model.sessions.values { session.mcpServer.disable(); await session.disconnect() }
+      if let model {
+        model.agents.values.forEach { $0.stop() }
+        for session in model.sessions.values { session.mcpServer.disable(); await session.disconnect() }
+      }
+      await LocalParserManager.shared.shutdown()
       sender.reply(toApplicationShouldTerminate: true)
     }
     return .terminateLater
