@@ -19,11 +19,12 @@ struct MobileSessionView: View {
   @State private var enteredSession = false
   @State private var keyboardVisible = false
   @State private var keyboardAfterDismiss = false
+  @State private var closing = false
   var body: some View {
     ZStack {
       Color.black.ignoresSafeArea()
       MobileRemoteSurface(
-        session: session, blocked: sheet != nil || guide || onboardingVersion < 1,
+        session: session, blocked: closing || sheet != nil || guide || onboardingVersion < 1,
         fitToken: fitToken, keyboardVisible: keyboardVisible)
       VStack(spacing: 8) {
         if session.phase != .connected {
@@ -70,7 +71,7 @@ struct MobileSessionView: View {
           } else {
             open(.menu)
           }
-        }
+        }.disabled(closing)
       }
     }
     .onAppear {
@@ -90,7 +91,10 @@ struct MobileSessionView: View {
     .sheet(
       item: $sheet,
       onDismiss: {
-        if keyboardAfterDismiss {
+        if closing {
+          // Dismiss the menu before removing the view that presents it.
+          Task { await model.close() }
+        } else if keyboardAfterDismiss {
           keyboardAfterDismiss = false
           keyboardVisible = session.active && session.profile.keyboardEnabled
         } else if guideAfterDismiss {
@@ -172,7 +176,10 @@ struct MobileSessionView: View {
   private var menu: some View {
     NavigationStack {
       List {
-        HoldToDisconnect { Task { await model.close() } }
+        HoldToDisconnect {
+          closing = true
+          sheet = nil
+        }
         Button("Keyboard", systemImage: "keyboard") {
           keyboardAfterDismiss = true
           sheet = nil

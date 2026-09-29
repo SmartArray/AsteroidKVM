@@ -95,6 +95,12 @@ The button now renders from one local absolute center rather than adding drag tr
 
 The expanded regression alternates left/right on both the top and bottom edges, repeats a same-side drag, checks the button's bounds and hit target after each snap, and opens the menu afterward. The old implementation failed this check in `/tmp/AsteroidKVM-Floating-Cross-Sides-Before.xcresult`. The fixed implementation passed on iPhone 17e and iPad mini (A17 Pro); the persistent-keyboard/rotation/dismissal check also passed on iPhone. Passing evidence: `/tmp/AsteroidKVM-Floating-Cross-Sides.xcresult` and `/tmp/AsteroidKVM-Floating-Cross-Sides-iPad.xcresult`. Generic Simulator and unsigned device builds passed, and both local ZIP artifacts were refreshed.
 
+## Close connection dismisses its menu
+
+Confirming Close connection now dismisses the controls sheet first, then performs session teardown from its dismissal callback. The remote canvas and floating button remain blocked during closure, so no input or new menu can slip in while teardown finishes. A short hold still leaves the session and menu open.
+
+The updated hold-to-close UI check verifies that Close connection and Type disappear, Connections becomes visible, and Add connection opens a usable editor. It passed on iPhone 17e (`/tmp/AsteroidKVM-Close-Dismiss-Menu.xcresult`) and on iPad mini with the final floating-button guard (`/tmp/AsteroidKVM-Close-Dismiss-Final.xcresult`). Final generic Simulator and unsigned device builds passed; local ZIP artifacts were refreshed.
+
 ## Local build artifacts
 
 - `build/AsteroidKVM-iOS-Simulator.zip`: installable Simulator app, both simulator architectures.

@@ -609,7 +609,13 @@ final class MobileUITests: XCTestCase {
     close.press(forDuration: 0.5)
     XCTAssertTrue(close.exists)
     close.press(forDuration: 1.2)
+    XCTAssertTrue(close.waitForNonExistence(timeout: 5))
+    XCTAssertFalse(app.buttons["Type"].exists)
     XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 5))
+    // The dismissed session menu must not cover or block the connection list.
+    app.buttons["Add connection"].firstMatch.tap()
+    XCTAssertTrue(app.textFields["connection-name"].waitForExistence(timeout: 5))
+    app.buttons["Cancel"].tap()
   }
   @MainActor func testFrozenFrameOCRSelectionAndRetry() {
     let app = XCUIApplication()
