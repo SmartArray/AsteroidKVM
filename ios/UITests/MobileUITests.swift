@@ -460,19 +460,27 @@ final class MobileUITests: XCTestCase {
     app.launchArguments = [
       "-welcomeVersion", "1", "-onboardingVersion", "1", "-floatingCorner", "3",
     ]
+    XCUIDevice.shared.orientation = .portrait
     app.launch()
     let controls = app.buttons["connection-controls"]
     XCTAssertTrue(controls.waitForExistence(timeout: 10))
     let surface = app.descendants(matching: .any).matching(identifier: "Remote computer").firstMatch
     let frame = surface.frame
     for destination in [
-      CGVector(dx: 0.8, dy: 0.2), CGVector(dx: 0.2, dy: 0.2), CGVector(dx: 0.3, dy: 0.3),
+      CGVector(dx: 0.2, dy: 0.2), CGVector(dx: 0.8, dy: 0.2),
+      CGVector(dx: 0.2, dy: 0.2), CGVector(dx: 0.8, dy: 0.2),
+      CGVector(dx: 0.8, dy: 0.8), CGVector(dx: 0.2, dy: 0.8),
+      CGVector(dx: 0.8, dy: 0.8), CGVector(dx: 0.2, dy: 0.8),
+      CGVector(dx: 0.3, dy: 0.7),
     ] {
       controls.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
         forDuration: 0.1, thenDragTo: surface.coordinate(withNormalizedOffset: destination))
       let expectedX = destination.dx > 0.5 ? frame.maxX - 38 : frame.minX + 38
       XCTAssertEqual(controls.frame.midX, expectedX, accuracy: 3)
-      XCTAssertEqual(controls.frame.midY, frame.minY + 38, accuracy: 3)
+      let expectedY = destination.dy > 0.5 ? frame.maxY - 38 : frame.minY + 38
+      XCTAssertEqual(controls.frame.midY, expectedY, accuracy: 3)
+      XCTAssertTrue(frame.contains(controls.frame), "The button must remain inside the canvas")
+      XCTAssertTrue(controls.isHittable)
     }
     controls.tap()
     XCTAssertTrue(app.buttons["Type"].waitForExistence(timeout: 5))

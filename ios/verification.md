@@ -89,6 +89,12 @@ Canvas size changes preserve the current zoom factor and normalized remote cente
 
 All 16 mobile contracts passed, including rotated/pixel-aspect resize round trips, temporary center clamping, and manual panning after resize. The persistent-keyboard UI test now starts zoomed in and checks both zoom and center before/after keyboard presentation and a portrait/landscape/dismissal cycle. It passed on iPhone 17e and iPad mini (A17 Pro), alongside typing, remote clicking and reopening checks. Evidence: `/tmp/AsteroidKVM-Keyboard-Viewport-Verified.xcresult` and `/tmp/AsteroidKVM-Keyboard-Viewport-iPad.xcresult`. An initial iPhone 18 Pro run encountered its previously documented hardware-keyboard/canvas-resize issue; the keyboard flow was verified on iPhone 17e. Generic Simulator and unsigned device builds passed, and both ZIP artifacts were refreshed.
 
+## Floating button cross-side snapping
+
+The button now renders from one local absolute center rather than adding drag translation to an asynchronously persisted corner. A drag captures its starting center once; release animates that center to the destination and saves the corner separately. Drag positions stay inside the canvas, cancellation returns to the saved corner, and keyboard/rotation size changes reposition the button within the new bounds.
+
+The expanded regression alternates left/right on both the top and bottom edges, repeats a same-side drag, checks the button's bounds and hit target after each snap, and opens the menu afterward. The old implementation failed this check in `/tmp/AsteroidKVM-Floating-Cross-Sides-Before.xcresult`. The fixed implementation passed on iPhone 17e and iPad mini (A17 Pro); the persistent-keyboard/rotation/dismissal check also passed on iPhone. Passing evidence: `/tmp/AsteroidKVM-Floating-Cross-Sides.xcresult` and `/tmp/AsteroidKVM-Floating-Cross-Sides-iPad.xcresult`. Generic Simulator and unsigned device builds passed, and both local ZIP artifacts were refreshed.
+
 ## Local build artifacts
 
 - `build/AsteroidKVM-iOS-Simulator.zip`: installable Simulator app, both simulator architectures.

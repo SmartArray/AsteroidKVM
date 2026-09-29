@@ -197,15 +197,15 @@ struct MobileSessionView: View {
 struct FloatingMenuButton: View {
   @AppStorage("floatingCorner") private var corner = 3
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var offset = CGSize.zero
+  @State private var center: CGPoint?
+  @State private var dragOrigin: CGPoint?
   @GestureState private var dragging = false
   var dismissesKeyboard = false
   var accessibilityID = "connection-controls"
   var action: () -> Void
   var body: some View {
     GeometryReader { proxy in
-      let x: CGFloat = corner % 2 == 0 ? 38 : max(38, proxy.size.width - 38)
-      let y: CGFloat = corner < 2 ? 38 : max(38, proxy.size.height - 38)
+      let position = center ?? cornerCenter(corner, in: proxy.size)
       Button(action: action) {
         Image(systemName: dismissesKeyboard ? "xmark" : "circle.grid.2x2.fill").font(.title2)
           .foregroundStyle(.white)
@@ -227,27 +227,63 @@ struct FloatingMenuButton: View {
           .updating($dragging) { _, state, _ in
             state = true
           }.onChanged { value in
-            offset = value.translation
+            if dragOrigin == nil { dragOrigin = position }
+            guard let origin = dragOrigin else { return }
+            center = bounded(
+              CGPoint(x: origin.x + value.translation.width, y: origin.y + value.translation.height),
+              in: proxy.size)
           }.onEnded { value in
-            let right = x + value.translation.width > proxy.size.width / 2
-            let bottom = y + value.translation.height > proxy.size.height / 2
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
-              corner = (bottom ? 2 : 0) + (right ? 1 : 0)
-              offset = .zero
-            }
+            let origin = dragOrigin ?? position
+            let right = origin.x + value.translation.width > proxy.size.width / 2
+            let bottom = origin.y + value.translation.height > proxy.size.height / 2
+            dragOrigin = nil
+            snap(to: (bottom ? 2 : 0) + (right ? 1 : 0), in: proxy.size)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
           }
       )
-      // Position the already interactive 56-point button; never put a gesture on the full-screen wrapper.
-      .position(x: x + offset.width, y: y + offset.height)
+      // Animate one absolute position; persisted corner changes cannot reapply the drag translation.
+      .position(position)
       .onChange(of: dragging) { _, active in
-        if !active && offset != .zero {
-          withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) { offset = .zero }
+        if !active && dragOrigin != nil {
+          dragOrigin = nil
+          snap(to: corner, in: proxy.size)
         }
       }
-      .accessibilityAction(named: "Move to next corner") { corner = (corner + 1) % 4 }
+      .onChange(of: proxy.size) { _, size in
+        dragOrigin = nil
+        center = cornerCenter(corner, in: size)
+      }
+      .onChange(of: corner) { _, saved in
+        if dragOrigin == nil { snap(to: saved, in: proxy.size) }
+      }
+      .accessibilityAction(named: "Move to next corner") {
+        snap(to: (corner + 1) % 4, in: proxy.size)
+      }
     }.coordinateSpace(name: "floating-menu")
   }
+
+  private func cornerCenter(_ corner: Int, in size: CGSize) -> CGPoint {
+    bounded(
+      CGPoint(x: corner % 2 == 0 ? 38 : size.width - 38,
+        y: corner < 2 ? 38 : size.height - 38), in: size)
+  }
+
+  private func bounded(_ point: CGPoint, in size: CGSize) -> CGPoint {
+    let insetX = min(38, size.width / 2)
+    let insetY = min(38, size.height / 2)
+    return CGPoint(
+      x: min(max(point.x, insetX), size.width - insetX),
+      y: min(max(point.y, insetY), size.height - insetY))
+  }
+
+  private func snap(to destination: Int, in size: CGSize) {
+    let target = cornerCenter(destination, in: size)
+    if center != target {
+      withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) { center = target }
+    }
+    if corner != destination { corner = destination }
+  }
+
 }
 
 struct HoldToDisconnect: View {
