@@ -52,7 +52,10 @@ final class RemoteTouchView: UIView {
       let value = "Zoom \(Int(viewport.zoom * 100)) percent"
       #if DEBUG && targetEnvironment(simulator)
         if ProcessInfo.processInfo.environment["ASTEROID_UI_FIXTURE"] == "1" {
-          return "\(value); \(UITestInputRecorder.summary)"
+          let center = geometry.sourcePoint(viewport.inverse(
+            CGPoint(x: geometry.viewport.width / 2, y: geometry.viewport.height / 2),
+            in: geometry.viewport))
+          return "\(value); center=\(String(format: "%.4f,%.4f", center.x, center.y)); \(UITestInputRecorder.summary)"
         }
       #endif
       return value
@@ -90,7 +93,12 @@ final class RemoteTouchView: UIView {
         let renderer = try MetalVideoRenderer(mailbox: session.mailbox, device: device)
         self.renderer = renderer
         metal.delegate = renderer
-        renderer.onGeometry = { [weak self] in self?.geometry = $0 }
+        renderer.onGeometry = { [weak self] updated in
+          guard let self else { return }
+          self.viewport.resize(from: self.geometry, to: updated)
+          self.geometry = updated
+          self.renderer?.viewportTransform = self.viewport
+        }
         renderer.onError = { [weak session] in session?.message = $0 }
       } catch { session.message = error.localizedDescription }
     }
@@ -116,8 +124,6 @@ final class RemoteTouchView: UIView {
     metal.frame = bounds
     if bounds.size != lastBounds {
       cancelInteraction()
-      viewport = ViewportTransform()
-      renderer?.viewportTransform = viewport
       if snapshot != nil {
         session.cancelOCR()
         snapshot = nil

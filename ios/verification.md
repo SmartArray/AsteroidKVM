@@ -83,6 +83,12 @@ Both tours now scroll beneath a transparent overlay header, with space reserved 
 
 Generic Simulator and unsigned device builds passed. Three focused iPhone UI tests passed in `/tmp/AsteroidKVM-Transparent-Overlay.xcresult`: gesture swiping/vertical scrolling, the first-use guide at the largest accessibility text size, and dark welcome/replay/persistence/large-text navigation. Scrolled screenshots verify both transparent headers. The updated welcome layout was also visually checked on iPad.
 
+## Keyboard viewport preservation
+
+Canvas size changes preserve the current zoom factor and normalized remote center instead of resetting to fit. Geometry updates reproject that center before rendering. Edge constraints still apply, but the desired center survives intermediate sizes and returns when space allows. A subsequent local pan or pinch replaces the saved center; explicit Fit and video rotation settings still reset the view.
+
+All 16 mobile contracts passed, including rotated/pixel-aspect resize round trips, temporary center clamping, and manual panning after resize. The persistent-keyboard UI test now starts zoomed in and checks both zoom and center before/after keyboard presentation and a portrait/landscape/dismissal cycle. It passed on iPhone 17e and iPad mini (A17 Pro), alongside typing, remote clicking and reopening checks. Evidence: `/tmp/AsteroidKVM-Keyboard-Viewport-Verified.xcresult` and `/tmp/AsteroidKVM-Keyboard-Viewport-iPad.xcresult`. An initial iPhone 18 Pro run encountered its previously documented hardware-keyboard/canvas-resize issue; the keyboard flow was verified on iPhone 17e. Generic Simulator and unsigned device builds passed, and both ZIP artifacts were refreshed.
+
 ## Local build artifacts
 
 - `build/AsteroidKVM-iOS-Simulator.zip`: installable Simulator app, both simulator architectures.

@@ -5,6 +5,7 @@ import Foundation
 public struct ViewportTransform: Equatable, Sendable {
   public private(set) var zoom: CGFloat = 1
   public private(set) var pan: CGPoint = .zero
+  private var resizeCenter: CGPoint?
   public init() {}
   public func display(_ point: CGPoint, in size: CGSize) -> CGPoint {
     CGPoint(
@@ -22,18 +23,35 @@ public struct ViewportTransform: Equatable, Sendable {
       size: CGSize(width: rect.width * zoom, height: rect.height * zoom))
   }
   public mutating func move(_ delta: CGPoint, geometry: DisplayGeometry) {
+    resizeCenter = nil
     pan.x += delta.x
     pan.y += delta.y
     constrain(geometry)
   }
   public mutating func scale(by factor: CGFloat, anchor: CGPoint, geometry: DisplayGeometry) {
     guard factor.isFinite, factor > 0 else { return }
+    resizeCenter = nil
     let before = inverse(anchor, in: geometry.viewport)
     zoom = min(6, max(1, zoom * factor))
     let after = display(before, in: geometry.viewport)
     pan.x += anchor.x - after.x
     pan.y += anchor.y - after.y
     constrain(geometry)
+  }
+  /// Preserve magnification and the remote point at the center as the available canvas changes.
+  /// Retain the desired center through intermediate sizes, even when an edge temporarily clamps it.
+  public mutating func resize(from previous: DisplayGeometry, to current: DisplayGeometry) {
+    guard previous.valid, current.valid else { return }
+    let center = resizeCenter ?? previous.sourcePoint(
+      inverse(
+        CGPoint(x: previous.viewport.width / 2, y: previous.viewport.height / 2),
+        in: previous.viewport))
+    resizeCenter = center
+    let point = current.displayPoint(center)
+    pan = CGPoint(
+      x: (current.viewport.width / 2 - point.x) * zoom,
+      y: (current.viewport.height / 2 - point.y) * zoom)
+    constrain(current)
   }
   private mutating func constrain(_ geometry: DisplayGeometry) {
     let x = max(0, (geometry.imageRect.width * zoom - geometry.viewport.width) / 2)

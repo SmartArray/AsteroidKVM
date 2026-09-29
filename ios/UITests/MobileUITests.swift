@@ -181,6 +181,10 @@ final class MobileUITests: XCTestCase {
     let controls = app.buttons["connection-controls"]
     XCTAssertTrue(controls.waitForExistence(timeout: 10))
     let surface = app.descendants(matching: .any).matching(identifier: "Remote computer").firstMatch
+    surface.pinch(withScale: 3, velocity: 1)
+    let savedViewport = (surface.value as? String)?.components(separatedBy: "; ").prefix(2)
+      .joined(separator: "; ") ?? "missing"
+    XCTAssertFalse(savedViewport.hasPrefix("Zoom 100 percent"))
     let fullHeight = surface.frame.height
     controls.tap()
     app.buttons["Keyboard"].tap()
@@ -206,6 +210,8 @@ final class MobileUITests: XCTestCase {
             predicate: NSPredicate(format: "hittable == true"), object: keyboard.keys["a"]
           )
         ], timeout: 10) == .completed)
+    XCTAssertTrue((surface.value as? String)?.hasPrefix(savedViewport) == true,
+      "Opening the keyboard must preserve zoom and center: \(surface.value ?? "missing")")
     screenshot("persistent-keyboard-portrait", app)
     keyboard.keys["a"].tap()
     keyboard.keys["b"].tap()
@@ -254,6 +260,8 @@ final class MobileUITests: XCTestCase {
             object: nil
           )
         ], timeout: 5) == .completed)
+    XCTAssertTrue((surface.value as? String)?.hasPrefix(savedViewport) == true,
+      "Dismissing the keyboard and rotating back must restore the viewport")
     // Reopening exercises responder ownership after a complete show/hide cycle.
     controls.tap()
     app.buttons["Keyboard"].tap()

@@ -88,6 +88,59 @@ final class MobileContractTests: XCTestCase {
     XCTAssertEqual(v.zoom, 1)
     XCTAssertEqual(v.pan, .zero)
   }
+  func testViewportResizePreservesZoomAndCenterThroughKeyboardAnimation() {
+    for rotation in [0, 90, 180, 270] {
+      let original = DisplayGeometry(
+        source: CGSize(width: 1920, height: 1080), viewport: CGSize(width: 800, height: 600),
+        rotation: rotation, pixelAspect: 1.2)
+      var view = ViewportTransform()
+      view.scale(by: 6, anchor: CGPoint(x: 400, y: 300), geometry: original)
+      view.move(CGPoint(x: 40, y: -60), geometry: original)
+      let originalPan = view.pan
+      let center = original.sourcePoint(view.inverse(
+        CGPoint(x: 400, y: 300), in: original.viewport))
+      var previous = original
+      for height in [540, 450, 350, 450, 540, 600] {
+        var resized = original
+        resized.viewport.height = CGFloat(height)
+        view.resize(from: previous, to: resized)
+        XCTAssertEqual(view.zoom, 6)
+        let projected = view.display(resized.displayPoint(center), in: resized.viewport)
+        XCTAssertEqual(projected.x, resized.viewport.width / 2, accuracy: 0.00001)
+        XCTAssertEqual(projected.y, resized.viewport.height / 2, accuracy: 0.00001)
+        previous = resized
+      }
+      XCTAssertEqual(view.pan.x, originalPan.x, accuracy: 0.00001)
+      XCTAssertEqual(view.pan.y, originalPan.y, accuracy: 0.00001)
+    }
+  }
+
+  func testViewportResizeRestoresClampedCenterUnlessUserMovesIt() {
+    let original = DisplayGeometry(
+      source: CGSize(width: 800, height: 800), viewport: CGSize(width: 800, height: 600))
+    var compact = original
+    compact.viewport.height = 150
+    var view = ViewportTransform()
+    view.scale(by: 2, anchor: CGPoint(x: 400, y: 300), geometry: original)
+    view.move(CGPoint(x: 150, y: 100), geometry: original)
+    let originalPan = view.pan
+    view.resize(from: original, to: compact)
+    XCTAssertEqual(view.zoom, 2)
+    XCTAssertEqual(view.pan.x, 0, "A narrow image stays centered instead of exposing blank edges")
+    view.resize(from: compact, to: original)
+    XCTAssertEqual(view.pan.x, originalPan.x, accuracy: 0.00001)
+    XCTAssertEqual(view.pan.y, originalPan.y, accuracy: 0.00001)
+
+    view.resize(from: original, to: compact)
+    view.move(CGPoint(x: 0, y: -25), geometry: compact)
+    let chosenCenter = compact.sourcePoint(view.inverse(
+      CGPoint(x: 400, y: 75), in: compact.viewport))
+    view.resize(from: compact, to: original)
+    let restored = view.display(original.displayPoint(chosenCenter), in: original.viewport)
+    XCTAssertEqual(restored.x, 400, accuracy: 0.00001)
+    XCTAssertEqual(restored.y, 300, accuracy: 0.00001)
+  }
+
   func testOCRCropClampsSourceAfterLocalZoomAndRotation() {
     for rotation in [0, 90, 180, 270] {
       let g = DisplayGeometry(
