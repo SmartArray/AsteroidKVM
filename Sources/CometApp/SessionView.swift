@@ -462,6 +462,7 @@ struct DisplayPopover: View {
 
 struct DiagnosticsView: View {
   @ObservedObject var session: SessionController
+  @State private var perceptionOpen = false
   @Environment(\.dismiss) private var dismiss
 
   // Present sampled transport and renderer measurements outside the primary remote display.
@@ -494,6 +495,8 @@ struct DiagnosticsView: View {
       Text(
         "Queue: one newest frame, at most two GPU submissions. RTT and GPU duration are not end-to-end latency."
       ).font(.caption).foregroundStyle(.secondary)
+      Button("Inspect Local UI Parsing…") { perceptionOpen = true }
+        .sheet(isPresented: $perceptionOpen) { PerceptionDiagnosticsView(server: session.mcpServer) }
       Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
     }.padding(24).frame(width: 560)
   }

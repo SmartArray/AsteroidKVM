@@ -85,6 +85,8 @@ Actual model startup, latency and accuracy depend on installed weights and hardw
 
 ## Diagnostics and tests
 
+Open **Settings → UI Parsing Debug**, select a connected KVM, and click **Capture and Draw Bounding Boxes**. Each click captures and parses exactly one image, then draws all returned boxes. The snapshot stays frozen until the next click; opening the screen or hovering never triggers inference. Hover a box to highlight it and see its ID, type, OCR text, icon description, confidence, interactivity, coordinates and relationships in the detail panel and tooltip. Green boxes are interactive, orange boxes are other detections, and cyan highlights the hovered box. Boxes respect the configured minimum confidence. The same viewer is available through the remote window's **Diagnostics → Inspect Local UI Parsing**. It is never added to an MCP response or the normal video stream. Leaving the viewer cancels pending work and discards its diagnostic image. A local parser service is required; enabling an MCP listener is not.
+
 Enable performance logging to record capture, encoding, service decode, request, inference, post-processing and total tool latency, plus cache hit/miss and selected device. Swift uses unified logging category `UI Perception`. Screenshot bytes, OCR text, captions and tokens are not logged. The service avoids access-body logging and returns sanitized errors.
 
 ```sh

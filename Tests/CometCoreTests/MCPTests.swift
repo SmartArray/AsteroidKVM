@@ -94,6 +94,36 @@ final class MCPTests: XCTestCase {
     try text(await call(server, token, client, "get_screen"))["frameId"].string!
   }
 
+  @MainActor func testDiagnosticSnapshotOnlyChangesOnExplicitCapture() async throws {
+    let parser = FixtureUIParser()
+    let (session, server, _) = fixture(parser: parser)
+    defer { server.disable() }
+    // Local debugging works without an enabled MCP listener or remote input permission.
+    server.disable()
+    try await server.inspectPerception()
+    let first = try XCTUnwrap(server.diagnosticScreen)
+    let image = try XCTUnwrap(server.diagnosticImage)
+    XCTAssertEqual(first.elements.count, 1)
+    var calls = await parser.calls
+    XCTAssertEqual(calls, 1)
+
+    frame(session, white: true)
+    XCTAssertEqual(server.diagnosticScreen, first)
+    XCTAssertEqual(server.diagnosticImage, image)
+    calls = await parser.calls
+    XCTAssertEqual(calls, 1, "Live video must not start another parse or replace the frozen image")
+
+    try await server.inspectPerception()
+    XCTAssertNotEqual(server.diagnosticImage, image)
+    XCTAssertNotEqual(server.diagnosticScreen?.frameID, first.frameID)
+    try await server.inspectPerception()
+    calls = await parser.calls
+    XCTAssertEqual(calls, 3, "Each explicit capture reparses once, even if the image is unchanged")
+    server.clearPerceptionDiagnostics()
+    XCTAssertNil(server.diagnosticImage)
+    XCTAssertNil(server.diagnosticScreen)
+  }
+
   @MainActor func testStructuredElementsAndStaleActionsNeverReturnImages() async throws {
     let parser = FixtureUIParser()
     let (session, server, token) = fixture(parser: parser)

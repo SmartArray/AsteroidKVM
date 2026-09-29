@@ -28,6 +28,9 @@ import os
   private var perceptionGeneration: UUID?
   private let injectedParser: (any UIParser)?
   private let injectedPerceptionSettings: PerceptionSettings?
+  @Published public private(set) var diagnosticScreen: ParsedScreen?
+  @Published public private(set) var diagnosticImage: Data?
+  private var diagnosticGeneration = UUID()
   private static let versions = ["2025-11-25", "2025-06-18", "2025-03-26"]
 
   private final class Peer {
@@ -170,6 +173,7 @@ import os
   public func stopAutomation() {
     if let old = perceptionStore { Task { await old.reset() } }
     perceptionStore = nil
+    clearPerceptionDiagnostics()
     if owner != nil { paused = true }
     for peer in peers.values {
       peer.task?.cancel()
@@ -705,7 +709,32 @@ import os
     let store = UIPerceptionStore(parser: parser, settings: settings)
     perceptionStore = store
     perceptionGeneration = generation
+    clearPerceptionDiagnostics()
     return store
+  }
+
+  public func clearPerceptionDiagnostics() {
+    diagnosticGeneration = UUID()
+    diagnosticScreen = nil
+    diagnosticImage = nil
+  }
+
+  // Explicit local diagnostics only; never attached to MCP results or logged.
+  public func inspectPerception() async throws {
+    guard let session else {
+      throw PerceptionError("PARSER_UNAVAILABLE", "Device connection closed.")
+    }
+    let store = try parserStore()
+    let generation = perceptionGeneration
+    let diagnosticTicket = diagnosticGeneration
+    let frame = try await MCPObservation.capture(session).perceptionFrame()
+    let parsed = try await store.elements(frame: frame, refresh: true)
+    try Task.checkCancellation()
+    guard diagnosticTicket == diagnosticGeneration,
+      injectedParser != nil || generation == LocalPerception.shared.generation
+    else { throw CancellationError() }
+    diagnosticImage = frame.image
+    diagnosticScreen = parsed
   }
 
   private func checkedObservation(_ args: JSONValue, _ peer: Peer, _ session: SessionController)

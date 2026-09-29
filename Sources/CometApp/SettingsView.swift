@@ -8,7 +8,7 @@ struct SettingsView: View {
   @EnvironmentObject var model: AppModel
   @AppStorage("appearance") private var appearance = "System"
   private let sections = [
-    "General", "Connections", "Display", "Devices", "Transcription", "Keyboard & Clipboard", "MCP", "Local UI Parsing", "Appearance", "System",
+    "General", "Connections", "Display", "Devices", "Transcription", "Keyboard & Clipboard", "MCP", "Local UI Parsing", "UI Parsing Debug", "Appearance", "System",
     "Advanced",
   ]
 
@@ -67,6 +67,15 @@ struct SettingsView: View {
               "Clipboard content is never stored. Paste operations send at most 16,384 Unicode scalars and are never automatically retried."
             )
           case "Local UI Parsing": PerceptionSettingsView()
+          case "UI Parsing Debug":
+            devicePicker
+            Button("Configure Local UI Parsing…") { model.settingsSection = "Local UI Parsing" }
+            if let id = model.selectedDevice, let session = model.sessions[id] {
+              PerceptionDebugSettingsView(session: session).id(id)
+            } else {
+              Text("Open and connect a KVM, then select it above to capture a debug image.")
+                .foregroundStyle(.secondary)
+            }
           case "MCP":
             devicePicker
             Group {
@@ -107,7 +116,9 @@ struct SettingsView: View {
           }
         }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
       }
-    }.frame(width: 760, height: 540)
+    }.frame(
+      width: model.settingsSection == "UI Parsing Debug" ? 1040 : 760,
+      height: model.settingsSection == "UI Parsing Debug" ? 800 : 540)
   }
 
   // Identify the exact saved or ephemeral Comet whose settings will be changed.
