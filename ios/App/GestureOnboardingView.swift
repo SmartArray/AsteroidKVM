@@ -36,8 +36,6 @@ struct GestureOnboardingView: View {
               Image(artwork[page]).resizable().scaledToFit().frame(maxWidth: 520).clipShape(
                 RoundedRectangle(cornerRadius: 24)
               ).frame(maxWidth: .infinity).accessibilityHidden(true)
-              GestureAnimation(page: page, reduceMotion: reduceMotion).frame(height: 54)
-                .accessibilityHidden(true)
             } else {
               ZStack {
                 RoundedRectangle(cornerRadius: 24).fill(Color(red: 0.035, green: 0.035, blue: 0.1))
@@ -57,7 +55,7 @@ struct GestureOnboardingView: View {
                 }
               }.frame(height: 320)
               Text(
-                "Type opens a native editor with system paste. Send returns you straight to the screen. Hold Close connection for two seconds to disconnect."
+                "Type opens a native editor with system paste. Send returns you straight to the screen. Hold Close connection for one second to disconnect."
               ).font(.callout).foregroundStyle(.secondary)
             }
           }.padding(24).frame(maxWidth: 720).frame(maxWidth: .infinity)
@@ -84,24 +82,5 @@ struct GestureOnboardingView: View {
   }
   private func change(_ amount: Int) {
     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { page += amount }
-  }
-}
-
-private struct GestureAnimation: View {
-  let page: Int
-  let reduceMotion: Bool
-  @State private var animate = false
-  var body: some View {
-    HStack(spacing: page == 1 && animate ? 36 : 14) {
-      ForEach(0..<(page + 1), id: \.self) { _ in
-        Circle().fill(.teal.opacity(0.5)).overlay(Circle().stroke(.teal, lineWidth: 2)).frame(
-          width: 16, height: 16)
-      }
-    }
-    .offset(x: page == 0 && animate ? 24 : 0, y: page == 2 && animate ? -12 : 0)
-    .onAppear {
-      guard !reduceMotion else { return }
-      withAnimation(.easeInOut(duration: 0.8).repeatCount(4, autoreverses: true)) { animate = true }
-    }.id(page)
   }
 }

@@ -101,6 +101,7 @@ struct ProfileEditor: View {
   @State var profile: ConnectionProfile
   @State private var password = ""
   @State private var error: String?
+  @StateObject private var connectionTest = ConnectionTestController()
   var body: some View {
     NavigationStack {
       Form {
@@ -112,30 +113,62 @@ struct ProfileEditor: View {
           Picker("Protocol", selection: $profile.scheme) {
             Text("HTTPS").tag("https")
             Text("HTTP").tag("http")
-          }
-          .onChange(of: profile.scheme) { old, new in
-            if profile.port == (old == "https" ? 443 : 80) {
-              profile.port = new == "https" ? 443 : 80
+          }.accessibilityIdentifier("connection-protocol")
+            .onChange(of: profile.scheme) { old, new in
+              if profile.port == (old == "https" ? 443 : 80) {
+                profile.port = new == "https" ? 443 : 80
+              }
             }
-          }
           TextField("Port", value: $profile.port, format: .number.grouping(.never)).keyboardType(
-            .numberPad)
+            .numberPad
+          ).accessibilityIdentifier("connection-port")
         }
         Section("Authentication") {
           TextField("Username", text: $profile.username).textInputAutocapitalization(.never)
             .autocorrectionDisabled()
           SecureField("Password", text: $password).textContentType(.password)
+            .accessibilityIdentifier("connection-password")
           Toggle("Remember password in Keychain", isOn: $profile.rememberPassword)
           if profile.certificateSHA256 != nil {
             Button("Reset certificate trust", role: .destructive) {
               profile.certificateSHA256 = nil
+              connectionTest.reset()
             }
           }
           Text("Certificate exceptions require explicit approval when connecting.").font(.caption)
             .foregroundStyle(.secondary)
         }
         if let error { Text(error).foregroundStyle(.red) }
+        Section {
+          Button {
+            connectionTest.test(profile: profile, password: password)
+          } label: {
+            HStack {
+              if connectionTest.status == .testing { ProgressView() }
+              Label(testTitle, systemImage: testSymbol)
+              Spacer()
+            }.foregroundStyle(testColor)
+          }
+          .accessibilityIdentifier("test-connection")
+          .disabled(
+            connectionTest.status == .testing || profile.baseURL == nil || profile.username.isEmpty)
+          if connectionTest.status == .testing {
+            if connectionTest.approvalRequired {
+              Text("Approve this sign-in on the KVM’s screen.").font(.callout)
+            }
+            Button("Cancel test") { connectionTest.reset() }
+          }
+          if case .failure(let message) = connectionTest.status {
+            Text(message).font(.callout).foregroundStyle(.red)
+              .accessibilityIdentifier("connection-test-error")
+          }
+        } footer: {
+          Text(
+            "Checks sign-in and access to the KVM. Test video and remote controls after connecting."
+          )
+        }
       }
+      .scrollDismissesKeyboard(.interactively)
       .navigationTitle("Connection")
       .toolbar {
         ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -151,6 +184,52 @@ struct ProfileEditor: View {
               || profile.username.isEmpty)
         }
       }
+      .onChange(of: profile.credentialAccount) { _, _ in
+        profile.certificateSHA256 = nil
+        connectionTest.reset()
+      }
+      .onChange(of: profile.rememberPassword) { _, _ in connectionTest.reset() }
+      .onChange(of: password) { _, _ in connectionTest.reset() }
+      .onDisappear { connectionTest.reset() }
+      .alert(
+        "Trust this KVM certificate?",
+        isPresented: Binding(
+          get: { connectionTest.pendingCertificate != nil },
+          set: { if !$0 { connectionTest.pendingCertificate = nil } }),
+        presenting: connectionTest.pendingCertificate
+      ) { fingerprint in
+        Button("Cancel", role: .cancel) { connectionTest.pendingCertificate = nil }
+        Button("Trust and test") {
+          profile.certificateSHA256 = fingerprint
+          connectionTest.test(profile: profile, password: password)
+        }
+      } message: { fingerprint in
+        Text(
+          "Verify this SHA-256 fingerprint against your KVM before approving:\n\n\(fingerprint)"
+        )
+      }
+    }
+  }
+  private var testTitle: String {
+    switch connectionTest.status {
+    case .idle: return "Test connection"
+    case .testing: return "Testing connection…"
+    case .success: return "Connection successful"
+    case .failure: return "Connection failed — try again"
+    }
+  }
+  private var testSymbol: String {
+    switch connectionTest.status {
+    case .success: return "checkmark.circle.fill"
+    case .failure: return "xmark.circle.fill"
+    default: return "network"
+    }
+  }
+  private var testColor: Color {
+    switch connectionTest.status {
+    case .success: return .green
+    case .failure: return .red
+    default: return .accentColor
     }
   }
 }

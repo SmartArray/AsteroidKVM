@@ -1,6 +1,207 @@
+import Network
 import XCTest
 
 final class MobileUITests: XCTestCase {
+  @MainActor func testConnectionProbeSuccessFailureAndEditedCredentials() throws {
+    let server = try ConnectionTestServer()
+    defer { server.close() }
+    let app = XCUIApplication()
+    app.launchArguments = ["-onboardingVersion", "1"]
+    app.launch()
+    fillConnectionEditor(app, port: server.port, name: "Connection test")
+    let password = app.secureTextFields["connection-password"]
+    replaceText(password, with: "wrong-password")
+    app.swipeUp()
+    let probe = app.buttons["test-connection"]
+    probe.tap()
+    XCTAssertTrue(app.staticTexts["connection-test-error"].waitForExistence(timeout: 10))
+    XCTAssertEqual(probe.label, "Connection failed — try again")
+    screenshot("connection-test-failed", app)
+    app.swipeDown()
+    replaceText(password, with: "test-password")
+    app.swipeUp()
+    XCTAssertEqual(probe.label, "Test connection")
+    probe.tap()
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [
+          XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", "Connection successful"), object: probe
+          )
+        ], timeout: 15) == .completed)
+    XCTAssertTrue(server.paths.contains("/api/auth/check"))
+    XCTAssertTrue(server.paths.contains("/api/hid"))
+    XCTAssertTrue(server.paths.contains("/api/auth/logout"))
+    XCTAssertFalse(server.paths.contains("/api/ws"))
+    screenshot("connection-test-success", app)
+    app.swipeDown()
+    replaceText(password, with: "changed-password")
+    app.swipeUp()
+    XCTAssertEqual(probe.label, "Test connection")
+    app.buttons["Cancel"].tap()
+  }
+
+  @MainActor func testOnboardingDelaysNetworkUntilDismissed() throws {
+    let server = try ConnectionTestServer()
+    defer { server.close() }
+    let app = XCUIApplication()
+    app.launchArguments = ["-onboardingVersion", "0"]
+    app.launch()
+    let name = "Onboarding \(UUID().uuidString.prefix(8))"
+    fillConnectionEditor(app, port: server.port, name: name)
+    app.buttons["Save"].tap()
+    let row = app.staticTexts[name]
+    XCTAssertTrue(row.waitForExistence(timeout: 5))
+    row.tap()
+    let password = app.secureTextFields.firstMatch
+    XCTAssertTrue(password.waitForExistence(timeout: 5))
+    password.tap()
+    password.typeText("wrong-password")
+    app.buttons["Connect"].tap()
+    XCTAssertTrue(app.staticTexts["Point and click"].waitForExistence(timeout: 5))
+    for title in ["Pan and zoom", "Scroll remotely", "Your controls, within reach"] {
+      XCTAssertTrue(
+        server.paths.isEmpty, "No sign-in or certificate request before the guide finishes")
+      app.buttons["Next"].tap()
+      XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
+      XCTAssertEqual(app.alerts.count, 0)
+    }
+    XCTAssertTrue(server.paths.isEmpty)
+    app.buttons["Get Started"].tap()
+    XCTAssertTrue(app.alerts["Authentication required"].waitForExistence(timeout: 10))
+    XCTAssertTrue(server.paths.contains("/api/auth/login"))
+    app.alerts.buttons["Cancel"].tap()
+    app.buttons["connection-controls"].tap()
+    app.buttons["Close connection"].press(forDuration: 1.2)
+    XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 5))
+    row.swipeLeft()
+    app.buttons["Delete"].tap()
+    XCTAssertTrue(row.waitForNonExistence(timeout: 5))
+  }
+
+  @MainActor func testTouchesWorkAfterFirstUseGuideWithoutReconnect() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    app.launchArguments = ["-onboardingVersion", "0"]
+    app.launch()
+    XCTAssertTrue(app.staticTexts["Point and click"].waitForExistence(timeout: 10))
+    app.buttons["Skip"].tap()
+    let surface = app.descendants(matching: .any).matching(identifier: "Remote computer").firstMatch
+    XCTAssertTrue(surface.waitForExistence(timeout: 5))
+    surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [
+          XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value CONTAINS %@", "leftDown=1 leftUp=1"),
+            object: surface
+          )
+        ], timeout: 5) == .completed)
+  }
+
+  @MainActor private func fillConnectionEditor(_ app: XCUIApplication, port: UInt16, name: String) {
+    XCUIDevice.shared.orientation = .portrait
+    app.buttons["Add connection"].firstMatch.tap()
+    let field = app.textFields["connection-name"]
+    XCTAssertTrue(field.waitForExistence(timeout: 5))
+    field.tap()
+    field.typeText(name)
+    app.textFields["connection-host"].tap()
+    app.textFields["connection-host"].typeText("127.0.0.1")
+    app.buttons["connection-protocol"].tap()
+    app.buttons["HTTP"].tap()
+    XCTAssertTrue(app.buttons["connection-protocol"].label.contains("HTTP"))
+    replaceText(app.textFields["connection-port"], with: String(port))
+  }
+
+  @MainActor private func replaceText(_ field: XCUIElement, with text: String) {
+    field.tap()
+    let count = (field.value as? String)?.count ?? 0
+    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: count) + text)
+  }
+
+  @MainActor func testRemoteTouchesReachSurfaceWithFloatingMenuVisible() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    app.launchArguments = ["-onboardingVersion", "1", "-floatingCorner", "3"]
+    app.launch()
+    let controls = app.buttons["connection-controls"]
+    XCTAssertTrue(controls.waitForExistence(timeout: 10))
+    let surface = app.descendants(matching: .any).matching(identifier: "Remote computer").firstMatch
+    XCTAssertTrue(surface.waitForExistence(timeout: 5))
+    surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    let clicked = NSPredicate(format: "value CONTAINS %@", "leftDown=1 leftUp=1")
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [XCTNSPredicateExpectation(predicate: clicked, object: surface)], timeout: 5)
+        == .completed, "The visible menu must not swallow remote clicks: \(surface.value ?? "nil")")
+    surface.pinch(withScale: 2, velocity: 1)
+    XCTAssertFalse((surface.value as? String)?.contains("Zoom 100 percent") == true)
+    // Local pinch must never become an extra remote click.
+    XCTAssertTrue((surface.value as? String)?.contains("leftDown=1 leftUp=1") == true)
+    controls.tap()
+    XCTAssertTrue(app.buttons["Type"].waitForExistence(timeout: 5))
+    app.buttons["Done"].tap()
+    surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    let clickedAgain = NSPredicate(format: "value CONTAINS %@", "leftDown=2 leftUp=2")
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [XCTNSPredicateExpectation(predicate: clickedAgain, object: surface)], timeout: 5)
+        == .completed)
+  }
+
+  @MainActor func testSpecialKeysAndShortcutsDeliverBalancedEvents() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    app.launchArguments = ["-onboardingVersion", "1"]
+    app.launch()
+    let controls = app.buttons["connection-controls"]
+    XCTAssertTrue(controls.waitForExistence(timeout: 10))
+    controls.tap()
+    app.buttons["Special keys"].tap()
+    XCTAssertTrue(app.buttons["Escape"].waitForExistence(timeout: 5))
+    app.buttons["Escape"].tap()
+    let surface = app.descendants(matching: .any).matching(identifier: "Remote computer").firstMatch
+    let escape = NSPredicate(format: "value CONTAINS %@", "Escape:down,Escape:up")
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [XCTNSPredicateExpectation(predicate: escape, object: surface)], timeout: 5)
+        == .completed)
+    controls.tap()
+    app.buttons["Shortcuts"].tap()
+    XCTAssertTrue(app.buttons["Ctrl+Alt+Del"].waitForExistence(timeout: 5))
+    app.buttons["Ctrl+Alt+Del"].tap()
+    let shortcut = NSPredicate(
+      format: "value CONTAINS %@",
+      "ControlLeft:down,AltLeft:down,Delete:down,Delete:up,AltLeft:up,ControlLeft:up")
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [XCTNSPredicateExpectation(predicate: shortcut, object: surface)], timeout: 5)
+        == .completed)
+  }
+
+  @MainActor func testFloatingMenuSnapsAfterRepeatedDrags() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    app.launchArguments = ["-onboardingVersion", "1", "-floatingCorner", "3"]
+    app.launch()
+    let controls = app.buttons["connection-controls"]
+    XCTAssertTrue(controls.waitForExistence(timeout: 10))
+    let surface = app.descendants(matching: .any).matching(identifier: "Remote computer").firstMatch
+    let frame = surface.frame
+    for destination in [
+      CGVector(dx: 0.8, dy: 0.2), CGVector(dx: 0.2, dy: 0.2), CGVector(dx: 0.3, dy: 0.3),
+    ] {
+      controls.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+        forDuration: 0.1, thenDragTo: surface.coordinate(withNormalizedOffset: destination))
+      let expectedX = destination.dx > 0.5 ? frame.maxX - 38 : frame.minX + 38
+      XCTAssertEqual(controls.frame.midX, expectedX, accuracy: 3)
+      XCTAssertEqual(controls.frame.midY, frame.minY + 38, accuracy: 3)
+    }
+    controls.tap()
+    XCTAssertTrue(app.buttons["Type"].waitForExistence(timeout: 5))
+  }
+
   @MainActor func testSaveEditAndDeleteWithoutRememberingPassword() {
     let app = XCUIApplication()
     app.launchArguments = ["-onboardingVersion", "1"]
@@ -93,14 +294,17 @@ final class MobileUITests: XCTestCase {
     app.buttons["Special keys"].tap()
     XCTAssertTrue(app.buttons["Escape"].waitForExistence(timeout: 5))
     app.buttons["Escape"].tap()
+    XCTAssertTrue(app.navigationBars["Special keys"].waitForNonExistence(timeout: 5))
     XCTAssertTrue(controls.waitForExistence(timeout: 5))
     controls.tap()
     app.buttons["Shortcuts"].tap()
     XCTAssertTrue(app.buttons["Ctrl+Alt+Del"].waitForExistence(timeout: 5))
     app.buttons["Ctrl+Alt+Del"].tap()
+    XCTAssertTrue(app.navigationBars["Shortcuts"].waitForNonExistence(timeout: 5))
     controls.tap()
     app.buttons["Settings"].tap()
     XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+    XCTAssertEqual(app.switches["Reverse scrolling"].value as? String, "0")
     screenshot("settings", app)
     app.buttons["Done"].tap()
     XCUIDevice.shared.orientation = .landscapeLeft
@@ -120,7 +324,7 @@ final class MobileUITests: XCTestCase {
     XCTAssertTrue(close.waitForExistence(timeout: 5))
     close.press(forDuration: 0.5)
     XCTAssertTrue(close.exists)
-    close.press(forDuration: 2.2)
+    close.press(forDuration: 1.2)
     XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 5))
   }
   @MainActor func testFrozenFrameOCRSelectionAndRetry() {
@@ -174,5 +378,97 @@ final class MobileUITests: XCTestCase {
     attachment.name = name
     attachment.lifetime = .keepAlways
     add(attachment)
+  }
+}
+
+// A loopback HTTP KVM exercises the actual login/discovery transport without any appliance or secrets.
+private final class ConnectionTestServer: @unchecked Sendable {
+  private let listener: NWListener
+  private let queue = DispatchQueue(label: "ConnectionTestServer")
+  private let lock = NSLock()
+  private var requests: [String] = []
+  var port: UInt16 { listener.port!.rawValue }
+  var paths: [String] {
+    lock.lock()
+    defer { lock.unlock() }
+    return requests
+  }
+  init() throws {
+    listener = try NWListener(using: .tcp, on: .any)
+    listener.newConnectionHandler = { [weak self] connection in
+      guard let self else {
+        connection.cancel()
+        return
+      }
+      connection.start(queue: self.queue)
+      self.receive(connection, data: Data())
+    }
+    let ready = DispatchSemaphore(value: 0)
+    listener.stateUpdateHandler = { state in
+      if case .ready = state { ready.signal() }
+      if case .failed = state { ready.signal() }
+    }
+    listener.start(queue: queue)
+    guard ready.wait(timeout: .now() + 5) == .success, let port = listener.port, port.rawValue > 0
+    else {
+      listener.cancel()
+      throw NSError(domain: "ConnectionTestServer", code: 1)
+    }
+  }
+  func close() { listener.cancel() }
+  private func receive(_ connection: NWConnection, data: Data) {
+    connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) {
+      [weak self] chunk, _, done, error in
+      guard let self, error == nil, let chunk else {
+        connection.cancel()
+        return
+      }
+      let data = data + chunk
+      guard let text = String(data: data, encoding: .utf8),
+        let boundary = text.range(of: "\r\n\r\n")
+      else {
+        if done { connection.cancel() } else { self.receive(connection, data: data) }
+        return
+      }
+      let header = String(text[..<boundary.lowerBound])
+      let body = String(text[boundary.upperBound...])
+      let length =
+        header.components(separatedBy: "\r\n").first {
+          $0.lowercased().hasPrefix("content-length:")
+        }.flatMap { Int($0.split(separator: ":").last!.trimmingCharacters(in: .whitespaces)) } ?? 0
+      guard body.utf8.count >= length else {
+        self.receive(connection, data: data)
+        return
+      }
+      let path =
+        header.components(separatedBy: " ").dropFirst().first?.components(separatedBy: "?").first
+        ?? ""
+      self.lock.lock()
+      self.requests.append(path)
+      self.lock.unlock()
+      var status = 200
+      var result: [String: Any] = [:]
+      if path == "/api/auth/login" {
+        if body.contains("passwd=test-password") {
+          result = ["token": "ui-test-token"]
+        } else {
+          status = 401
+        }
+      } else if !header.contains("ui-test-token") {
+        status = 401
+      } else if ![
+        "/api/auth/check", "/api/auth/logout", "/api/hid", "/api/hid/keymaps", "/api/streamer",
+      ].contains(path) {
+        status = 404
+      }
+      let payload = try! JSONSerialization.data(withJSONObject: [
+        "ok": status == 200, "result": result,
+      ])
+      let response =
+        Data(
+          "HTTP/1.1 \(status) Result\r\nContent-Type: application/json\r\nContent-Length: \(payload.count)\r\nConnection: close\r\n\r\n"
+            .utf8) + payload
+      connection.send(content: response, completion: .contentProcessed { _ in connection.cancel() })
+    }
   }
 }

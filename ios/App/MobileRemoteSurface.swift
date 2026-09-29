@@ -43,6 +43,18 @@ final class RemoteTouchView: UIView {
   private var modifierSides: Set<String> = []
   override var canBecomeFirstResponder: Bool { !blocked && !session.ocrSelecting }
   override var editingInteractionConfiguration: UIEditingInteractionConfiguration { .none }
+  override var accessibilityValue: String? {
+    get {
+      let value = "Zoom \(Int(viewport.zoom * 100)) percent"
+      #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.environment["ASTEROID_UI_FIXTURE"] == "1" {
+          return "\(value); \(UITestInputRecorder.summary)"
+        }
+      #endif
+      return value
+    }
+    set {}
+  }
   private var canSend: Bool {
     !blocked && session.active && !session.pasting && !session.ocrSelecting && !session.ocrBusy
       && snapshot == nil
@@ -103,7 +115,9 @@ final class RemoteTouchView: UIView {
   func synchronize(blocked: Bool, fitToken: Int) {
     let unavailable = blocked || !session.active || session.pasting
     if unavailable != self.blocked {
-      cancelInteraction()
+      // Input was released when the sheet opened. Re-enabling the surface must not
+      // discard a special key or shortcut accepted by that sheet.
+      cancelInteraction(releaseRemoteInput: unavailable)
       self.blocked = unavailable
     }
     if self.fitToken != fitToken || lastRotation != session.profile.rotation {
@@ -135,7 +149,7 @@ final class RemoteTouchView: UIView {
       resignFirstResponder()
     }
   }
-  func cancelInteraction() {
+  func cancelInteraction(releaseRemoteInput: Bool = true) {
     hold?.cancel()
     hold = nil
     if dragging { session.output?.enqueue([.button("left", false)]) }
@@ -148,8 +162,10 @@ final class RemoteTouchView: UIView {
     selection.path = nil
     modifierSides.removeAll()
     hoverPoint = nil
-    _ = session.input.releaseAll()
-    session.output?.releasePhysicalInput()
+    if releaseRemoteInput {
+      _ = session.input.releaseAll()
+      session.output?.releasePhysicalInput()
+    }
   }
   private func activeTouches(_ event: UIEvent?) -> [UITouch] {
     (event?.allTouches ?? []).filter {

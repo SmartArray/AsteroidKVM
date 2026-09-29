@@ -102,6 +102,7 @@ final class MobileContractTests: XCTestCase {
     let old = try JSONDecoder().decode(
       ConnectionProfile.self, from: JSONSerialization.data(withJSONObject: json))
     XCTAssertEqual(old.mobileMouseMode, .absolute)
+    XCTAssertFalse(old.reverseScrolling)
     XCTAssertEqual(old.nativeTypingIntervalMilliseconds, 50)
     var updated = old
     updated.mobileMouseMode = .trackpad

@@ -14,6 +14,7 @@ import UIKit
   private var suspended = false
   private let audio = MobileAudioSession()
   private var pendingInitialConnection: UUID?
+  private var initialConnectionAllowed = false
   private var observers: [NSObjectProtocol] = []
   private var phaseObserver: AnyCancellable?
   init() {
@@ -87,6 +88,7 @@ import UIKit
     }
     session = created
     pendingInitialConnection = created.id
+    initialConnectionAllowed = false
     phaseObserver = created.$phase.sink { [weak created] phase in
       // Apply the saved mode only after the device advertises its switching endpoint.
       if phase == .connected, let created,
@@ -102,12 +104,16 @@ import UIKit
       UIApplication.shared.isIdleTimerDisabled =
         phase == .connected && UIApplication.shared.applicationState == .active
     }
-    Task {
-      do { try await audio.activate() } catch { self.error = error.localizedDescription }
-      guard session === created, !suspended else { return }
-      pendingInitialConnection = nil
-      created.connect()
-    }
+  }
+  // The session view calls this only after the first-use cover has finished dismissing.
+  func startPendingConnection() async {
+    guard let created = session, pendingInitialConnection == created.id else { return }
+    initialConnectionAllowed = true
+    guard !suspended else { return }
+    do { try await audio.activate() } catch { self.error = error.localizedDescription }
+    guard session === created, pendingInitialConnection == created.id, !suspended else { return }
+    pendingInitialConnection = nil
+    created.connect()
   }
   func close() async {
     guard let closing = session else { return }
@@ -116,6 +122,7 @@ import UIKit
     try? await audio.deactivate()
     session = nil
     pendingInitialConnection = nil
+    initialConnectionAllowed = false
     suspended = false
     phaseObserver = nil
     UIApplication.shared.isIdleTimerDisabled = false
@@ -129,17 +136,90 @@ import UIKit
   func resume() {
     guard suspended else { return }
     suspended = false
+    if pendingInitialConnection != nil {
+      guard initialConnectionAllowed else { return }
+      Task { await startPendingConnection() }
+      return
+    }
     let resuming = session
     Task {
       do { try await audio.activate() } catch { self.error = error.localizedDescription }
       guard let resuming, session === resuming, !suspended else { return }
-      if pendingInitialConnection == resuming.id {
-        pendingInitialConnection = nil
-        resuming.connect()
-      } else {
-        resuming.wake()
-      }
+      resuming.wake()
     }
+  }
+}
+
+@MainActor final class ConnectionTestController: ObservableObject {
+  enum Status: Equatable {
+    case idle, testing, success
+    case failure(String)
+  }
+  @Published private(set) var status: Status = .idle
+  @Published private(set) var approvalRequired = false
+  @Published var pendingCertificate: String?
+  private var task: Task<Void, Never>?
+  private var api: CometAPI?
+  private var generation = UUID()
+
+  func reset() {
+    generation = UUID()
+    task?.cancel()
+    task = nil
+    api?.transport.session.invalidateAndCancel()
+    api = nil
+    status = .idle
+    approvalRequired = false
+    pendingCertificate = nil
+  }
+
+  func test(profile: ConnectionProfile, password: String) {
+    reset()
+    let ticket = generation
+    status = .testing
+    task = Task {
+      guard ticket == generation, !Task.isCancelled else { return }
+      let api = CometAPI(profile: profile)
+      self.api = api
+      var signedIn = false
+      var result = Status.success
+      var certificate: String?
+      do {
+        guard profile.baseURL != nil, !profile.username.isEmpty else {
+          throw CometError.invalidAddress
+        }
+        let secret =
+          try password.isEmpty
+          ? (profile.rememberPassword ? PasswordStore().password(for: profile) : nil) : password
+        guard let secret, !secret.isEmpty else {
+          throw CometError.unsupported("Enter a password to test this connection.")
+        }
+        try await api.login(password: secret) { [weak self] in
+          await self?.showApprovalRequired(ticket: ticket)
+        }
+        signedIn = true
+        _ = try await api.discover()
+        try Task.checkCancellation()
+      } catch {
+        result = .failure(error.localizedDescription)
+        if case CometError.certificate(let fingerprint) = error { certificate = fingerprint }
+      }
+      // This temporary sign-in never opens media or sends remote input.
+      if signedIn && !Task.isCancelled { try? await api.logout() }
+      await api.close()
+      guard ticket == generation, !Task.isCancelled else { return }
+      self.api = nil
+      task = nil
+      approvalRequired = false
+      status = result
+      pendingCertificate = certificate
+      UINotificationFeedbackGenerator().notificationOccurred(result == .success ? .success : .error)
+    }
+  }
+
+  private func showApprovalRequired(ticket: UUID) {
+    guard generation == ticket else { return }
+    approvalRequired = true
   }
 }
 

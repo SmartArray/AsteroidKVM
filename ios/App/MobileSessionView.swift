@@ -16,6 +16,7 @@ struct MobileSessionView: View {
   @State private var password = ""
   @State private var nextSheet: SessionSheet?
   @State private var guideAfterDismiss = false
+  @State private var enteredSession = false
   var body: some View {
     ZStack {
       Color.black.ignoresSafeArea()
@@ -62,7 +63,15 @@ struct MobileSessionView: View {
       }.padding(.top, 8)
       if !session.ocrSelecting && !session.ocrBusy { FloatingMenuButton { open(.menu) } }
     }
-    .onAppear { if onboardingVersion < 1 { guide = true } }
+    .onAppear {
+      guard !enteredSession else { return }
+      enteredSession = true
+      if onboardingVersion < 1 {
+        guide = true
+      } else {
+        Task { await model.startPendingConnection() }
+      }
+    }
     .onDisappear { session.releaseCapture() }
     .sheet(
       item: $sheet,
@@ -94,7 +103,12 @@ struct MobileSessionView: View {
       case .ocr: OCRResultSheet(session: session) { sheet = nil }
       }
     }
-    .fullScreenCover(isPresented: $guide) {
+    .fullScreenCover(
+      isPresented: $guide,
+      onDismiss: {
+        Task { await model.startPendingConnection() }
+      }
+    ) {
       GestureOnboardingView {
         onboardingVersion = 1
         guide = false
@@ -104,8 +118,8 @@ struct MobileSessionView: View {
     .alert(
       "Trust this KVM certificate?",
       isPresented: Binding(
-        get: { session.pendingCertificate != nil },
-        set: { if !$0 { session.pendingCertificate = nil } })
+        get: { session.pendingCertificate != nil && !guide && onboardingVersion >= 1 },
+        set: { if !$0 && !guide { session.pendingCertificate = nil } })
     ) {
       Button("Cancel", role: .cancel) { session.pendingCertificate = nil }
       Button("Trust and connect") { session.approveCertificate() }
@@ -117,7 +131,7 @@ struct MobileSessionView: View {
     .alert(
       "Authentication required",
       isPresented: Binding(
-        get: { session.phase == .authenticating && !guide },
+        get: { session.phase == .authenticating && !guide && onboardingVersion >= 1 },
         set: { if !$0 { session.phase = .disconnected } })
     ) {
       SecureField("Password", text: $password)
@@ -162,7 +176,8 @@ struct MobileSessionView: View {
 struct FloatingMenuButton: View {
   @AppStorage("floatingCorner") private var corner = 3
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @GestureState private var offset = CGSize.zero
+  @State private var offset = CGSize.zero
+  @GestureState private var dragging = false
   var action: () -> Void
   var body: some View {
     GeometryReader { proxy in
@@ -179,21 +194,32 @@ struct FloatingMenuButton: View {
         "Opens the menu. Drag to move to another corner."
       )
       .accessibilityIdentifier("connection-controls")
-      .position(x: x + offset.width, y: y + offset.height)
+      .contentShape(Circle())
       .highPriorityGesture(
-        DragGesture(minimumDistance: 8).updating($offset) { value, state, _ in
-          state = value.translation
-        }.onEnded { value in
-          let right = x + value.translation.width > proxy.size.width / 2
-          let bottom = y + value.translation.height > proxy.size.height / 2
-          withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
-            corner = (bottom ? 2 : 0) + (right ? 1 : 0)
+        DragGesture(minimumDistance: 8, coordinateSpace: .named("floating-menu"))
+          .updating($dragging) { _, state, _ in
+            state = true
+          }.onChanged { value in
+            offset = value.translation
+          }.onEnded { value in
+            let right = x + value.translation.width > proxy.size.width / 2
+            let bottom = y + value.translation.height > proxy.size.height / 2
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
+              corner = (bottom ? 2 : 0) + (right ? 1 : 0)
+              offset = .zero
+            }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
           }
-          UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        }
       )
+      // Position the already interactive 56-point button; never put a gesture on the full-screen wrapper.
+      .position(x: x + offset.width, y: y + offset.height)
+      .onChange(of: dragging) { _, active in
+        if !active && offset != .zero {
+          withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) { offset = .zero }
+        }
+      }
       .accessibilityAction(named: "Move to next corner") { corner = (corner + 1) % 4 }
-    }
+    }.coordinateSpace(name: "floating-menu")
   }
 }
 
@@ -204,7 +230,7 @@ struct HoldToDisconnect: View {
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
   var body: some View {
     TimelineView(.animation(minimumInterval: 0.05, paused: began == nil)) { context in
-      let progress = began.map { min(1, context.date.timeIntervalSince($0) / 2) } ?? 0
+      let progress = began.map { min(1, context.date.timeIntervalSince($0)) } ?? 0
       HStack {
         ZStack {
           Circle().stroke(.red.opacity(0.2), lineWidth: 3)
@@ -214,12 +240,12 @@ struct HoldToDisconnect: View {
         }.frame(width: 32, height: 32)
         VStack(alignment: .leading) {
           Text("Close connection").foregroundStyle(.red)
-          Text("Hold for two seconds").font(.caption).foregroundStyle(.secondary)
+          Text("Hold for one second").font(.caption).foregroundStyle(.secondary)
         }
       }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 4).contentShape(
         Rectangle()
       )
-      .onLongPressGesture(minimumDuration: 2, maximumDistance: 24) {
+      .onLongPressGesture(minimumDuration: 1, maximumDistance: 24) {
         guard !voiceOver else {
           confirm = true
           return
@@ -317,6 +343,8 @@ struct KeySheet: View {
   @ObservedObject var session: SessionCore
   var shortcuts: Bool
   var dismiss: () -> Void
+  @State private var sending = false
+  @State private var sendTask: Task<Void, Never>?
   private var entries: [(String, [String])] {
     if shortcuts {
       return [
@@ -336,12 +364,28 @@ struct KeySheet: View {
     NavigationStack {
       List(entries, id: \.0) { title, codes in
         Button(title) {
-          session.shortcut(codes)
-          dismiss()
-        }.disabled(!session.active || session.pasting || !session.profile.keyboardEnabled)
+          guard let output = session.output, !sending else { return }
+          sending = true
+          // Finish both key-down and key-up before dismissal can change input ownership.
+          sendTask = Task {
+            session.shortcut(codes)
+            await output.flush()
+            guard !Task.isCancelled else { return }
+            sending = false
+            dismiss()
+          }
+        }.disabled(
+          sending || !session.active || session.pasting || !session.profile.keyboardEnabled)
       }
       .navigationTitle(shortcuts ? "Shortcuts" : "Special keys")
-      .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: dismiss) } }
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: dismiss) }
+        ToolbarItem(placement: .confirmationAction) { if sending { ProgressView("Sending key…") } }
+      }
+      .onDisappear {
+        sendTask?.cancel()
+        sendTask = nil
+      }
     }
   }
 }
