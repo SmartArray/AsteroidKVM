@@ -6,6 +6,29 @@ import time
 from pathlib import Path
 
 UPSTREAM_REVISION = "354021201345a96178360b28733573e27269f2de"
+MPS_PATCH_REVISION = "37e3591e26a461686be9d0e003265009c4acae32"
+SERVICE_VERSION = "1.1.0-pr195"
+
+
+def detect_device(torch, preferred="auto"):
+    """Port of OmniParser PR #195, including its torch.backends compatibility fix."""
+    if preferred not in ("auto", "mps", "cpu"):
+        raise ValueError("Device must be auto, mps, or cpu")
+    if preferred == "cpu":
+        return "cpu"
+    if preferred == "auto" and torch.cuda.is_available():
+        return "cuda"
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+def caption_dtype(torch, device):
+    # PR #195 uses FP16 caption inputs on MPS as well as CUDA. Move model weights
+    # with the same dtype, and restore FP32 when falling back to CPU.
+    return torch.float16 if device in ("cuda", "mps") else torch.float32
+
+
 class OmniParserBackend:
     def __init__(self, root, preferred_device="auto"):
         import torch
@@ -16,10 +39,11 @@ class OmniParserBackend:
         self.torch = torch
         self.root = Path(root).resolve()
         self.requested_device = preferred_device
-        self.device = "mps" if preferred_device != "cpu" and torch.backends.mps.is_available() else "cpu"
+        self.device = detect_device(torch, preferred_device)
         self.fallback = preferred_device == "mps" and self.device == "cpu"
         self.model = "OmniParser-YOLOv9-E+Florence-2"
-        self.version = UPSTREAM_REVISION
+        self.version = f"{SERVICE_VERSION}+{UPSTREAM_REVISION[:12]}"
+        self.last_timings = {}
         module_path = self.root / "upstream/util/yolov9.py"
         weights = self.root / "weights/icon_detect_v3/model.pt"
         if not module_path.is_file() or not weights.is_file():
@@ -47,14 +71,14 @@ class OmniParserBackend:
         try:
             self.detector.model.to(device)
             self.detector.device = self.torch.device(device)
-            self.caption.to(device)
+            self.caption.to(device=device, dtype=caption_dtype(self.torch, device))
             self.device = device
         except (RuntimeError, NotImplementedError):
             if device == "cpu":
                 raise
             self.detector.model.to("cpu")
             self.detector.device = self.torch.device("cpu")
-            self.caption.to("cpu")
+            self.caption.to(device="cpu", dtype=self.torch.float32)
             self.device = "cpu"
             self.fallback = True
 
@@ -83,6 +107,7 @@ class OmniParserBackend:
                     continue
                 detections.append(dict(type="text", bbox=box, text=str(text), description=None,
                     interactive=False, confidence=float(confidence), metadata={"source": "easyocr", "original_bbox": [list(map(float, p)) for p in points]}))
+            ocr_finished = time.perf_counter()
             result = self.detector.predict(image, conf=0.05, imgsz=1280, iou=0.5, max_det=300)[0]
             boxes = result.boxes.xyxy.detach().cpu().tolist()
             scores = result.boxes.conf.detach().cpu().tolist()
@@ -96,16 +121,24 @@ class OmniParserBackend:
                              x1 / width <= d["bbox"][0] and y1 / height <= d["bbox"][1] and
                              x2 / width >= d["bbox"][2] and y2 / height >= d["bbox"][3]]
                 regions.append((box, normalized, score, " ".join(contained) or None))
+            detection_finished = time.perf_counter()
             for offset in range(0, len(regions), 8):
                 batch = regions[offset:offset + 8]
                 crops = [image.crop(tuple(region[0])).resize((64, 64)) for region in batch]
                 inputs = self.processor(images=crops, text=["<CAPTION>"] * len(crops), return_tensors="pt").to(self.device)
-                # FP32 avoids CPU/MPS half-precision and input/model dtype mismatches.
-                inputs["pixel_values"] = inputs["pixel_values"].to(dtype=self.torch.float32)
+                # Keep token IDs integral; only image tensors use the caption model's dtype.
+                inputs["pixel_values"] = inputs["pixel_values"].to(dtype=caption_dtype(self.torch, self.device))
                 generated = self.caption.generate(input_ids=inputs["input_ids"], pixel_values=inputs["pixel_values"],
                                                   max_new_tokens=32, num_beams=1, do_sample=False, early_stopping=False)
                 captions = self.processor.batch_decode(generated, skip_special_tokens=True)
                 for (box, normalized, score, text), caption in zip(batch, captions):
                     detections.append(dict(type="icon", bbox=normalized, text=text, description=caption.strip(),
                         interactive=True, confidence=float(score), metadata={"source": "icon_detect_v3", "original_bbox_px": box}))
-        return detections, (time.perf_counter() - start) * 1000
+        finished = time.perf_counter()
+        # Tensor-to-CPU conversion and caption decoding above synchronize GPU results.
+        # Measurements contain counts and timings only, never screen text or captions.
+        self.last_timings = {"ocr_ms": (ocr_finished - start) * 1000,
+            "detection_ms": (detection_finished - ocr_finished) * 1000,
+            "caption_ms": (finished - detection_finished) * 1000,
+            "caption_regions": len(regions), "caption_batches": (len(regions) + 7) // 8}
+        return detections, (finished - start) * 1000

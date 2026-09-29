@@ -8,7 +8,7 @@ import shutil
 import hashlib
 import urllib.request
 
-from backend import UPSTREAM_REVISION
+from backend import UPSTREAM_REVISION, MPS_PATCH_REVISION, SERVICE_VERSION
 
 
 def localize_model_code(root):
@@ -37,7 +37,8 @@ def main():
     root = args.model_root.expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
     manifest = json.loads(args.manifest.read_text())
-    if manifest["upstream_revision"] != UPSTREAM_REVISION:
+    if (manifest["upstream_revision"] != UPSTREAM_REVISION or manifest["version"] != SERVICE_VERSION
+            or manifest["mps_patch"]["revision"] != MPS_PATCH_REVISION):
         raise ValueError("Service source and install manifest disagree")
     def progress(message, fraction):
         print(json.dumps({"phase": message, "progress": fraction}), flush=True)
@@ -84,7 +85,8 @@ def main():
         with token.open("x") as handle:
             token.chmod(0o600)
             handle.write(secrets.token_urlsafe(32))
-    (root / "manifest.json").write_text(json.dumps({"upstream_revision": UPSTREAM_REVISION, "models": revisions}, indent=2))
+    (root / "manifest.json").write_text(json.dumps({"upstream_revision": UPSTREAM_REVISION,
+        "service_version": SERVICE_VERSION, "mps_patch": manifest["mps_patch"], "models": revisions}, indent=2))
     progress("Models installed", 1.0)
 
 

@@ -110,3 +110,8 @@ their upstream repositories. Those components retain their upstream license
 files and Python package metadata in the Application Support installation.
 The detector source's license is stored at models/upstream/LICENSE.
 No Python interpreter or model weights are included in the app archive.
+
+Parser release 1.1.0-pr195 adapts the Apple Silicon device detection and FP16
+captioning changes by Kikuchi Kiyotaka from Microsoft OmniParser PR #195:
+https://github.com/microsoft/OmniParser/pull/195
+Pinned PR revision: 37e3591e26a461686be9d0e003265009c4acae32.

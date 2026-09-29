@@ -106,8 +106,36 @@ The adapter targets Microsoft's current YOLOv9-E detector implementation at sour
 
 Compatibility choices are confined to the Python adapter and explicit setup:
 
+Parser release **1.1.0-pr195** ports the Apple Silicon changes from
+[OmniParser PR #195](https://github.com/microsoft/OmniParser/pull/195), pinned to
+`37e3591e26a461686be9d0e003265009c4acae32`. Its device detection order is CUDA →
+MPS → CPU, with the corrected `torch.backends.mps` availability check. Explicit
+CPU/MPS preferences remain supported. Caption weights and image inputs use FP16
+on MPS/CUDA and FP32 on CPU, including after an MPS fallback. Token IDs remain
+integers. These changes are ported into our adapter because the PR modifies older
+upstream utilities and demo/server entry points that this app does not execute;
+the newer pinned detector and models are retained.
+
+Existing managed installations: launch the updated app and use **Settings → Local
+UI Parsing → Update / Repair** to install this parser release. Rebuilding the app
+alone does not replace an already installed helper. External services should use
+the updated service source and restart their process; existing model weights can
+be reused.
+
+**Measured limitation:** on the development Mac, a real 2560×1440 KVM frame took
+66–69 seconds with the existing FP32 caption path, versus 91–95 seconds with this
+PR's FP16 path. Both used MPS without a whole-model CPU fallback. The detector
+returned its limit of 300 regions (38 caption batches): FP32 captioning alone
+took 55–56 seconds, FP16 captioning 78–84 seconds, CPU OCR 11–12 seconds, and
+detection approximately 0.5–0.7 seconds. These are two runs per mode on one fixed
+frame, not a general performance guarantee. This release includes the requested
+PR behavior but is **not a speed improvement on this workload**. Existing managed
+installations retain their current parser until Update / Repair is selected.
+Reducing unnecessary caption work is a separate optimization; changing the
+current minimum-confidence slider only filters results after inference.
+
 - Import the detector component directly. Avoid `util.utils`, whose module-level OCR initialization can trigger downloads and unused PaddleOCR dependencies.
-- Load the detector and Florence weights once, on CPU, then move them to the selected device. Use FP32 and eager caption attention rather than CUDA-specific/half-precision paths.
+- Load the detector and Florence weights once, on CPU, then move them to the selected device. Keep the detector in FP32; use PR #195's FP16 captioning on MPS/CUDA and eager caption attention.
 - Execute torchvision non-maximum suppression on CPU, moving only its tensors/results between devices. EasyOCR stays on CPU; detector/caption inference can use MPS.
 - On an unsupported MPS operation, move the already loaded models permanently to CPU for that service lifetime. Health reports the fallback. This is not a guarantee that every PyTorch/macOS/model combination will support MPS.
 - Load Florence custom code and processors from the explicitly installed local files with `local_files_only=True`. Runtime Hugging Face offline flags and a process socket/DNS audit guard prohibit external connections through Python's networking APIs. The inference wrapper has no remote API clients or download calls.
@@ -123,6 +151,12 @@ Open **Settings → UI Parsing Debug**, select a connected KVM, and click **Capt
 
 Enable performance logging to record capture, encoding, service decode, request, inference, post-processing and total tool latency, plus cache hit/miss and selected device. Swift uses unified logging category `UI Perception`. Screenshot bytes, OCR text, captions and tokens are not logged. The service avoids access-body logging and returns sanitized errors.
 
+The service also returns a `timings` object on `/parse` and writes `parse_timing`
+records to its local service log: CPU OCR time, detector time, caption time, region
+count, and caption batch count. `device: mps` describes detector/caption execution;
+OCR and non-maximum suppression still run on CPU. Complex screens can take much
+longer than the small fixtures because every detected icon region is captioned.
+
 ```sh
 swift test --filter 'PerceptionTests|MCPTests'
 "$PARSER_ROOT/venv/bin/python" -m unittest discover -s services/omniparser/tests
@@ -134,6 +168,10 @@ swift test --filter 'PerceptionTests|MCPTests'
 COMET_OMNIPARSER_E2E=1 COMET_OMNIPARSER_PORT=9120 \
   COMET_OMNIPARSER_TOKEN_FILE="$PARSER_ROOT/models/service.token" \
   swift test --filter PerceptionTests/testInstalledLocalParserWithStaticScreenshot
+# Compare FP32 and PR #195's FP16 path on one local image, without printing its content:
+"$PARSER_ROOT/venv/bin/python" services/omniparser/tests/benchmark.py \
+  --model-root "$PARSER_ROOT/models" --image /path/to/screenshot.jpg \
+  --device mps --compare-fp32 --runs 2
 ```
 
 Four static synthetic screenshots cover browser chrome, macOS preferences, a Windows dialog, and BIOS-style UI. They include buttons, text fields, checkboxes, dropdowns, and icon-only controls. Their JSON annotations are hand-authored contract fixtures, **not** recorded OmniParser predictions. Swift tests exercise normalization, caching and stale-action validation against them; Python HTTP tests exercise actual image decoding, framing, authentication and response identity. The opt-in smoke test uses real loaded models and checks for text and icon captions without a cloud service.

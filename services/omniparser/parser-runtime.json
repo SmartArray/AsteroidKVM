@@ -1,11 +1,16 @@
 {
   "schema_version": 1,
-  "version": "1.0.0",
+  "version": "1.1.0-pr195",
   "runtime_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260924/cpython-3.12.14%2B20260924-aarch64-apple-darwin-install_only_stripped.tar.gz",
   "runtime_sha256": "c2edb321cd32ec2b170df208db0446dccc4398db602ca27cf2079098fb1f7d9d",
   "runtime_bytes": 25017789,
   "python_version": "3.12.14",
   "upstream_revision": "354021201345a96178360b28733573e27269f2de",
+  "mps_patch": {
+    "url": "https://github.com/microsoft/OmniParser/pull/195",
+    "revision": "37e3591e26a461686be9d0e003265009c4acae32",
+    "integration": "ported into backend.py; detector source and model revisions retained"
+  },
   "models": {
     "detector": "d10c4687d4af8245d67780ae59900f09660aad3a",
     "caption": "f55d0750e5b94db2125ef0b45b0fa4a85ddc59b4",

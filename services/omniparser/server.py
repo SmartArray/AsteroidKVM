@@ -159,10 +159,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             decode_ms = (time.perf_counter() - started) * 1000
             detections, inference_ms = self.server.backend.parse(image)
+            timings = getattr(self.server.backend, "last_timings", {})
+            print(json.dumps({"event": "parse_timing", "device": self.server.backend.device,
+                "decode_ms": decode_ms, "inference_ms": inference_ms, **timings}), flush=True)
             self.send_json(200, {"schema_version": 1, "frame_id": hashlib.sha256(body).hexdigest(),
                 "width": image.width, "height": image.height, "detections": detections,
                 "device": self.server.backend.device, "model": self.server.backend.model,
-                "decode_ms": decode_ms, "inference_ms": inference_ms})
+                "decode_ms": decode_ms, "inference_ms": inference_ms, "timings": timings})
         except (BrokenPipeError, ConnectionResetError, socket.timeout):
             pass
         except Exception:

@@ -21,7 +21,7 @@ final class ParserInstallerTests: XCTestCase {
     defer { try? FileManager.default.removeItem(at: root) }
     let manager = LocalParserManager(root: root, package: package)
     let release = try manager.release()
-    XCTAssertEqual(release.version, "1.0.0")
+    XCTAssertEqual(release.version, "1.1.0-pr195")
     XCTAssertEqual(release.runtimeURL.scheme, "https")
     XCTAssertNil(manager.installedVersion)
   }

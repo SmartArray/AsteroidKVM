@@ -50,6 +50,10 @@ Connect external automation clients to a saved KVM through its own local MCP ser
 
 **Optional local UI perception:** open **Settings → Local UI Parsing → Install Local Parser**, then **Start**. The app downloads a verified Apple Silicon Python runtime and pinned models into Application Support; no Terminal, Git, or system Python is required. Start/Stop, Update / Repair, and optional startup with the app are built in. Models load once, prefer MPS where supported, and fall back to CPU. Structured inspection sends no screenshot to the MCP client; `screen.image` is an explicit escape hatch. [Install and configure local perception →](docs/local-ui-perception.md)
 
+Parser **1.1.0-pr195** includes the Apple Silicon device detection and FP16 icon
+captioning changes from [OmniParser PR #195](https://github.com/microsoft/OmniParser/pull/195).
+Existing parser installations need **Update / Repair** in the updated app.
+
 Open **Settings → MCP**, select a device, enable its server, and click **Copy MCP Configuration**. Keep AsteroidKVM running and the KVM connected for screen and input tools. Clients need Streamable HTTP support and an Authorization header. Screenshots are requested from the live feed; continuous video streaming is not exposed through MCP. [Setup, tools, and recovery behavior →](docs/mcp.md)
 
 <a id="agent-give-your-remote-machine-a-task"></a>
