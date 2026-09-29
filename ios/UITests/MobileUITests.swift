@@ -1,6 +1,47 @@
 import XCTest
 
 final class MobileUITests: XCTestCase {
+  @MainActor func testSaveEditAndDeleteWithoutRememberingPassword() {
+    let app = XCUIApplication()
+    app.launchArguments = ["-onboardingVersion", "1"]
+    app.launch()
+    let profileName = "No Keychain \(UUID().uuidString.prefix(8))"
+    app.buttons["Add connection"].firstMatch.tap()
+    let name = app.textFields["connection-name"]
+    XCTAssertTrue(name.waitForExistence(timeout: 5))
+    name.tap()
+    name.typeText(profileName)
+    app.textFields["connection-host"].tap()
+    app.textFields["connection-host"].typeText("fixture.invalid")
+    let remember = app.switches["Remember password in Keychain"]
+    XCTAssertEqual(remember.value as? String, "0")
+    app.buttons["Save"].tap()
+    XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 5))
+
+    // Verify disk persistence and editing an endpoint that never had a saved secret.
+    app.terminate()
+    app.launch()
+    let row = app.staticTexts[profileName]
+    XCTAssertTrue(row.waitForExistence(timeout: 5))
+    row.press(forDuration: 1)
+    app.buttons["Edit connection"].tap()
+    let host = app.textFields["connection-host"]
+    XCTAssertTrue(host.waitForExistence(timeout: 5))
+    host.tap()
+    host.typeText(".updated")
+    XCTAssertEqual(remember.value as? String, "0")
+    app.buttons["Save"].tap()
+    XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["fixture.invalid.updated"].exists)
+    row.swipeLeft()
+    app.buttons["Delete"].tap()
+    XCTAssertTrue(row.waitForNonExistence(timeout: 5))
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 5))
+    XCTAssertFalse(row.exists)
+  }
+
   @MainActor func testGuideAndConnectionEditor() {
     let app = XCUIApplication()
     app.launchArguments = ["-onboardingVersion", "0"]

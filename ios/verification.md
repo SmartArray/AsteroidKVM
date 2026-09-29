@@ -30,6 +30,8 @@ Simulator devices: **iPhone 18 Pro, iOS 27.0**, and **iPad mini (A17 Pro), iPadO
 
 The first Simulator test attempt was blocked by workspace Documents access permissions. Running test products from a temporary directory resolved that. Test screenshots/logs remain local and are not committed. Xcode 27’s optional diagnostic collection was slow; final runs disabled verbose diagnostics, preserving test results and screenshot attachments.
 
+Follow-up credential regression: new and never-remembered connections now skip Keychain access when saving, changing endpoints, or deleting. Disabling a previously remembered password still removes the old credential and reports any removal failure. The added iPhone UI test passed through save, relaunch, endpoint edit, delete, and a second relaunch with the switch off. Both generic Simulator and unsigned device builds passed after this fix; results are in `/tmp/AsteroidKVM-Keychain-Regression.xcresult`.
+
 ## Local build artifacts
 
 - `build/AsteroidKVM-iOS-Simulator.zip`: installable Simulator app, both simulator architectures.

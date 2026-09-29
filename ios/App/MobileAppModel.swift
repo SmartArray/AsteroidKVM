@@ -51,14 +51,16 @@ import UIKit
     var profile = profile
     if let previous = profiles.first(where: { $0.id == profile.id }) {
       profile = profile.securingReplacement(of: previous)
-      if previous.credentialAccount != profile.credentialAccount {
+      // Only remove a credential that this saved connection could have persisted.
+      // New and never-remembered connections must work without Keychain access.
+      if previous.rememberPassword
+        && (!profile.rememberPassword || previous.credentialAccount != profile.credentialAccount)
+      {
         try PasswordStore().remove(for: previous)
       }
     }
     if profile.rememberPassword {
       if let password, !password.isEmpty { try PasswordStore().save(password, for: profile) }
-    } else {
-      try PasswordStore().remove(for: profile)
     }
     var updated = profiles
     if let index = updated.firstIndex(where: { $0.id == profile.id }) {
@@ -71,7 +73,7 @@ import UIKit
   }
   func remove(_ profile: ConnectionProfile) {
     do {
-      try PasswordStore().remove(for: profile)
+      if profile.rememberPassword { try PasswordStore().remove(for: profile) }
       let updated = profiles.filter { $0.id != profile.id }
       try store.save(updated)
       profiles = updated
