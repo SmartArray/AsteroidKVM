@@ -32,6 +32,21 @@ The first Simulator test attempt was blocked by workspace Documents access permi
 
 Follow-up credential regression: new and never-remembered connections now skip Keychain access when saving, changing endpoints, or deleting. Disabling a previously remembered password still removes the old credential and reports any removal failure. The added iPhone UI test passed through save, relaunch, endpoint edit, delete, and a second relaunch with the switch off. Both generic Simulator and unsigned device builds passed after this fix; results are in `/tmp/AsteroidKVM-Keychain-Regression.xcresult`.
 
+## Follow-up mobile interaction changes
+
+- Close connection now takes a continuous one-second hold, including the progress ring and guide text.
+- The editor tests credentials through the existing login, discovery, certificate policy and logout APIs. It provides green/red status, success/error haptics, retry/cancellation, and clears stale results on edits. Video and remote input are excluded from this check.
+- Initial authentication and media wait for the onboarding cover to finish dismissing. Background/foreground transitions preserve that gate. Animated touch dots have been removed.
+- The floating menu animates both the destination corner and drag offset on every release, including a return to the same corner. Its gesture is scoped to the button before positioning it.
+- A slow-output regression reproduced lost special-key/shortcut events during sheet dismissal. The sheet now flushes the balanced sequence first, and unblocking the remote surface no longer clears accepted output.
+- Reverse scrolling remains off by default, covered by both profile and Settings UI assertions; saved user choices are preserved.
+
+The UI fixtures record actual HID output, exercise local pinch and taps around sheet/guide transitions, and serve a loopback HTTP KVM for success, rejected credentials, token cleanup and delayed-start checks. No real appliance is contacted by these tests.
+
+Follow-up verification covered all **11 mobile contracts and 12 iPhone UI cases**, plus **8 targeted iPad UI cases**, passing across full and focused runs. Generic Simulator and unsigned device builds passed. The key-delivery test failed before the fix and passed afterward with a delayed output transport. The older menu test was updated to wait for key delivery before opening another sheet. Editor automation now dismisses the keyboard explicitly, matching the new Done control, before interacting with the protocol menu or testing.
+
+Evidence: `/tmp/AsteroidKVM-Mobile-Updates-Verified.xcresult` contains the full iPhone run and the initial menu-test timing failure; `/tmp/AsteroidKVM-Mobile-Editor-iPhone.xcresult` and `/tmp/AsteroidKVM-Editor-Focus-iPhone.xcresult` contain the passing focused checks. iPad results are split across `/tmp/AsteroidKVM-Mobile-Updates-iPad.xcresult`, `/tmp/AsteroidKVM-Mobile-Editor-iPad.xcresult`, `/tmp/AsteroidKVM-Editor-Focus-iPad.xcresult` and `/tmp/AsteroidKVM-Editor-Final-iPad.xcresult`; the latter completes the connection-test success/failure coverage after correcting keyboard interactions. Haptic feel, remote USB response, and physical touch ergonomics still require real-device acceptance.
+
 ## Local build artifacts
 
 - `build/AsteroidKVM-iOS-Simulator.zip`: installable Simulator app, both simulator architectures.
@@ -41,7 +56,7 @@ Follow-up credential regression: new and never-remembered connections now skip K
 ## Intentional implementation choices
 
 - Shared code stays in `Sources`; the mobile app, asset catalog, Info.plist and tests are under `ios`. The existing root project/generator is the reproducible entry point.
-- Touch sequences directly own one-, two-, and three-finger interactions, with a shared testable ownership model. Two-finger centroid/span changes apply pan and pinch together. UIKit’s native long-press recognition implements the exact two-second disconnect threshold; accessibility activation uses confirmation.
+- Touch sequences directly own one-, two-, and three-finger interactions, with a shared testable ownership model. Two-finger centroid/span changes apply pan and pinch together. UIKit’s native long-press recognition implements the one-second disconnect threshold; accessibility activation uses confirmation.
 - Horizontal touch scrolling and momentum are not synthesized. Three-finger translation produces the existing vertical wheel packets.
 - Desktop scale modes and polling controls become a fit-based 1×–6× viewport and UIKit event delivery. Desktop automatic clipboard interception is replaced by the explicit Type editor.
 - No signing identity, distribution profile, TestFlight upload, automatic discovery, cloud service or custom shortcut editor was added.
@@ -60,7 +75,7 @@ Record: iPhone model/OS, iPad model/OS, KVM model/firmware, target OS/keymap, co
 - [ ] Three-finger scrolling/sign/sensitivity; VoiceOver and system Zoom/editing interception; accessible scroll actions.
 - [ ] External keyboard layouts, modifiers, repeats, reserved shortcuts, native composition, pointer buttons/hover/wheel.
 - [ ] Exact multiline/Unicode/pasted Type text, immediate dismissal, no duplicate Send, long request, timeout/uncertain outcome and deliberate draft recovery.
-- [ ] Menu corner snapping, two-second disconnect/early cancellation, accessibility confirmation, large text, dark/light appearance and Reduce Motion.
+- [ ] Menu corner snapping, one-second disconnect/early cancellation, accessibility confirmation, large text, dark/light appearance and Reduce Motion.
 - [ ] Supported encoder, USB/HID, jiggler and EDID controls; confirm/restore disruptive changes on a disposable test target.
 - [ ] Frozen-frame OCR, rotated/zoomed crop, no text, retry, copy and cancellation while recognition is running.
 - [ ] Network loss/backoff, background/foreground, lock/unlock and closing during a request; no stale input replay or false claim of remote typing cancellation.

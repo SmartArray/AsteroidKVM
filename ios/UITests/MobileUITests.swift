@@ -11,15 +11,14 @@ final class MobileUITests: XCTestCase {
     fillConnectionEditor(app, port: server.port, name: "Connection test")
     let password = app.secureTextFields["connection-password"]
     replaceText(password, with: "wrong-password")
-    app.swipeUp()
+    finishEditing(app)
     let probe = app.buttons["test-connection"]
     probe.tap()
     XCTAssertTrue(app.staticTexts["connection-test-error"].waitForExistence(timeout: 10))
     XCTAssertEqual(probe.label, "Connection failed — try again")
     screenshot("connection-test-failed", app)
-    app.swipeDown()
     replaceText(password, with: "test-password")
-    app.swipeUp()
+    finishEditing(app)
     XCTAssertEqual(probe.label, "Test connection")
     probe.tap()
     XCTAssertTrue(
@@ -34,9 +33,8 @@ final class MobileUITests: XCTestCase {
     XCTAssertTrue(server.paths.contains("/api/auth/logout"))
     XCTAssertFalse(server.paths.contains("/api/ws"))
     screenshot("connection-test-success", app)
-    app.swipeDown()
     replaceText(password, with: "changed-password")
-    app.swipeUp()
+    finishEditing(app)
     XCTAssertEqual(probe.label, "Test connection")
     app.buttons["Cancel"].tap()
   }
@@ -108,6 +106,7 @@ final class MobileUITests: XCTestCase {
     field.typeText(name)
     app.textFields["connection-host"].tap()
     app.textFields["connection-host"].typeText("127.0.0.1")
+    finishEditing(app)
     app.buttons["connection-protocol"].tap()
     app.buttons["HTTP"].tap()
     XCTAssertTrue(app.buttons["connection-protocol"].label.contains("HTTP"))
@@ -118,6 +117,11 @@ final class MobileUITests: XCTestCase {
     field.tap()
     let count = (field.value as? String)?.count ?? 0
     field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: count) + text)
+  }
+
+  @MainActor private func finishEditing(_ app: XCUIApplication) {
+    app.buttons["editor-done-typing"].tap()
+    XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
   }
 
   @MainActor func testRemoteTouchesReachSurfaceWithFloatingMenuVisible() {

@@ -96,20 +96,25 @@ struct ConnectionsView: View {
 }
 
 struct ProfileEditor: View {
+  private enum Field: Hashable { case name, host, port, username, password }
   @EnvironmentObject var model: MobileAppModel
   @Environment(\.dismiss) private var dismiss
   @State var profile: ConnectionProfile
   @State private var password = ""
   @State private var error: String?
   @StateObject private var connectionTest = ConnectionTestController()
+  @FocusState private var focusedField: Field?
   var body: some View {
     NavigationStack {
       Form {
         Section("Connection") {
           TextField("Name", text: $profile.name).accessibilityIdentifier("connection-name")
+            .focused($focusedField, equals: .name)
           TextField("Hostname or IP address", text: $profile.host).keyboardType(.URL)
             .textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityIdentifier(
-              "connection-host")
+              "connection-host"
+            )
+            .focused($focusedField, equals: .host)
           Picker("Protocol", selection: $profile.scheme) {
             Text("HTTPS").tag("https")
             Text("HTTP").tag("http")
@@ -122,12 +127,15 @@ struct ProfileEditor: View {
           TextField("Port", value: $profile.port, format: .number.grouping(.never)).keyboardType(
             .numberPad
           ).accessibilityIdentifier("connection-port")
+            .focused($focusedField, equals: .port)
         }
         Section("Authentication") {
           TextField("Username", text: $profile.username).textInputAutocapitalization(.never)
             .autocorrectionDisabled()
+            .focused($focusedField, equals: .username)
           SecureField("Password", text: $password).textContentType(.password)
             .accessibilityIdentifier("connection-password")
+            .focused($focusedField, equals: .password)
           Toggle("Remember password in Keychain", isOn: $profile.rememberPassword)
           if profile.certificateSHA256 != nil {
             Button("Reset certificate trust", role: .destructive) {
@@ -141,6 +149,7 @@ struct ProfileEditor: View {
         if let error { Text(error).foregroundStyle(.red) }
         Section {
           Button {
+            focusedField = nil
             connectionTest.test(profile: profile, password: password)
           } label: {
             HStack {
@@ -171,6 +180,10 @@ struct ProfileEditor: View {
       .scrollDismissesKeyboard(.interactively)
       .navigationTitle("Connection")
       .toolbar {
+        ToolbarItemGroup(placement: .keyboard) {
+          Spacer()
+          Button("Done") { focusedField = nil }.accessibilityIdentifier("editor-done-typing")
+        }
         ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
         ToolbarItem(placement: .confirmationAction) {
           Button("Save") {

@@ -24,20 +24,22 @@ Add a name, hostname/IP, port, scheme, and username. Enable **Remember password 
 
 Swipe a connection to edit or delete it. Disable remembered credentials in its editor to remove them; use **Reset certificate trust** there to require fresh approval. Only one foreground session runs. Backgrounding releases physical input and closes media/transport; returning reconnects eligible sessions without replaying old input. Remote audio is muted when an audio output device is disconnected. Microphone permission is requested only when forwarding is enabled.
 
+Use **Test connection** below the editor fields to check the entered credentials and KVM APIs before saving. A successful test shows a green checkmark and success haptic; failures show red feedback and the reason. Self-signed certificates require explicit approval. Editing the address or credentials clears the result, and Cancel test stops an in-flight check. The test signs out afterward and never starts video or sends input.
+
 ## Controls
 
 - **One finger:** absolute pointer movement; tap to click, double-tap to double-click, long-press to right-click, double-tap then hold/move to drag. Trackpad mode sends relative motion without jumping to touch-down.
 - **Two fingers:** local pan and anchored pinch zoom, 1×–6×. Settings → Fit to Screen resets the view.
-- **Three fingers:** remote vertical scrolling. Position the pointer over the desired panel first. Direction and sensitivity are configurable. System accessibility/editing gestures can take priority; the remote view also exposes accessibility scroll actions.
+- **Three fingers:** remote vertical scrolling. Position the pointer over the desired panel first. Reverse scrolling defaults to off; direction and sensitivity are configurable. System accessibility/editing gestures can take priority; the remote view also exposes accessibility scroll actions.
 - **Round button:** tap for controls; drag to another safe-area corner. Its corner persists across launches and adapts to resizing.
-- **Close connection:** continuous two-second hold; lifting or moving away cancels. Accessibility activation presents a deliberate confirmation.
+- **Close connection:** continuous one-second hold; lifting or moving away cancels. Accessibility activation presents a deliberate confirmation.
 - **Type:** exact multiline text with native paste/IME, no automatic punctuation or capitalization. Send closes the editor immediately and continues through the session-owned `/api/hid/print` request. Maximum 16,384 Unicode scalars, no retries or Abort button. An uncertain result retains the draft in memory; check the remote screen before resubmitting. A successful request does not prove that the target application has finished processing all characters.
-- **Special keys / Shortcuts:** individual keys and combinations are separate; balanced down/up transitions return you to the screen. Command/Ctrl+V is a remote shortcut; it does not read the phone clipboard.
+- **Special keys / Shortcuts:** individual keys and combinations are separate; the sheet waits for balanced down/up transitions to be sent before returning to the screen. Command/Ctrl+V is a remote shortcut; it does not read the phone clipboard.
 - **OCR:** selects one frozen frame. Drag a rectangle with one finger, then copy recognized text or retry on that same frame. Cancel/Done returns to live video; rotation cancels selection. Vision runs locally.
 
 Hardware keyboards use USB key identities and the shared native-layout option. OS-reserved combinations remain available through Shortcuts. Pointer hover, clicks and wheel scrolling are supported. Real keyboard/pointer layouts and multi-touch behavior still require the physical acceptance run.
 
-The gesture guide appears before first remote input, supports Skip/Back/Next, and can be replayed in Settings or Connections → More. Artwork is bundled unchanged; all explanations are native labels above it. Reduce Motion disables the tutorial’s repeating motion and custom transitions.
+The first connection waits until the gesture guide has finished dismissing before starting authentication, certificate checks, or media. The guide supports Skip/Back/Next and can be replayed in Settings or Connections → More. Artwork is bundled unchanged; explanations are native labels, without animated touch dots. Reduce Motion disables custom transitions, including the floating button’s repeated corner-snap animation.
 
 ## Settings coverage
 
