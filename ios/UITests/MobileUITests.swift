@@ -2,6 +2,43 @@ import Network
 import XCTest
 
 final class MobileUITests: XCTestCase {
+  @MainActor func testGestureGuideLightAndDarkAppearances() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    XCUIDevice.shared.orientation = .portrait
+    for theme in ["Light", "Dark"] {
+      app.launchArguments = ["-onboardingVersion", "0", "-appearance", theme]
+      app.launch()
+      let titles = [
+        "Point and click", "Pan and zoom", "Scroll remotely", "Your controls, within reach",
+      ]
+      for (index, title) in titles.enumerated() {
+        XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 10))
+        let next = app.buttons[index == 3 ? "Get Started" : "Next"]
+        XCTAssertTrue(next.isHittable)
+        let progress = app.descendants(matching: .any).matching(identifier: "guide-progress")
+          .firstMatch
+        XCTAssertEqual(progress.value as? String, "\(theme) appearance")
+        screenshot("guide-\(theme.lowercased())-\(index + 1)", app)
+        if index == 0 {
+          XCUIDevice.shared.orientation = .landscapeLeft
+          XCTAssertTrue(next.isHittable)
+          // The orientation notification precedes the system's rotation animation finishing.
+          Thread.sleep(forTimeInterval: 1)
+          screenshot("guide-\(theme.lowercased())-landscape", app)
+          XCUIDevice.shared.orientation = .portrait
+          Thread.sleep(forTimeInterval: 1)
+        }
+        if index == 3 {
+          app.buttons["guide-controls-preview"].tap()
+          XCTAssertTrue(app.staticTexts["A shortcut to everything."].waitForExistence(timeout: 5))
+        }
+        next.tap()
+      }
+      XCTAssertTrue(app.buttons["connection-controls"].waitForExistence(timeout: 5))
+    }
+  }
+
   @MainActor func testPersistentKeyboardResizesCanvasTypesAndDismisses() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
@@ -464,6 +501,9 @@ final class MobileUITests: XCTestCase {
     app.buttons["Next"].tap()
     XCTAssertTrue(app.staticTexts["Scroll remotely"].exists)
     XCTAssertTrue(app.buttons["Next"].isHittable)
+    app.buttons["Next"].tap()
+    XCTAssertTrue(app.buttons["Get Started"].isHittable)
+    screenshot("onboarding-controls-accessibility-text", app)
     app.buttons["Skip"].tap()
     XCTAssertTrue(app.buttons["connection-controls"].waitForExistence(timeout: 5))
   }

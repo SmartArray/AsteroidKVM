@@ -40,7 +40,7 @@ Use **Test connection** below the editor fields to check the entered credentials
 
 Hardware keyboards use USB key identities and the shared native-layout option. OS-reserved combinations remain available through Shortcuts. Pointer hover, clicks and wheel scrolling are supported. Real keyboard/pointer layouts and multi-touch behavior still require the physical acceptance run.
 
-The first connection waits until the gesture guide has finished dismissing before starting authentication, certificate checks, or media. The guide supports Skip/Back/Next and can be replayed in Settings or Connections → More. Artwork is bundled unchanged; explanations are native labels, without animated touch dots. Reduce Motion disables custom transitions, including the floating button’s repeated corner-snap animation.
+The first connection waits until the gesture guide has finished dismissing before starting authentication, certificate checks, or media. The guide supports Skip/Back/Next and can be replayed in Settings or Connections → More. The guide has coordinated light and dark illustrations with cobalt, magenta, turquoise and lavender accents. It follows System appearance or the Light/Dark selection in Settings. A spacious side-by-side layout adapts to iPad and landscape; large accessibility text scrolls above pinned navigation. Explanations are native labels, without animated touch dots. See [onboarding-artwork.md](onboarding-artwork.md) for bundled image paths and generation prompts. Reduce Motion disables custom transitions, including the floating button’s repeated corner-snap animation.
 
 ## Settings coverage
 

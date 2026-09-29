@@ -200,6 +200,7 @@ struct FloatingMenuButton: View {
   @State private var offset = CGSize.zero
   @GestureState private var dragging = false
   var dismissesKeyboard = false
+  var accessibilityID = "connection-controls"
   var action: () -> Void
   var body: some View {
     GeometryReader { proxy in
@@ -219,7 +220,7 @@ struct FloatingMenuButton: View {
           ? "Hides the keyboard and restores the full remote screen."
           : "Opens the menu. Drag to move to another corner."
       )
-      .accessibilityIdentifier("connection-controls")
+      .accessibilityIdentifier(accessibilityID)
       .contentShape(Circle())
       .highPriorityGesture(
         DragGesture(minimumDistance: 8, coordinateSpace: .named("floating-menu"))

@@ -55,6 +55,18 @@ Verification: **14 mobile contracts** and **11 shared input tests** passed. The 
 
 The original iPhone 18 Pro simulator hid the system keyboard while its Mac hardware keyboard was connected, so on-screen-keyboard verification used iPhone 17e. Its initial run encountered Apple's first-use slide-to-type lesson; automation now dismisses that lesson and waits for keyboard hit targets and rotation layout. Passing evidence is in `/tmp/AsteroidKVM-Keyboard-iPhone-Screens.xcresult` and `/tmp/AsteroidKVM-Keyboard-iPad-Verified.xcresult`; `/tmp/AsteroidKVM-Keyboard-iPhone-Verified.xcresult` includes the contracts and passing touch/special-key regressions alongside that initial keyboard-test failure. Portrait and landscape screenshots are saved as `build/screenshots/ios-keyboard-*.png`. Firmware text mapping, physical keyboard composition and real-KVM typing remain part of physical acceptance.
 
+## Light and dark gesture guide
+
+The guide now bundles three matched light/dark illustration pairs, preserving the cobalt, magenta, turquoise and lavender gesture accents. Light mode uses ivory/lavender surfaces; dark mode uses midnight navy with luminous lavender details. Asset-catalog luminosity variants follow SwiftUI appearance and the existing app preference. Native text, tip cards, navigation, progress and the interactive floating-controls preview use the same adaptive palette. Body/tip text and primary-button labels exceed 5.3:1 calculated contrast in both themes.
+
+The layout uses centered side-by-side content on wide screens and stacked content on phones. Instructional text honors accessibility sizing and scrolls independently of pinned navigation. Decorative labels and preview text have bounded scaling; the largest text sizes use an icon for Back and omit the redundant Next arrow. Reduce Motion remains respected, and no animated gesture dots were reintroduced.
+
+Two focused UI tests passed on each of iPhone 18 Pro and iPad mini (A17 Pro): all four pages in both explicit appearances, the actual appearance value, portrait/landscape navigation, preview interaction, completion, and the largest accessibility text size through the controls page. Screenshots were visually inspected. Evidence: `/tmp/AsteroidKVM-Guide-Verified-iPhone.xcresult` and `/tmp/AsteroidKVM-Guide-Final-iPad.xcresult`, plus `/tmp/AsteroidKVM-Guide-Landscape-iPhone.xcresult` for the final compact-landscape illustration sizing. Generic Simulator and unsigned device builds passed, and both local ZIP artifacts were refreshed. Screenshot copies are under `build/screenshots/ios-guide-*`.
+
+System-toggle verification limitation: on this iOS 27 runtime, both XCUIDevice appearance changes and `simctl ui appearance dark` reported success while UIKit traits and Apple's Settings app remained light. An exploratory live-toggle assertion therefore failed and is not part of the passing checks above. No app workaround was added for this simulator behavior; live system changes still need confirmation on a physical device or another runtime. Explicit app Light/Dark selection is verified.
+
+Image paths, provenance and the built-in generation prompt set are recorded in [onboarding-artwork.md](onboarding-artwork.md).
+
 ## Local build artifacts
 
 - `build/AsteroidKVM-iOS-Simulator.zip`: installable Simulator app, both simulator architectures.
