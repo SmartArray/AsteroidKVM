@@ -177,7 +177,7 @@ struct MobileSessionView: View {
           keyboardAfterDismiss = true
           sheet = nil
         }.disabled(!session.active || session.pasting || !session.profile.keyboardEnabled)
-        Button("Type", systemImage: "keyboard") { transition(.type) }.disabled(
+        Button("Type", systemImage: "square.and.pencil") { transition(.type) }.disabled(
           !session.active || session.pasting || !session.profile.keyboardEnabled)
         Button("Special keys", systemImage: "command.square") { transition(.keys) }.disabled(
           !session.active || session.pasting || !session.profile.keyboardEnabled)
