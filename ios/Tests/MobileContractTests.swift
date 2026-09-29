@@ -5,6 +5,53 @@ import CoreGraphics
 import XCTest
 
 final class MobileContractTests: XCTestCase {
+  @MainActor func testSoftwareKeyboardKeepsTextAndKeysOrderedAcrossFocusChanges() async {
+    let record = KeyboardRecord()
+    let output = HIDOutput(
+      send: {
+        await record.append(
+          "\($0.payload["key"].string ?? "mouse"):\($0.payload["state"].bool == true ? "down" : "up")"
+        )
+      },
+      paste: { text, keymap in
+        try await Task.sleep(for: .milliseconds(10))
+        await record.append("\(keymap):\(text)")
+      })
+    output.keyboardText("a", keymap: "de")
+    output.keyboardText("ß", keymap: "de")
+    output.keyboardKey("Backspace")
+    output.keyboardText("b", keymap: "de")
+    output.keyboardKey("Enter")
+    output.releasePhysicalInput()
+    XCTAssertFalse(output.pasting)
+    await output.flush()
+    let values = await record.entries
+    XCTAssertEqual(
+      values, ["de:aß", "Backspace:down", "Backspace:up", "de:b", "Enter:down", "Enter:up"])
+  }
+
+  @MainActor func testStoppingSoftwareKeyboardDropsUnsentInput() async {
+    let record = KeyboardRecord()
+    let output = HIDOutput(
+      send: { _ in await record.append("key") }, paste: { _, _ in await record.append("text") })
+    output.keyboardText("stale", keymap: "en-us")
+    output.keyboardKey("Enter")
+    output.stop()
+    await Task.yield()
+    let values = await record.entries
+    XCTAssertTrue(values.isEmpty)
+  }
+
+  @MainActor func testBulkPasteFollowsAcceptedSoftwareKeyboardText() async {
+    let record = KeyboardRecord()
+    let output = HIDOutput(
+      send: { _ in }, paste: { text, _ in await record.append(text) })
+    output.keyboardText("typed", keymap: "en-us")
+    XCTAssertTrue(output.paste("pasted", keymap: "en-us"))
+    await output.flush()
+    let values = await record.entries
+    XCTAssertEqual(values, ["typed", "pasted"])
+  }
   func testInverseGeometryForAllRotationsAndPixelAspects() {
     for rotation in [0, 90, 180, 270] {
       for aspect in [0.8, 1.0, 1.4] {
@@ -190,6 +237,10 @@ final class MobileContractTests: XCTestCase {
     let final = await record.values()
     XCTAssertEqual(final.0, events)
   }
+}
+private actor KeyboardRecord {
+  var entries: [String] = []
+  func append(_ value: String) { entries.append(value) }
 }
 private actor Recorder {
   var events: [HIDEvent] = [], texts: [String] = [], keymaps: [String] = []
