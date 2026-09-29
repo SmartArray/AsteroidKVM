@@ -2,12 +2,141 @@ import Network
 import XCTest
 
 final class MobileUITests: XCTestCase {
+  @MainActor func testWelcomeFirstLaunchSwipesCompletionAndReplay() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_RESET_WELCOME"] = "1"
+    app.launchArguments = ["-appearance", "Light"]
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    assertPage(app, "welcome-progress", 1)
+    XCTAssertTrue(app.staticTexts["BUILT FOR COMET KVM"].exists)
+    XCTAssertFalse(app.buttons["Back"].isEnabled)
+    screenshot("welcome-light-1", app)
+    app.swipeRight()
+    assertPage(app, "welcome-progress", 1)
+    app.swipeLeft()
+    assertPage(app, "welcome-progress", 2)
+    screenshot("welcome-light-2", app)
+    app.swipeRight()
+    assertPage(app, "welcome-progress", 1)
+    app.buttons["Next"].tap()
+    assertPage(app, "welcome-progress", 2)
+    app.buttons["Back"].tap()
+    assertPage(app, "welcome-progress", 1)
+    app.swipeLeft()
+    app.swipeLeft()
+    assertPage(app, "welcome-progress", 3)
+    screenshot("welcome-light-3", app)
+    app.swipeLeft()
+    assertPage(app, "welcome-progress", 4)
+    screenshot("welcome-light-4", app)
+    app.swipeLeft()
+    assertPage(app, "welcome-progress", 4)
+    app.buttons["Get Started"].tap()
+    XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 5))
+    app.terminate()
+    app.launchEnvironment.removeValue(forKey: "ASTEROID_RESET_WELCOME")
+    app.launch()
+    XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.navigationBars["Welcome"].exists)
+    app.buttons["More"].tap()
+    app.buttons["Welcome tour"].tap()
+    assertPage(app, "welcome-progress", 1)
+    app.buttons["Skip"].tap()
+    XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 5))
+  }
+
+  @MainActor func testWelcomeDarkAppearanceSkipPersistenceAndLargeText() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_RESET_WELCOME"] = "1"
+    app.launchArguments = ["-appearance", "Dark"]
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    for index in 1...4 {
+      assertPage(app, "welcome-progress", index)
+      let progress = app.descendants(matching: .any).matching(identifier: "welcome-progress")
+        .firstMatch
+      XCTAssertEqual(progress.value as? String, "Dark appearance")
+      screenshot("welcome-dark-\(index)", app)
+      if index < 4 { app.swipeLeft() }
+    }
+    XCUIDevice.shared.orientation = .landscapeLeft
+    Thread.sleep(forTimeInterval: 1)
+    XCTAssertTrue(app.buttons["Get Started"].isHittable)
+    screenshot("welcome-dark-landscape", app)
+    app.buttons["Skip"].tap()
+    app.terminate()
+    app.launchEnvironment.removeValue(forKey: "ASTEROID_RESET_WELCOME")
+    app.launch()
+    XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 5))
+    app.terminate()
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments += [
+      "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+    ]
+    app.launch()
+    app.buttons["More"].tap()
+    app.buttons["Welcome tour"].tap()
+    assertPage(app, "welcome-progress", 1)
+    screenshot("welcome-accessibility", app)
+    for _ in 0..<3 { app.buttons["Next"].tap() }
+    assertPage(app, "welcome-progress", 4)
+    XCTAssertTrue(app.buttons["Get Started"].isHittable)
+    app.buttons["Get Started"].tap()
+  }
+
+  @MainActor func testGestureGuideSwipingAndVerticalScrolling() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    app.launchEnvironment["ASTEROID_RESET_WELCOME"] = "1"
+    app.launchArguments = ["-onboardingVersion", "0"]
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    assertPage(app, "welcome-progress", 1)
+    app.buttons["Skip"].tap()
+    // The app welcome must not consume the separate first-connection gesture lesson.
+    assertPage(app, "guide-progress", 1)
+    app.swipeRight()
+    assertPage(app, "guide-progress", 1)
+    app.swipeLeft()
+    assertPage(app, "guide-progress", 2)
+    app.swipeRight()
+    assertPage(app, "guide-progress", 1)
+    app.swipeUp()
+    assertPage(app, "guide-progress", 1)
+    app.swipeLeft()
+    app.swipeLeft()
+    assertPage(app, "guide-progress", 3)
+    app.swipeLeft()
+    assertPage(app, "guide-progress", 4)
+    app.buttons["guide-controls-preview"].tap()
+    XCTAssertTrue(app.staticTexts["A shortcut to everything."].waitForExistence(timeout: 5))
+    app.swipeLeft()
+    assertPage(app, "guide-progress", 4)
+    app.buttons["Get Started"].tap()
+    XCTAssertTrue(app.buttons["connection-controls"].waitForExistence(timeout: 5))
+  }
+
+  @MainActor private func assertPage(_ app: XCUIApplication, _ id: String, _ number: Int) {
+    let progress = app.descendants(matching: .any).matching(identifier: id).firstMatch
+    XCTAssertTrue(progress.waitForExistence(timeout: 10))
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [
+          XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", "Page \(number) of 4"), object: progress
+          )
+        ], timeout: 5) == .completed)
+  }
+
   @MainActor func testGestureGuideLightAndDarkAppearances() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
     XCUIDevice.shared.orientation = .portrait
     for theme in ["Light", "Dark"] {
-      app.launchArguments = ["-onboardingVersion", "0", "-appearance", theme]
+      app.launchArguments = [
+        "-welcomeVersion", "1", "-onboardingVersion", "0", "-appearance", theme,
+      ]
       app.launch()
       let titles = [
         "Point and click", "Pan and zoom", "Scroll remotely", "Your controls, within reach",
@@ -42,7 +171,9 @@ final class MobileUITests: XCTestCase {
   @MainActor func testPersistentKeyboardResizesCanvasTypesAndDismisses() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
-    app.launchArguments = ["-onboardingVersion", "1", "-floatingCorner", "3"]
+    app.launchArguments = [
+      "-welcomeVersion", "1", "-onboardingVersion", "1", "-floatingCorner", "3",
+    ]
     XCUIDevice.shared.orientation = .portrait
     app.launch()
     let controls = app.buttons["connection-controls"]
@@ -133,7 +264,7 @@ final class MobileUITests: XCTestCase {
     let server = try ConnectionTestServer()
     defer { server.close() }
     let app = XCUIApplication()
-    app.launchArguments = ["-onboardingVersion", "1"]
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1"]
     app.launch()
     fillConnectionEditor(app, port: server.port, name: "Connection test")
     let password = app.secureTextFields["connection-password"]
@@ -170,7 +301,7 @@ final class MobileUITests: XCTestCase {
     let server = try ConnectionTestServer()
     defer { server.close() }
     let app = XCUIApplication()
-    app.launchArguments = ["-onboardingVersion", "0"]
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "0"]
     app.launch()
     let name = "Onboarding \(UUID().uuidString.prefix(8))"
     fillConnectionEditor(app, port: server.port, name: name)
@@ -207,7 +338,7 @@ final class MobileUITests: XCTestCase {
   @MainActor func testTouchesWorkAfterFirstUseGuideWithoutReconnect() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
-    app.launchArguments = ["-onboardingVersion", "0"]
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "0"]
     app.launch()
     XCTAssertTrue(app.staticTexts["Point and click"].waitForExistence(timeout: 10))
     app.buttons["Skip"].tap()
@@ -254,7 +385,9 @@ final class MobileUITests: XCTestCase {
   @MainActor func testRemoteTouchesReachSurfaceWithFloatingMenuVisible() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
-    app.launchArguments = ["-onboardingVersion", "1", "-floatingCorner", "3"]
+    app.launchArguments = [
+      "-welcomeVersion", "1", "-onboardingVersion", "1", "-floatingCorner", "3",
+    ]
     app.launch()
     let controls = app.buttons["connection-controls"]
     XCTAssertTrue(controls.waitForExistence(timeout: 10))
@@ -284,7 +417,7 @@ final class MobileUITests: XCTestCase {
   @MainActor func testSpecialKeysAndShortcutsDeliverBalancedEvents() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
-    app.launchArguments = ["-onboardingVersion", "1"]
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1"]
     app.launch()
     let controls = app.buttons["connection-controls"]
     XCTAssertTrue(controls.waitForExistence(timeout: 10))
@@ -314,7 +447,9 @@ final class MobileUITests: XCTestCase {
   @MainActor func testFloatingMenuSnapsAfterRepeatedDrags() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
-    app.launchArguments = ["-onboardingVersion", "1", "-floatingCorner", "3"]
+    app.launchArguments = [
+      "-welcomeVersion", "1", "-onboardingVersion", "1", "-floatingCorner", "3",
+    ]
     app.launch()
     let controls = app.buttons["connection-controls"]
     XCTAssertTrue(controls.waitForExistence(timeout: 10))
@@ -335,7 +470,7 @@ final class MobileUITests: XCTestCase {
 
   @MainActor func testSaveEditAndDeleteWithoutRememberingPassword() {
     let app = XCUIApplication()
-    app.launchArguments = ["-onboardingVersion", "1"]
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1"]
     app.launch()
     let profileName = "No Keychain \(UUID().uuidString.prefix(8))"
     app.buttons["Add connection"].firstMatch.tap()
@@ -376,7 +511,7 @@ final class MobileUITests: XCTestCase {
 
   @MainActor func testGuideAndConnectionEditor() {
     let app = XCUIApplication()
-    app.launchArguments = ["-onboardingVersion", "0"]
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "0"]
     app.launch()
     app.buttons["Add connection"].firstMatch.tap()
     let name = app.textFields["connection-name"]
@@ -404,7 +539,7 @@ final class MobileUITests: XCTestCase {
   @MainActor func testSessionMenuTypingSettingsAndRotation() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
-    app.launchArguments = ["-onboardingVersion", "1"]
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1"]
     app.launch()
     let controls = app.buttons["connection-controls"]
     XCTAssertTrue(controls.waitForExistence(timeout: 10))
@@ -446,7 +581,7 @@ final class MobileUITests: XCTestCase {
   @MainActor func testHoldEarlyReleaseDoesNotDisconnect() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
-    app.launchArguments = ["-onboardingVersion", "1"]
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1"]
     app.launch()
     let controls = app.buttons["connection-controls"]
     XCTAssertTrue(controls.waitForExistence(timeout: 10))
@@ -461,7 +596,7 @@ final class MobileUITests: XCTestCase {
   @MainActor func testFrozenFrameOCRSelectionAndRetry() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
-    app.launchArguments = ["-onboardingVersion", "1"]
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1"]
     app.launch()
     let controls = app.buttons["connection-controls"]
     XCTAssertTrue(controls.waitForExistence(timeout: 10))
@@ -490,6 +625,7 @@ final class MobileUITests: XCTestCase {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
     app.launchArguments = [
+      "-welcomeVersion", "1",
       "-onboardingVersion", "0", "-UIPreferredContentSizeCategoryName",
       "UICTContentSizeCategoryAccessibilityXXXL",
     ]

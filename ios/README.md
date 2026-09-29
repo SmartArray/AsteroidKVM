@@ -18,6 +18,12 @@ The simulator app is `build/iOSDerivedData/Build/Products/Debug-iphonesimulator/
 
 Project generation includes dedicated mobile unit/UI test targets. The existing macOS scheme and release workflows remain intact. iOS dependencies are `CometCore → CometMedia → CometSessionCore`; desktop automation, agent, MCP, parser processes/resources, and ScreenCaptureKit capture are outside this graph. The mobile shell and resources live here; shared code stays under `Sources`.
 
+## First launch
+
+A four-page welcome tour appears before the connection list the first time the app opens. It introduces AsteroidKVM as a client made for **Comet KVM**, explains live video/audio and touch control, highlights the keyboard, special keys, shortcuts and on-device text recognition, and explains saved connections and optional Keychain storage. Completing or skipping the tour persists across launches. Replay it with **Connections → More → Welcome tour**.
+
+Swipe left or right in both the welcome tour and gesture guide. Back/Next, Skip and Get Started remain available, and VoiceOver can adjust the page indicator. Vertical scrolling accommodates large text and short screens. The welcome tour and first-connection gesture guide have separate completion states, so finishing the welcome tour does not hide gesture instructions.
+
 ## Connect
 
 Add a name, hostname/IP, port, scheme, and username. Enable **Remember password in Keychain** to retain credentials; otherwise enter the password on each connection. Editing the endpoint clears its old certificate exception. A self-signed certificate requires fingerprint approval. Allow the local-network prompt when connecting to your appliance. HTTP is supported for appliances configured for it; HTTPS is the default. Transport origin restrictions and certificate pinning remain enforced by the shared transport.

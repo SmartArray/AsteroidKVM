@@ -67,6 +67,16 @@ System-toggle verification limitation: on this iOS 27 runtime, both XCUIDevice a
 
 Image paths, provenance and the built-in generation prompt set are recorded in [onboarding-artwork.md](onboarding-artwork.md).
 
+## First-launch welcome and swipe navigation
+
+A separate persisted `welcomeVersion` gates the app's initial connection screen. The four-page welcome introduces Comet KVM, live video/audio and gestures, keyboard/shortcut/OCR tools, and connection profiles with optional Keychain storage. Completing or skipping persists; Connections → More → Welcome tour replays it without resetting the first-connection gesture lesson. Profile-load errors wait until the welcome is dismissed.
+
+Both onboarding flows share a native SwiftUI page-style TabView, with horizontal swipes, bounded Back/Next navigation, independent vertical scrolling, a VoiceOver-adjustable page indicator, and Reduce Motion support. Pages keep the established light/dark palette. The welcome combines the existing gesture artwork with native vector illustrations, avoiding new image downloads or network requests. A simulator-only Debug flag resets just welcome completion for first-launch tests; it is excluded from device and Release builds.
+
+Verification exercises fresh first launch, forward/backward swipes, first/last page boundaries, Back/Next, completion and Skip persistence after relaunch, replay, both appearances, large accessibility text, landscape, guide preview interaction and delayed connection authentication. Initial runs exposed a transient zero-size layout proposal; illustration frames are now clamped to nonnegative dimensions.
+
+Five iPhone UI cases passed in `/tmp/AsteroidKVM-Welcome-iPhone.xcresult`, and four iPad cases passed in `/tmp/AsteroidKVM-Welcome-iPad.xcresult`, including the loopback-server check that no authentication starts before the gesture guide dismisses. `/tmp/AsteroidKVM-Welcome-Final.xcresult` passed both first-launch persistence and the welcome-to-gesture-guide swipe flow after the layout correction, without the frame warning. Both generic Simulator and unsigned device builds passed; the local ZIP artifacts were refreshed. Visual evidence is saved under `build/screenshots/ios-welcome-*`. No physical KVM was used for this onboarding work.
+
 ## Local build artifacts
 
 - `build/AsteroidKVM-iOS-Simulator.zip`: installable Simulator app, both simulator architectures.
