@@ -94,6 +94,14 @@ Native typing defaults to a **50 ms interval** between characters. Adjust it per
 
 The client also includes clipboard text paste, remote keyboard shortcuts, and **local text recognition**: select an area of the remote screen and extract its text with Apple Vision on your Mac.
 
+If the device's keyboard worker has stopped while the mouse still works, run
+`./scripts/restart-kvm-keyboard.sh root@kvm1.local` from this checkout. The script
+uses SSH to restart the KVM control daemon and verify the keyboard worker. This
+briefly interrupts the KVM session without rebooting either machine. Root SSH
+access and GL.iNet firmware with `/etc/init.d/S98kvmd` are required. Use `--check`
+before the destination for a read-only health check. This is a recovery workaround,
+not a fix for the firmware's keyboard timeout.
+
 **Firmware support matters.** Native-layout typing requires the daemon’s `mapped_text` capability and the GLKVM Layout-Aware Typing patch. Standard physical input and paste remain available without it. Choose the keymap that matches the remote OS; use Paste for dead keys and composed text. [Keyboard details →](docs/usage.md#controls)
 
 <a id="fast-rendering-keep-the-remote-screen-moving"></a>
