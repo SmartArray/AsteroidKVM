@@ -5,10 +5,20 @@ import SwiftUI
   @StateObject private var model = MobileAppModel()
   @Environment(\.scenePhase) private var scenePhase
   @AppStorage("appearance") private var appearance = "System"
+  @AppStorage("welcomeVersion") private var welcomeVersion = 0
+  init() {
+    #if DEBUG && targetEnvironment(simulator)
+      if ProcessInfo.processInfo.environment["ASTEROID_RESET_WELCOME"] == "1" {
+        UserDefaults.standard.removeObject(forKey: "welcomeVersion")
+      }
+    #endif
+  }
   var body: some Scene {
     WindowGroup {
       Group {
-        if let session = model.session {
+        if welcomeVersion < 1 {
+          AppOnboardingView { welcomeVersion = 1 }
+        } else if let session = model.session {
           MobileSessionView(session: session)
         } else {
           ConnectionsView()
@@ -21,7 +31,8 @@ import SwiftUI
       }
       .alert(
         "AsteroidKVM",
-        isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })
+        isPresented: Binding(
+          get: { welcomeVersion >= 1 && model.error != nil }, set: { if !$0 { model.error = nil } })
       ) {
         Button("OK") { model.error = nil }
       } message: {
@@ -38,6 +49,7 @@ struct ConnectionsView: View {
   @AppStorage("onboardingVersion") private var onboardingVersion = 0
   @State private var showGuide = false
   @State private var showAbout = false
+  @State private var showWelcome = false
   var body: some View {
     NavigationStack {
       List {
@@ -76,6 +88,7 @@ struct ConnectionsView: View {
         }
         ToolbarItem(placement: .topBarLeading) {
           Menu("More", systemImage: "ellipsis.circle") {
+            Button("Welcome tour", systemImage: "sparkles") { showWelcome = true }
             Button("Gesture Guide", systemImage: "hand.draw") { showGuide = true }
             Button("About", systemImage: "info.circle") { showAbout = true }
           }
@@ -90,6 +103,9 @@ struct ConnectionsView: View {
         }
       }
       .sheet(isPresented: $showAbout) { AboutView() }
+      .fullScreenCover(isPresented: $showWelcome) {
+        AppOnboardingView { showWelcome = false }
+      }
     }
   }
   private func add() { editing = ConnectionProfile(name: "", host: "") }
