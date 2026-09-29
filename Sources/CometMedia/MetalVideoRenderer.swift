@@ -1,5 +1,9 @@
 // Present shared decoder buffers with GPU color conversion and bounded GPU work.
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import CometCore
 import CoreVideo
 import MetalKit
@@ -9,6 +13,7 @@ public final class MetalVideoRenderer: NSObject, MTKViewDelegate {
   public let mailbox: FrameMailbox
   public var scaleMode = ScaleMode.fit
   public var rotation = 0
+  public var viewportTransform = ViewportTransform()
   public var frozenFrame: VideoFrame?
   public var onGeometry: ((DisplayGeometry) -> Void)?
   public var onError: ((String) -> Void)?
@@ -19,6 +24,14 @@ public final class MetalVideoRenderer: NSObject, MTKViewDelegate {
   private let inFlight = DispatchSemaphore(value: 2)
   private var lastFrame: VideoFrame?
   private var previousGeometry: DisplayGeometry?
+
+  private static func displayScale(_ view: MTKView) -> CGFloat {
+    #if os(macOS)
+    return view.window?.backingScaleFactor ?? 1
+    #else
+    return view.window?.screen.scale ?? view.contentScaleFactor
+    #endif
+  }
 
   // Compile a small native shader once; per-frame work only creates texture views and command buffers.
   public init(mailbox: FrameMailbox, device: MTLDevice) throws {
@@ -75,7 +88,7 @@ public final class MetalVideoRenderer: NSObject, MTKViewDelegate {
     }
     let geometry = DisplayGeometry(
       source: frame.size, viewport: view.bounds.size, mode: scaleMode,
-      rotation: rotation + frame.rotation, backingScale: view.window?.backingScaleFactor ?? 1,
+      rotation: rotation + frame.rotation, backingScale: Self.displayScale(view),
       pixelAspect: frame.pixelAspect)
     if geometry != previousGeometry {
       previousGeometry = geometry
@@ -90,7 +103,11 @@ public final class MetalVideoRenderer: NSObject, MTKViewDelegate {
       let colorSpace = CVImageBufferCreateColorSpaceFromAttachments(attachments)?
         .takeRetainedValue()
     {
+      #if os(macOS)
       view.colorspace = colorSpace
+      #else
+      (view.layer as? CAMetalLayer)?.colorspace = colorSpace
+      #endif
     }
     let pixelFormat = CVPixelBufferGetPixelFormatType(frame.buffer)
     let rgb = pixelFormat == kCVPixelFormatType_32BGRA
@@ -181,7 +198,7 @@ public final class MetalVideoRenderer: NSObject, MTKViewDelegate {
     func row(_ u: Float, _ v: Float) -> SIMD4<Float> {
       SIMD4(yScale, u * cScale, v * cScale, -yScale * yOffset - (u + v) * cScale * cOffset)
     }
-    let r = geometry.imageRect
+    let r = viewportTransform.displayRect(geometry.imageRect, in: geometry.viewport)
     let w = geometry.viewport.width
     let h = geometry.viewport.height
     return Uniforms(

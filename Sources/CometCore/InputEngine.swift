@@ -170,6 +170,12 @@ public struct InputEngine: Sendable {
   private var pending: [Command] = []
   private var worker: Task<Void, Never>?
   private var pasteRunning = false
+  private var pasteCompletion: ((Result<Void, Error>) -> Void)?
+  private func finishPaste(_ result: Result<Void, Error>) {
+    let completion = pasteCompletion; pasteCompletion = nil; completion?(result)
+  }
+  // A local focus change cannot discard a session-owned print request.
+  public func releasePhysicalInput() { if !pasting { releaseAll() } }
   private var keys: Set<String> = []
   private var buttons: Set<String> = []
   public var nativeTypingIntervalMilliseconds = ConnectionProfile.defaultNativeTypingIntervalMilliseconds
@@ -240,6 +246,7 @@ public struct InputEngine: Sendable {
     if hadQueuedPaste && !pasteRunning {
       pasting = false
       onPasteChanged?(false)
+      finishPaste(.failure(CancellationError()))
     }
     pending += possibleKeys.sorted().map { .event(.key($0, false)) }
     pending += possibleButtons.sorted().map { .event(.button($0, false)) }
@@ -249,13 +256,15 @@ public struct InputEngine: Sendable {
   }
 
   // Paste locks out live input synchronously, then waits behind releases in the same FIFO.
-  public func paste(_ text: String, keymap: String) {
-    guard !pasting else { return }
+  @discardableResult public func paste(_ text: String, keymap: String, completion: ((Result<Void, Error>) -> Void)? = nil) -> Bool {
+    guard !pasting else { return false }
     releaseAll()
+    pasteCompletion = completion
     pasting = true
     onPasteChanged?(true)
     pending.append(.paste(text, keymap))
     drain()
+    return true
   }
 
   // Place a FIFO barrier so callers can await prior output without reordering it.
@@ -268,6 +277,7 @@ public struct InputEngine: Sendable {
 
   // Cancel owned asynchronous work and release resources without affecting another session.
   public func stop() {
+    finishPaste(.failure(CancellationError()))
     worker?.cancel()
     worker = nil
     for command in pending {
@@ -304,9 +314,11 @@ public struct InputEngine: Sendable {
             try await printText(text, keymap)
             pasting = false
             onPasteChanged?(false)
+            finishPaste(.success(()))
           case .barrier(let continuation): continuation.resume()
           }
         } catch {
+          finishPaste(.failure(error))
           onError?(error)
           for queued in pending {
             if case .barrier(let continuation) = queued { continuation.resume() }
