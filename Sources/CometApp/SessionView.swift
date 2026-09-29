@@ -16,6 +16,7 @@ struct SessionView: View {
   @State private var diagnosticsOpen = false
   @State private var rebootConfirm = false
   @State private var loginPassword = ""
+  @FocusState private var passwordFocused: Bool
 
   // Keep live video dominant and place occasional controls in native popovers and sheets.
   var body: some View {
@@ -29,12 +30,17 @@ struct SessionView: View {
           Image(systemName: "desktopcomputer").font(.system(size: 42)).foregroundStyle(.secondary)
           Text(session.phase.rawValue).font(.title2)
           if session.phase == .authenticating {
-            SecureField("Password", text: $loginPassword).textFieldStyle(.roundedBorder).frame(
-              width: 240)
-            Button("Sign In") {
-              session.connect(password: loginPassword)
-              loginPassword = ""
-            }.buttonStyle(.borderedProminent)
+            SecureField("Password", text: $loginPassword)
+              .textFieldStyle(.roundedBorder).frame(width: 240)
+              .focused($passwordFocused)
+              .onSubmit(signIn)
+              .accessibilityIdentifier("session-password")
+              .onAppear { passwordFocused = true }
+            Button("Sign In", action: signIn)
+              .buttonStyle(.borderedProminent)
+              .keyboardShortcut(.defaultAction)
+              .disabled(loginPassword.isEmpty)
+              .accessibilityIdentifier("session-sign-in")
           } else if session.phase == .disconnected {
             Button("Connect") { session.connect() }.buttonStyle(.borderedProminent)
               .accessibilityIdentifier("session-connect")
@@ -185,6 +191,15 @@ struct SessionView: View {
       transcriptionStartTask?.cancel()
       transcriptionStartTask = nil
     }
+  }
+
+  // Return and the default button share one guarded action; keep secrets out of view state after submitting.
+  private func signIn() {
+    guard session.phase == .authenticating, !loginPassword.isEmpty else { return }
+    let password = loginPassword
+    loginPassword = ""
+    passwordFocused = false
+    session.connect(password: password)
   }
 
   // Show connection and capture state without permanent technical statistics.
