@@ -17,12 +17,14 @@ struct MobileSessionView: View {
   @State private var nextSheet: SessionSheet?
   @State private var guideAfterDismiss = false
   @State private var enteredSession = false
+  @State private var keyboardVisible = false
+  @State private var keyboardAfterDismiss = false
   var body: some View {
     ZStack {
       Color.black.ignoresSafeArea()
       MobileRemoteSurface(
         session: session, blocked: sheet != nil || guide || onboardingVersion < 1,
-        fitToken: fitToken)
+        fitToken: fitToken, keyboardVisible: keyboardVisible)
       VStack(spacing: 8) {
         if session.phase != .connected {
           Label(
@@ -61,7 +63,15 @@ struct MobileSessionView: View {
             .bottom, 80)
         }
       }.padding(.top, 8)
-      if !session.ocrSelecting && !session.ocrBusy { FloatingMenuButton { open(.menu) } }
+      if !session.ocrSelecting && !session.ocrBusy {
+        FloatingMenuButton(dismissesKeyboard: keyboardVisible) {
+          if keyboardVisible {
+            keyboardVisible = false
+          } else {
+            open(.menu)
+          }
+        }
+      }
     }
     .onAppear {
       guard !enteredSession else { return }
@@ -72,11 +82,18 @@ struct MobileSessionView: View {
         Task { await model.startPendingConnection() }
       }
     }
-    .onDisappear { session.releaseCapture() }
+    .onDisappear {
+      keyboardVisible = false
+      session.releaseCapture()
+    }
+    .onChange(of: session.active) { _, active in if !active { keyboardVisible = false } }
     .sheet(
       item: $sheet,
       onDismiss: {
-        if guideAfterDismiss {
+        if keyboardAfterDismiss {
+          keyboardAfterDismiss = false
+          keyboardVisible = session.active && session.profile.keyboardEnabled
+        } else if guideAfterDismiss {
           guideAfterDismiss = false
           guide = true
         } else if let nextSheet {
@@ -156,6 +173,10 @@ struct MobileSessionView: View {
     NavigationStack {
       List {
         HoldToDisconnect { Task { await model.close() } }
+        Button("Keyboard", systemImage: "keyboard") {
+          keyboardAfterDismiss = true
+          sheet = nil
+        }.disabled(!session.active || session.pasting || !session.profile.keyboardEnabled)
         Button("Type", systemImage: "keyboard") { transition(.type) }.disabled(
           !session.active || session.pasting || !session.profile.keyboardEnabled)
         Button("Special keys", systemImage: "command.square") { transition(.keys) }.disabled(
@@ -178,20 +199,25 @@ struct FloatingMenuButton: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var offset = CGSize.zero
   @GestureState private var dragging = false
+  var dismissesKeyboard = false
   var action: () -> Void
   var body: some View {
     GeometryReader { proxy in
       let x: CGFloat = corner % 2 == 0 ? 38 : max(38, proxy.size.width - 38)
       let y: CGFloat = corner < 2 ? 38 : max(38, proxy.size.height - 38)
       Button(action: action) {
-        Image(systemName: "circle.grid.2x2.fill").font(.title2).foregroundStyle(.white)
+        Image(systemName: dismissesKeyboard ? "xmark" : "circle.grid.2x2.fill").font(.title2)
+          .foregroundStyle(.white)
           .frame(width: 56, height: 56).background(
-            Color(red: 0.28, green: 0.39, blue: 1), in: Circle()
+            dismissesKeyboard ? Color.red : Color(red: 0.28, green: 0.39, blue: 1), in: Circle()
           )
           .overlay(Circle().strokeBorder(.white.opacity(0.4), lineWidth: 1)).shadow(radius: 8)
       }
-      .accessibilityLabel("Connection controls").accessibilityHint(
-        "Opens the menu. Drag to move to another corner."
+      .accessibilityLabel(dismissesKeyboard ? "Dismiss keyboard" : "Connection controls")
+      .accessibilityHint(
+        dismissesKeyboard
+          ? "Hides the keyboard and restores the full remote screen."
+          : "Opens the menu. Drag to move to another corner."
       )
       .accessibilityIdentifier("connection-controls")
       .contentShape(Circle())

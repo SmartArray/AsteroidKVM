@@ -9,12 +9,14 @@ struct MobileRemoteSurface: UIViewRepresentable {
   @ObservedObject var session: SessionCore
   var blocked: Bool
   var fitToken: Int
+  var keyboardVisible = false
   func makeUIView(context: Context) -> RemoteTouchView { RemoteTouchView(session: session) }
   func updateUIView(_ view: RemoteTouchView, context: Context) {
-    view.synchronize(blocked: blocked, fitToken: fitToken)
+    view.synchronize(blocked: blocked, fitToken: fitToken, keyboardVisible: keyboardVisible)
   }
   static func dismantleUIView(_ view: RemoteTouchView, coordinator: ()) {
     view.cancelInteraction()
+    view.dismissKeyboard()
     view.renderer?.frozenFrame = nil
   }
 }
@@ -41,6 +43,8 @@ final class RemoteTouchView: UIView {
   private var lastRotation = 0
   private var hoverPoint: CGPoint?
   private var modifierSides: Set<String> = []
+  private var keyboardRequested = false
+  private let keyboardInput = RemoteKeyboardInputView()
   override var canBecomeFirstResponder: Bool { !blocked && !session.ocrSelecting }
   override var editingInteractionConfiguration: UIEditingInteractionConfiguration { .none }
   override var accessibilityValue: String? {
@@ -70,6 +74,17 @@ final class RemoteTouchView: UIView {
     metal.framebufferOnly = true
     metal.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     addSubview(metal)
+    // A native text responder supplies the system keyboard and owns local IME composition.
+    keyboardInput.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
+    addSubview(keyboardInput)
+    keyboardInput.onText = { [weak self] text in
+      guard let self, self.canSend, self.session.profile.keyboardEnabled else { return }
+      self.session.output?.keyboardText(text, keymap: self.session.profile.keymap)
+    }
+    keyboardInput.onKey = { [weak self] code in
+      guard let self, self.canSend, self.session.profile.keyboardEnabled else { return }
+      self.session.output?.keyboardKey(code)
+    }
     if let device = metal.device {
       do {
         let renderer = try MetalVideoRenderer(mailbox: session.mailbox, device: device)
@@ -112,7 +127,8 @@ final class RemoteTouchView: UIView {
       lastBounds = bounds.size
     }
   }
-  func synchronize(blocked: Bool, fitToken: Int) {
+  func synchronize(blocked: Bool, fitToken: Int, keyboardVisible: Bool) {
+    keyboardRequested = keyboardVisible && session.profile.keyboardEnabled
     let unavailable = blocked || !session.active || session.pasting
     if unavailable != self.blocked {
       // Input was released when the sheet opened. Re-enabling the surface must not
@@ -144,10 +160,25 @@ final class RemoteTouchView: UIView {
       selection.path = nil
     }
     if !unavailable && !session.ocrSelecting && window != nil {
-      becomeFirstResponder()
+      if keyboardRequested {
+        // SwiftUI may still be updating the dismissed sheet's responder chain.
+        // Request focus after that update, and recheck ownership before taking it.
+        DispatchQueue.main.async { [weak self] in
+          guard let self, self.keyboardRequested, self.canSend, self.window != nil else { return }
+          if !self.keyboardInput.isFirstResponder { self.keyboardInput.becomeFirstResponder() }
+        }
+      } else {
+        dismissKeyboard()
+        becomeFirstResponder()
+      }
     } else {
+      dismissKeyboard()
       resignFirstResponder()
     }
+  }
+  func dismissKeyboard() {
+    keyboardInput.resignFirstResponder()
+    keyboardInput.text = ""
   }
   func cancelInteraction(releaseRemoteInput: Bool = true) {
     hold?.cancel()
@@ -220,7 +251,7 @@ final class RemoteTouchView: UIView {
       ownership.end(remaining: count)
       return
     }
-    becomeFirstResponder()
+    if !keyboardRequested { becomeFirstResponder() }
     start = point
     last = point
     moved = false
@@ -435,6 +466,54 @@ final class RemoteTouchView: UIView {
   }
   override func pressesCancelled(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
     cancelInteraction()
+  }
+}
+
+// Only committed text reaches the KVM; composition and prediction remain local to UIKit.
+private final class RemoteKeyboardInputView: UITextView, UITextViewDelegate {
+  var onText: ((String) -> Void)?
+  var onKey: ((String) -> Void)?
+  override var hasText: Bool { true }  // Backspace must work on the remote document even with no local text.
+  init() {
+    super.init(frame: .zero, textContainer: nil)
+    delegate = self
+    backgroundColor = .clear
+    textColor = .clear
+    tintColor = .clear
+    isScrollEnabled = false
+    isAccessibilityElement = false
+    autocorrectionType = .no
+    autocapitalizationType = .none
+    smartQuotesType = .no
+    smartDashesType = .no
+    smartInsertDeleteType = .no
+    spellCheckingType = .no
+    keyboardDismissMode = .none
+    inputAssistantItem.leadingBarButtonGroups = []
+    inputAssistantItem.trailingBarButtonGroups = []
+  }
+  required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+  func textViewDidChange(_ textView: UITextView) {
+    guard markedTextRange == nil, !text.isEmpty else { return }
+    let committed = text ?? ""
+    text = ""
+    onText?(committed)
+  }
+  func textView(
+    _ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String
+  ) -> Bool {
+    if markedTextRange == nil, text == "\n" {
+      onKey?("Enter")
+      return false
+    }
+    return true
+  }
+  override func deleteBackward() {
+    if markedTextRange != nil || !text.isEmpty {
+      super.deleteBackward()
+    } else {
+      onKey?("Backspace")
+    }
   }
 }
 

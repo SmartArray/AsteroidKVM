@@ -2,6 +2,96 @@ import Network
 import XCTest
 
 final class MobileUITests: XCTestCase {
+  @MainActor func testPersistentKeyboardResizesCanvasTypesAndDismisses() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    app.launchArguments = ["-onboardingVersion", "1", "-floatingCorner", "3"]
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    let controls = app.buttons["connection-controls"]
+    XCTAssertTrue(controls.waitForExistence(timeout: 10))
+    let surface = app.descendants(matching: .any).matching(identifier: "Remote computer").firstMatch
+    let fullHeight = surface.frame.height
+    controls.tap()
+    app.buttons["Keyboard"].tap()
+    let keyboard = app.keyboards.firstMatch
+    XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+    // A newly booted simulator can show Apple's first-use slide-to-type lesson.
+    if app.otherElements["UIContinuousPathIntroductionView"].exists {
+      app.buttons["Continue"].tap()
+    }
+    XCTAssertEqual(controls.label, "Dismiss keyboard")
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [
+          XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in surface.frame.height < fullHeight - 100 }, object: nil
+          )
+        ], timeout: 5) == .completed, "\(surface.value ?? "missing surface")")
+    XCTAssertLessThanOrEqual(surface.frame.maxY, keyboard.frame.minY + 2)
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [
+          XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "hittable == true"), object: keyboard.keys["a"]
+          )
+        ], timeout: 10) == .completed)
+    screenshot("persistent-keyboard-portrait", app)
+    keyboard.keys["a"].tap()
+    keyboard.keys["b"].tap()
+    keyboard.keys["delete"].tap()
+    keyboard.buttons["Return"].tap()
+    let sent = NSPredicate(
+      format: "value CONTAINS %@ AND value CONTAINS %@", "text=ab",
+      "Backspace:down,Backspace:up,Enter:down,Enter:up")
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [XCTNSPredicateExpectation(predicate: sent, object: surface)], timeout: 12)
+        == .completed, "\(surface.value ?? "missing surface")")
+    surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [
+          XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value CONTAINS %@", "leftDown=1 leftUp=1"),
+            object: surface
+          )
+        ], timeout: 5) == .completed)
+    XCTAssertTrue(keyboard.exists, "Remote clicks must keep the keyboard open")
+    XCUIDevice.shared.orientation = .landscapeLeft
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [
+          XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in
+              app.frame.width > app.frame.height && surface.frame.width > surface.frame.height
+                && controls.frame.maxX <= app.frame.maxX
+            }, object: nil
+          )
+        ], timeout: 5) == .completed)
+    XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+    XCTAssertLessThanOrEqual(surface.frame.maxY, keyboard.frame.minY + 2)
+    screenshot("persistent-keyboard-landscape", app)
+    controls.tap()
+    XCTAssertTrue(keyboard.waitForNonExistence(timeout: 5))
+    XCTAssertEqual(controls.label, "Connection controls")
+    XCUIDevice.shared.orientation = .portrait
+    XCTAssertTrue(
+      XCTWaiter.wait(
+        for: [
+          XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in abs(surface.frame.height - fullHeight) < 3 },
+            object: nil
+          )
+        ], timeout: 5) == .completed)
+    // Reopening exercises responder ownership after a complete show/hide cycle.
+    controls.tap()
+    app.buttons["Keyboard"].tap()
+    XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+    controls.tap()
+    XCTAssertTrue(keyboard.waitForNonExistence(timeout: 5))
+  }
+
   @MainActor func testConnectionProbeSuccessFailureAndEditedCredentials() throws {
     let server = try ConnectionTestServer()
     defer { server.close() }
@@ -378,7 +468,8 @@ final class MobileUITests: XCTestCase {
     XCTAssertTrue(app.buttons["connection-controls"].waitForExistence(timeout: 5))
   }
   @MainActor private func screenshot(_ name: String, _ app: XCUIApplication) {
-    let attachment = XCTAttachment(screenshot: app.screenshot())
+    // Capture the screen rather than an app crop, which can be misaligned after rotation.
+    let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
     attachment.name = name
     attachment.lifetime = .keepAlways
     add(attachment)

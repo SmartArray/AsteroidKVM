@@ -47,6 +47,14 @@ Follow-up verification covered all **11 mobile contracts and 12 iPhone UI cases*
 
 Evidence: `/tmp/AsteroidKVM-Mobile-Updates-Verified.xcresult` contains the full iPhone run and the initial menu-test timing failure; `/tmp/AsteroidKVM-Mobile-Editor-iPhone.xcresult` and `/tmp/AsteroidKVM-Editor-Focus-iPhone.xcresult` contain the passing focused checks. iPad results are split across `/tmp/AsteroidKVM-Mobile-Updates-iPad.xcresult`, `/tmp/AsteroidKVM-Mobile-Editor-iPad.xcresult`, `/tmp/AsteroidKVM-Editor-Focus-iPad.xcresult` and `/tmp/AsteroidKVM-Editor-Final-iPad.xcresult`; the latter completes the connection-test success/failure coverage after correcting keyboard interactions. Haptic feel, remote USB response, and physical touch ergonomics still require real-device acceptance.
 
+## Persistent keyboard follow-up
+
+The floating menu now includes **Keyboard**. UIKit supplies the system keyboard and local text composition; the remote canvas and movable red **X** follow its safe-area height. Touches on the canvas retain keyboard focus. Dismissal restores the full canvas, and disconnecting exits keyboard mode. Committed text, Backspace and Return share the existing ordered output queue; accepted keyboard input survives resizing, focus changes and a subsequent Type request, while disconnect cancels unsent input.
+
+Verification: **14 mobile contracts** and **11 shared input tests** passed. The persistent-keyboard UI flow passed on **iPhone 17e** and **iPad mini (A17 Pro)** with iOS/iPadOS 27, covering canvas bounds, text and balanced key delivery, remote clicks while typing, portrait/landscape, dismissal and reopening. Existing remote-touch and special-key/shortcut UI checks also passed on iPhone 17e; the Type/settings/menu regression passed on iPhone 18 Pro. Generic Simulator (both architectures) and unsigned arm64 device builds passed.
+
+The original iPhone 18 Pro simulator hid the system keyboard while its Mac hardware keyboard was connected, so on-screen-keyboard verification used iPhone 17e. Its initial run encountered Apple's first-use slide-to-type lesson; automation now dismisses that lesson and waits for keyboard hit targets and rotation layout. Passing evidence is in `/tmp/AsteroidKVM-Keyboard-iPhone-Screens.xcresult` and `/tmp/AsteroidKVM-Keyboard-iPad-Verified.xcresult`; `/tmp/AsteroidKVM-Keyboard-iPhone-Verified.xcresult` includes the contracts and passing touch/special-key regressions alongside that initial keyboard-test failure. Portrait and landscape screenshots are saved as `build/screenshots/ios-keyboard-*.png`. Firmware text mapping, physical keyboard composition and real-KVM typing remain part of physical acceptance.
+
 ## Local build artifacts
 
 - `build/AsteroidKVM-iOS-Simulator.zip`: installable Simulator app, both simulator architectures.
@@ -75,6 +83,7 @@ Record: iPhone model/OS, iPad model/OS, KVM model/firmware, target OS/keymap, co
 - [ ] Three-finger scrolling/sign/sensitivity; VoiceOver and system Zoom/editing interception; accessible scroll actions.
 - [ ] External keyboard layouts, modifiers, repeats, reserved shortcuts, native composition, pointer buttons/hover/wheel.
 - [ ] Exact multiline/Unicode/pasted Type text, immediate dismissal, no duplicate Send, long request, timeout/uncertain outcome and deliberate draft recovery.
+- [ ] Persistent Keyboard: live text, Backspace, Return, keymaps/composition, touch interaction while typing, portrait/landscape resizing, red-X dismissal, repeated opening, and disconnect with pending text.
 - [ ] Menu corner snapping, one-second disconnect/early cancellation, accessibility confirmation, large text, dark/light appearance and Reduce Motion.
 - [ ] Supported encoder, USB/HID, jiggler and EDID controls; confirm/restore disruptive changes on a disposable test target.
 - [ ] Frozen-frame OCR, rotated/zoomed crop, no text, retry, copy and cancellation while recognition is running.

@@ -9,7 +9,9 @@
 
   @MainActor enum UITestInputRecorder {
     static var events: [HIDEvent] = []
+    static var text = ""
     static func record(_ event: HIDEvent) { events.append(event) }
+    static func recordText(_ value: String) { text += value }
     static var summary: String {
       let downs = events.filter { $0 == .button("left", true) }.count
       let ups = events.filter { $0 == .button("left", false) }.count
@@ -17,12 +19,13 @@
       let keys = events.filter { $0.type == "key" }.map {
         "\($0.payload["key"].string ?? ""):\($0.payload["state"].bool == true ? "down" : "up")"
       }.joined(separator: ",")
-      return "leftDown=\(downs) leftUp=\(ups) moves=\(moves) keys=\(keys)"
+      return "leftDown=\(downs) leftUp=\(ups) moves=\(moves) keys=\(keys) text=\(text)"
     }
   }
 
   @MainActor func makeUITestSession() -> SessionCore {
     UITestInputRecorder.events = []
+    UITestInputRecorder.text = ""
     let session = SessionCore(
       profile: ConnectionProfile(name: "Simulator fixture", host: "fixture.invalid"))
     session.phase = .connected
@@ -32,7 +35,10 @@
         if $0.type == "key" { try await Task.sleep(for: .milliseconds(100)) }
         await UITestInputRecorder.record($0)
       },
-      paste: { _, _ in try await Task.sleep(for: .seconds(2)) })
+      paste: { text, _ in
+        await UITestInputRecorder.recordText(text)
+        try await Task.sleep(for: .seconds(2))
+      })
     session.output?.onPasteChanged = { [weak session] in session?.pasting = $0 }
     session.state.keymaps = .object([
       "keymaps": .object(["available": .array([.string("en-us")]), "default": .string("en-us")])
