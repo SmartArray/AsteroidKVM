@@ -4,6 +4,88 @@ import Carbon
 import XCTest
 
 final class CometUITests: XCTestCase {
+  // Verify local authentication submission and the complete MCP setup flow without a real KVM.
+  @MainActor func testPasswordReturnAndMCPSettingsFlow() throws {
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-testing", "-ApplePersistenceIgnoreState", "YES"]
+    app.launch()
+    defer { app.terminate() }
+    app.menuBars.menuBarItems["File"].click()
+    app.menuItems["Connections…"].click()
+    XCTAssertTrue(app.buttons["add-connection"].waitForExistence(timeout: 10))
+    app.buttons["add-connection"].click()
+    app.textFields["profile-name"].click()
+    app.textFields["profile-name"].typeText("Settings UI Fixture")
+    app.textFields["profile-host"].click()
+    app.textFields["profile-host"].typeText("127.0.0.1")
+    let devicePort = app.textFields["profile-port"]
+    devicePort.click()
+    devicePort.typeKey("a", modifierFlags: .command)
+    devicePort.typeText("9")
+    app.buttons["Save"].click()
+    app.buttons["connect-Settings UI Fixture"].click()
+    let session = app.windows["Settings UI Fixture"]
+    let password = session.secureTextFields["session-password"]
+    XCTAssertTrue(password.waitForExistence(timeout: 10))
+    // Do not click the field: authentication should focus it automatically, and Return must submit.
+    app.typeText("test-password")
+    XCTAssertTrue(session.buttons["session-sign-in"].isEnabled)
+    app.typeKey(.return, modifierFlags: [])
+    XCTAssertTrue(password.waitForNonExistence(timeout: 5))
+
+    app.typeKey(",", modifierFlags: .command)
+    XCTAssertTrue(app.staticTexts["MCP"].firstMatch.waitForExistence(timeout: 5))
+    app.staticTexts["MCP"].firstMatch.click()
+    let start = app.descendants(matching: .any).matching(identifier: "mcp-enable").firstMatch
+    XCTAssertTrue(start.waitForExistence(timeout: 5))
+    XCTAssertFalse(app.textFields["mcp-port"].exists, "Advanced setup should start collapsed")
+    XCTAssertFalse(app.buttons["mcp-copy-configuration"].exists)
+
+    // Avoid the user's production port. This saves a preference while off; it must not start the server.
+    app.descendants(matching: .any).matching(identifier: "mcp-advanced").firstMatch.click()
+    let port = app.textFields["mcp-port"]
+    XCTAssertTrue(port.waitForExistence(timeout: 5))
+    port.click()
+    port.typeKey("a", modifierFlags: .command)
+    port.typeText("0")
+    XCTAssertFalse(app.buttons["mcp-apply-port"].isEnabled)
+    XCTAssertTrue(app.staticTexts["mcp-port-error"].exists)
+    port.typeKey("a", modifierFlags: .command)
+    port.typeText(String(Int.random(in: 20000...60000)))
+    app.buttons["mcp-apply-port"].click()
+    XCTAssertEqual(app.staticTexts["mcp-server-status"].value as? String, "Off")
+    app.descendants(matching: .any).matching(identifier: "mcp-advanced").firstMatch.click()
+
+    start.click()
+    let copy = app.buttons["mcp-copy-configuration"]
+    XCTAssertTrue(copy.waitForExistence(timeout: 5))
+    let listening = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in copy.isEnabled }, object: copy)
+    XCTAssertEqual(XCTWaiter.wait(for: [listening], timeout: 10), .completed)
+    XCTAssertEqual(app.staticTexts["mcp-server-status"].value as? String, "Ready for clients")
+    XCTAssertTrue(app.staticTexts["mcp-clients-empty"].exists)
+    copy.click()
+    XCTAssertTrue((app.staticTexts["mcp-copy-feedback"].value as? String ?? "").contains("copied"))
+
+    app.radioButtons["Keyboard & mouse"].click()
+    let pause = app.buttons["mcp-stop"]
+    XCTAssertTrue(pause.waitForExistence(timeout: 5))
+    let ready = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in pause.isEnabled }, object: pause)
+    XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+    pause.click()
+    let resume = app.buttons["mcp-resume"]
+    XCTAssertTrue(resume.waitForExistence(timeout: 5))
+    let attachment = XCTAttachment(screenshot: app.windows["AsteroidKVM Settings"].screenshot())
+    attachment.name = "MCP settings — setup and paused control"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    resume.click()
+    XCTAssertTrue(pause.waitForExistence(timeout: 5))
+    start.click()
+    XCTAssertFalse(app.buttons["mcp-copy-configuration"].exists)
+  }
+
   // Open Display settings from the live toolbar and prove editing remains local until Apply is pressed.
   @MainActor func testDisplaySettingsNavigationAndDrafts() throws {
     guard let path = ProcessInfo.processInfo.environment["COMET_UI_SESSION_FILE"], !path.isEmpty,

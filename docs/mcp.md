@@ -5,9 +5,9 @@ AsteroidKVM exposes one authenticated localhost MCP endpoint per saved connectio
 ## Setup
 
 1. Open **Settings → MCP** and choose a connection.
-2. Turn on **Enable MCP for this device**. New configurations choose an unused device port starting at 9101. You can apply another port between 1024 and 65535.
-3. Leave **Allow keyboard and mouse control** off for observation-only access, or turn it on to grant input access.
-4. Use **Copy MCP Configuration** and add the resulting entry to a client that supports Streamable HTTP and custom Authorization headers. The copied configuration includes a secret. The app keeps its token in Keychain, not in the profile file.
+2. Turn on **Start MCP server**. It starts listening immediately; **Ready for clients** confirms startup. There is no separate Apply step. New configurations choose an unused device port starting at 9101; **Advanced → Local port** is only needed to change that address.
+3. Under **Client permissions**, choose **View only** for observation or **Keyboard & mouse** to grant input access. **Pause Control** stops input while keeping clients connected; the paused state explains why control stopped and offers **Resume Control**.
+4. Use **Copy Configuration** and add the resulting entry to a client that supports Streamable HTTP and custom Authorization headers. The copied configuration includes a secret. The app keeps its token in Keychain, not in the profile file. **Advanced → Replace Token…** invalidates old client configurations after confirmation.
 5. Keep AsteroidKVM running and connect the KVM normally. Endpoints can report disconnected status, but screenshots, OCR, and input require live video. Enabling MCP does not automatically connect to the appliance.
 
 Example structure (use the app's actual copied values):
@@ -54,7 +54,7 @@ A frame ID is scoped to the MCP client that received it. The latest observation 
 
 Only one controller can own a device's input: an external MCP client or the built-in agent. Observation-only requests do not acquire control. Another device remains independent.
 
-- **Stop Automation** in the remote toolbar or MCP settings cancels input and pauses MCP control. Resume explicitly in MCP settings. Clicking back into the remote display takes manual control and pauses an existing MCP controller. After manual input, a subtle **Resume MCP** button appears beside **Connected** in the status bar; clicking it releases manual capture, resumes MCP control, and hides the button.
+- **Stop Automation** in the remote toolbar or **Pause Control** in MCP settings cancels input and pauses MCP control. Use **Resume Control** in MCP settings to allow input again. Clicking back into the remote display takes manual control and pauses an existing MCP controller. After manual input, a subtle **Resume MCP** button appears beside **Connected** in the status bar; clicking it releases manual capture, resumes MCP control, and hides the button.
 - **⌃⌥⌘Esc** while the app is active releases input. The application menu command stops all devices; the remote display's shortcut and toolbar stop its device.
 - Ownership expires after 30 seconds without requests while idle. An operation is cancelled after 120 seconds. Very long text at slow intervals can therefore execute only partially.
 - Clients expire after five idle minutes. HTTP `DELETE` ends a client session and releases input. MCP cancellation notifications cancel the matching request.
