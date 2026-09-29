@@ -13,6 +13,8 @@ Control a remote computer yourself, or give Codex a task and watch it work.
 
 </div>
 
+An iPhone/iPad client is available under [`ios`](ios/README.md), using the shared session, media, input, and security code. Select the **AsteroidKVMiOS** Xcode scheme.
+
 ![AsteroidKVM displaying a remote Windows desktop with a browser and PowerShell, native toolbar controls, and connection status](docs/screenshots/remote-display.png)
 
 *The real client connected to a Windows desktop. Keyboard, display, text recognition, and Agent controls stay within reach.*
