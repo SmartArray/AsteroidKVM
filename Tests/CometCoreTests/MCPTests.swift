@@ -11,7 +11,7 @@ import XCTest
 final class MCPTests: XCTestCase {
   @MainActor private func fixture(
     control: Bool = true, port: Int = Int.random(in: 20000...60000),
-    token: String = UUID().uuidString
+    token: String = UUID().uuidString, parser: (any UIParser)? = nil
   ) -> (SessionController, DeviceMCPServer, String) {
     var profile = ConnectionProfile(name: "MCP Fixture", host: "fixture.invalid")
     var preferences = MCPPreferences()
@@ -20,7 +20,7 @@ final class MCPTests: XCTestCase {
     preferences.port = port
     profile.mcp = preferences
     let session = SessionController(profile: profile)
-    let server = DeviceMCPServer(session: session, testToken: token)
+    let server = DeviceMCPServer(session: session, testToken: token, parser: parser)
     session.mcpServer = server
     session.phase = .connected
     session.state.keymaps = .object(["mapped_text": .bool(true)])
@@ -92,6 +92,86 @@ final class MCPTests: XCTestCase {
     async throws -> String
   {
     try text(await call(server, token, client, "get_screen"))["frameId"].string!
+  }
+
+  @MainActor func testStructuredElementsAndStaleActionsNeverReturnImages() async throws {
+    let parser = FixtureUIParser()
+    let (session, server, token) = fixture(parser: parser)
+    defer { server.disable() }
+    let events = EventRecorder()
+    session.output = HIDOutput(send: { await events.add($0.type) }, paste: { _, _ in })
+    let client = try await initialize(server, token)
+    let result = try await call(server, token, client, "screen.elements")
+    XCTAssertFalse(result["content"].array.contains { $0["type"].string == "image" })
+    let parsed = try text(result)
+    let args: [String: JSONValue] = [
+      "frame_id": parsed["frame_id"], "element_id": parsed["elements"].array[0]["id"],
+    ]
+    let clicked = try await call(server, token, client, "screen.click_element", args)
+    XCTAssertEqual(try text(clicked)["success"].bool, true)
+    let duplicate = try await call(server, token, client, "screen.click_element", args)
+    XCTAssertEqual(try text(duplicate)["duplicate"].bool, true)
+    let next = try text(await call(server, token, client, "screen.elements"))
+    let before = await events.values.count
+    frame(session, white: true)
+    let stale = try await call(
+      server, token, client, "screen.click_element",
+      [
+        "frame_id": next["frame_id"], "element_id": next["elements"].array[0]["id"],
+        "actionId": .string("changed"),
+      ])
+    XCTAssertEqual(try text(stale)["error"].string, "STALE_FRAME")
+    let after = await events.values.count
+    XCTAssertEqual(before, after)
+  }
+
+  @MainActor func testStructuredTypeDoubleClickAndScrollUseExistingHID() async throws {
+    let parser = FixtureUIParser(detections: [
+      ParserDetection(
+        type: "textfield", bbox: [0.1, 0.2, 0.8, 0.4], description: "Search field",
+        interactive: true)
+    ])
+    let (session, server, token) = fixture(parser: parser)
+    defer { server.disable() }
+    let events = EventRecorder()
+    session.output = HIDOutput(
+      send: { await events.add($0.type + ":" + $0.payload["text"].text) }, paste: { _, _ in })
+    session.output?.nativeTypingIntervalMilliseconds = 0
+    let client = try await initialize(server, token)
+    for (name, extra) in [
+      ("screen.type_into_element", ["text": JSONValue.string("abc")]),
+      ("screen.double_click_element", [:]),
+      ("screen.scroll_element", ["direction": .string("down"), "amount": .number(2)]),
+    ] {
+      frame(session)
+      let parsed = try text(await call(server, token, client, "screen.elements"))
+      var args: [String: JSONValue] = [
+        "frame_id": parsed["frame_id"], "element_id": parsed["elements"].array[0]["id"],
+      ]
+      args.merge(extra) { _, new in new }
+      let result = try await call(server, token, client, name, args)
+      XCTAssertEqual(try text(result)["success"].bool, true)
+      XCTAssertFalse(result["content"].array.contains { $0["type"].string == "image" })
+    }
+    let sent = await events.values
+    XCTAssertTrue(sent.contains("mapped_text:a"))
+    XCTAssertTrue(sent.contains("mapped_text:c"))
+    XCTAssertTrue(sent.contains("mouse_wheel:"))
+    XCTAssertEqual(sent.filter { $0 == "mouse_button:" }.count, 6)
+  }
+
+  @MainActor func testUnavailablePerceptionPreservesRawScreenTools() async throws {
+    let (session, server, token) = fixture(parser: FixtureUIParser(unavailable: true))
+    defer {
+      server.disable()
+      _ = session
+    }
+    let client = try await initialize(server, token)
+    let unavailable = try await call(server, token, client, "screen.elements")
+    XCTAssertEqual(try text(unavailable)["error"].string, "PARSER_UNAVAILABLE")
+    let raw = try await call(server, token, client, "screen.image")
+    XCTAssertEqual(raw["isError"].bool, false)
+    XCTAssertTrue(raw["content"].array.contains { $0["type"].string == "image" })
   }
 
   func testHTTPFramingRejectsAmbiguousOrOversizeRequests() throws {

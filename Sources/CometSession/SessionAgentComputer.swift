@@ -212,6 +212,14 @@ import UniformTypeIdentifiers
     try await send([.button("left", false)], ticket)
   }
 
+  func movePointer(x: Int, y: Int) async throws {
+    let ticket = try checkedLease()
+    guard let size = screenSize, session?.mailbox.snapshot()?.size == sourceSize else { throw AgentError("Remote geometry changed.") }
+    try await send([HIDEvent("mouse_move", ["to": .object([
+      "x": .number((Double(x) / max(1, size.width - 1) * 65535 - 32768).rounded()),
+      "y": .number((Double(y) / max(1, size.height - 1) * 65535 - 32768).rounded())])])], ticket)
+  }
+
   func horizontalScroll(_ delta: Int) async throws {
     let ticket = try checkedLease()
     try await send([HIDEvent("mouse_wheel", ["delta": .object(["x": .number(Double(delta)), "y": .number(0)]), "squash": .bool(false)])], ticket)

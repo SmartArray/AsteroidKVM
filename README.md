@@ -42,11 +42,13 @@ This experimental feature uses OpenAI `gpt-live-transcribe`; API usage is billed
 
 Connect external automation clients to a saved KVM through its own local MCP server. Each device has a separate endpoint and access token, so a client cannot switch to another device or follow whichever window is focused.
 
-- **Observe:** request live screenshots, crop screen regions, read OCR text with coordinates, and wait for visual changes.
-- **Act:** type text, click, double-click, scroll, drag, or send key combinations such as **Ctrl + Alt + Delete**.
+- **Observe locally:** use `screen.elements` for UI text, semantic icon descriptions, boxes and stable element IDs through a local OmniParser service. Raw screenshots, regional OCR and visual-change waits remain available.
+- **Act:** click, double-click, type into, or scroll structured elements with stale-frame checks. Coordinate clicks, text, dragging and key combinations such as **Ctrl + Alt + Delete** remain available.
 - **Choose access:** start with read-only access or enable keyboard and mouse control per device. Tokens stay in Keychain.
 - **Stay in control:** manual takeover and **Stop Automation** release input. Exclusive control, timeouts, and action IDs prevent competing controllers and duplicate action retries within a client session.
 - **See activity:** inspect connected clients and recent actions without storing typed text or screenshots in the activity history.
+
+**Optional local UI perception:** run the local OmniParser service, then configure it in **Settings → Local UI Parsing**. Models load once, prefer MPS where supported, and fall back to CPU. Structured inspection sends no screenshot to the MCP client; `screen.image` is an explicit escape hatch. [Install and configure local perception →](docs/local-ui-perception.md)
 
 Open **Settings → MCP**, select a device, enable its server, and click **Copy MCP Configuration**. Keep AsteroidKVM running and the KVM connected for screen and input tools. Clients need Streamable HTTP support and an Authorization header. Screenshots are requested from the live feed; continuous video streaming is not exposed through MCP. [Setup, tools, and recovery behavior →](docs/mcp.md)
 

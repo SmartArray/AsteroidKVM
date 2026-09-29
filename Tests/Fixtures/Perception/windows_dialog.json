@@ -1,0 +1,194 @@
+[
+  {
+    "type": "window",
+    "bbox": [
+      0.010416666666666666,
+      0.015625,
+      0.9895833333333334,
+      0.984375
+    ],
+    "text": null,
+    "description": "Windows - Settings",
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "toolbar",
+    "bbox": [
+      0.010416666666666666,
+      0.015625,
+      0.9895833333333334,
+      0.1046875
+    ],
+    "text": null,
+    "description": "Window toolbar",
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "text",
+    "bbox": [
+      0.3125,
+      0.0375,
+      0.75,
+      0.0828125
+    ],
+    "text": "Windows - Settings",
+    "description": null,
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "dialog",
+    "bbox": [
+      0.14583333333333334,
+      0.15625,
+      0.84375,
+      0.890625
+    ],
+    "text": null,
+    "description": "Account settings",
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "text",
+    "bbox": [
+      0.1875,
+      0.1875,
+      0.5729166666666666,
+      0.2265625
+    ],
+    "text": "Username",
+    "description": null,
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "textfield",
+    "bbox": [
+      0.1875,
+      0.2421875,
+      0.7291666666666666,
+      0.30625
+    ],
+    "text": null,
+    "description": "Username input field",
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "checkbox",
+    "bbox": [
+      0.1875,
+      0.34375,
+      0.2125,
+      0.38125
+    ],
+    "text": null,
+    "description": "Remember me checkbox",
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "text",
+    "bbox": [
+      0.225,
+      0.3390625,
+      0.4739583333333333,
+      0.3859375
+    ],
+    "text": "Remember me",
+    "description": null,
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "dropdown",
+    "bbox": [
+      0.1875,
+      0.421875,
+      0.53125,
+      0.484375
+    ],
+    "text": "English",
+    "description": "Language dropdown",
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "button",
+    "bbox": [
+      0.1875,
+      0.528125,
+      0.3541666666666667,
+      0.59375
+    ],
+    "text": "Save",
+    "description": null,
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "button",
+    "bbox": [
+      0.3854166666666667,
+      0.528125,
+      0.5625,
+      0.59375
+    ],
+    "text": "Cancel",
+    "description": null,
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "icon",
+    "bbox": [
+      0.7395833333333334,
+      0.528125,
+      0.78125,
+      0.59375
+    ],
+    "text": null,
+    "description": "settings gear",
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  }
+]

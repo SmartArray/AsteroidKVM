@@ -1,0 +1,130 @@
+[
+  {
+    "type": "window",
+    "bbox": [
+      0.004166666666666667,
+      0.00625,
+      0.9958333333333333,
+      0.99375
+    ],
+    "text": null,
+    "description": "Firmware setup",
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "text",
+    "bbox": [
+      0.020833333333333332,
+      0.03125,
+      0.8333333333333334,
+      0.0859375
+    ],
+    "text": "UEFI Firmware Setup Utility",
+    "description": null,
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "tab",
+    "bbox": [
+      0.03125,
+      0.140625,
+      0.1875,
+      0.1953125
+    ],
+    "text": "Main",
+    "description": null,
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "tab",
+    "bbox": [
+      0.20833333333333334,
+      0.140625,
+      0.3645833333333333,
+      0.1953125
+    ],
+    "text": "Boot",
+    "description": null,
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "text",
+    "bbox": [
+      0.03125,
+      0.25,
+      0.46875,
+      0.3046875
+    ],
+    "text": "System Memory: 65536 MB",
+    "description": null,
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "text",
+    "bbox": [
+      0.03125,
+      0.34375,
+      0.2708333333333333,
+      0.39375
+    ],
+    "text": "Boot Mode",
+    "description": null,
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "dropdown",
+    "bbox": [
+      0.3229166666666667,
+      0.334375,
+      0.6145833333333334,
+      0.3984375
+    ],
+    "text": "UEFI",
+    "description": null,
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "text",
+    "bbox": [
+      0.03125,
+      0.828125,
+      0.8645833333333334,
+      0.8828125
+    ],
+    "text": "F10 Save and Exit    Esc Exit    Arrow keys Move",
+    "description": null,
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  }
+]

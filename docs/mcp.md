@@ -25,6 +25,10 @@ Example structure (use the app's actual copied values):
 
 Different clients may use different configuration formats. The endpoint and Authorization header are the connection details. This release uses pre-shared tokens for local access; it does not implement OAuth discovery or expose a LAN listener.
 
+## Local UI elements
+
+When the separately installed local parser is enabled, prefer `screen.elements` and `screen.click_element`, `screen.double_click_element`, `screen.type_into_element`, or `screen.scroll_element`. These use application-owned UI elements and validate the current screen before input. `screen.image` remains the raw-image escape hatch. Parser failures do not disable the original tools below. [Apple Silicon setup and tool details](local-ui-perception.md).
+
 ## Tools
 
 | Tool | Arguments and behavior |

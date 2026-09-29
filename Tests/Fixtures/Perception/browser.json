@@ -1,0 +1,258 @@
+[
+  {
+    "type": "window",
+    "bbox": [
+      0.010416666666666666,
+      0.015625,
+      0.9895833333333334,
+      0.984375
+    ],
+    "text": null,
+    "description": "Browser - Account",
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "toolbar",
+    "bbox": [
+      0.010416666666666666,
+      0.015625,
+      0.9895833333333334,
+      0.1046875
+    ],
+    "text": null,
+    "description": "Window toolbar",
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "text",
+    "bbox": [
+      0.3125,
+      0.0375,
+      0.75,
+      0.0828125
+    ],
+    "text": "Browser - Account",
+    "description": null,
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "icon",
+    "bbox": [
+      0.025,
+      0.11875,
+      0.06041666666666667,
+      0.175
+    ],
+    "text": null,
+    "description": "back",
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "textfield",
+    "bbox": [
+      0.08854166666666667,
+      0.11875,
+      0.8854166666666666,
+      0.18125
+    ],
+    "text": "https://example.test/account",
+    "description": null,
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "tab",
+    "bbox": [
+      0.03125,
+      0.196875,
+      0.21354166666666666,
+      0.2546875
+    ],
+    "text": "Account",
+    "description": null,
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "link",
+    "bbox": [
+      0.78125,
+      0.215625,
+      0.9375,
+      0.2734375
+    ],
+    "text": "Help",
+    "description": null,
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "card",
+    "bbox": [
+      0.14583333333333334,
+      0.28125,
+      0.84375,
+      0.890625
+    ],
+    "text": null,
+    "description": "Account settings",
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "text",
+    "bbox": [
+      0.1875,
+      0.3125,
+      0.5729166666666666,
+      0.3515625
+    ],
+    "text": "Username",
+    "description": null,
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "textfield",
+    "bbox": [
+      0.1875,
+      0.3671875,
+      0.7291666666666666,
+      0.43125
+    ],
+    "text": null,
+    "description": "Username input field",
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "checkbox",
+    "bbox": [
+      0.1875,
+      0.46875,
+      0.2125,
+      0.50625
+    ],
+    "text": null,
+    "description": "Remember me checkbox",
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "text",
+    "bbox": [
+      0.225,
+      0.4640625,
+      0.4739583333333333,
+      0.5109375
+    ],
+    "text": "Remember me",
+    "description": null,
+    "interactive": false,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "dropdown",
+    "bbox": [
+      0.1875,
+      0.546875,
+      0.53125,
+      0.609375
+    ],
+    "text": "English",
+    "description": "Language dropdown",
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "button",
+    "bbox": [
+      0.1875,
+      0.653125,
+      0.3541666666666667,
+      0.71875
+    ],
+    "text": "Save",
+    "description": null,
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "button",
+    "bbox": [
+      0.3854166666666667,
+      0.653125,
+      0.5625,
+      0.71875
+    ],
+    "text": "Cancel",
+    "description": null,
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  },
+  {
+    "type": "icon",
+    "bbox": [
+      0.7395833333333334,
+      0.653125,
+      0.78125,
+      0.71875
+    ],
+    "text": null,
+    "description": "settings gear",
+    "interactive": true,
+    "confidence": 0.99,
+    "metadata": {
+      "fixture": "hand-authored"
+    }
+  }
+]

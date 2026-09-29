@@ -9,3 +9,9 @@ xcuserdata/
 test-results/
 *.session.json
 comet-session.json
+
+# Local parser environments, Python caches, and service secrets.
+__pycache__/
+*.pyc
+.venv/
+service.token

@@ -8,7 +8,7 @@ struct SettingsView: View {
   @EnvironmentObject var model: AppModel
   @AppStorage("appearance") private var appearance = "System"
   private let sections = [
-    "General", "Connections", "Display", "Devices", "Transcription", "Keyboard & Clipboard", "MCP", "Appearance", "System",
+    "General", "Connections", "Display", "Devices", "Transcription", "Keyboard & Clipboard", "MCP", "Local UI Parsing", "Appearance", "System",
     "Advanced",
   ]
 
@@ -66,6 +66,7 @@ struct SettingsView: View {
             Text(
               "Clipboard content is never stored. Paste operations send at most 16,384 Unicode scalars and are never automatically retried."
             )
+          case "Local UI Parsing": PerceptionSettingsView()
           case "MCP":
             devicePicker
             Group {

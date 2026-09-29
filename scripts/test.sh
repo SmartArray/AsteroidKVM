@@ -8,8 +8,12 @@ case "${1:-local}" in
     ;;
   --unit)
     # Keep hosted CI deterministic: these suites use local fixtures and never require GPU, UI, or account access.
-    swift test --filter 'CometCoreTests\.(MCPTests|InputTests|GeometryAndStorageTests|AgentTests|SecurityTests|AgentSecurityTests|TransportSecurityTests|EDIDTests|TranscriptionTests)/' \
+    swift test --filter 'CometCoreTests\.(PerceptionTests|MCPTests|InputTests|GeometryAndStorageTests|AgentTests|SecurityTests|AgentSecurityTests|TransportSecurityTests|EDIDTests|TranscriptionTests)/' \
       --skip 'AgentTests/testInstalledCodexVisionAndDynamicToolEndToEnd'
+    ;;
+  --perception)
+    swift test --filter 'PerceptionTests|MCPTests'
+    "${COMET_PARSER_PYTHON:-.build/omniparser-venv/bin/python}" -m unittest discover -s services/omniparser/tests
     ;;
   --hardware)
     export COMET_E2E_SESSION="${COMET_E2E_SESSION:-$HOME/.cache/qrx/comet-session.json}"
@@ -54,7 +58,7 @@ case "${1:-local}" in
     swift test --filter ProtocolE2ETests/testNativeWebRTCVideoEndToEndThroughJanusAndMetal
     ;;
   *)
-    printf 'Usage: scripts/test.sh [local|--unit|--hardware|--edid-hardware|--ui|--ui-hardware|--video|--agent|--agent-hardware|--text-input]\n' >&2
+    printf 'Usage: scripts/test.sh [local|--unit|--perception|--hardware|--edid-hardware|--ui|--ui-hardware|--video|--agent|--agent-hardware|--text-input]\n' >&2
     exit 2
     ;;
 esac
