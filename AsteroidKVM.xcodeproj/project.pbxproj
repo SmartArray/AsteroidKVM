@@ -79,9 +79,19 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "9C8B88F922E97FC7FAC3FDD2";
 		};
+		"8866C91B45688D7784FB91DD" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "ios/App/UITestFixture.swift";
+			"sourceTree" = "<group>";
+		};
+		"008CD11DE98D06352ADCF198" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "8866C91B45688D7784FB91DD";
+		};
 		"6D71828BD9B3400D8CE2158D" = {
 			"isa" = "PBXGroup";
-			"children" = ("E9EC46E0A54BDB24DC80C5EF", "9F65053B29B58997BC5DF650", "83CB4CC02FE7B558145DD908", "19ECBB60A32B003F67169178", "0EBDB4D4E7DD106737697CCA", "A1BD03412323C63194AD1363", "9C8B88F922E97FC7FAC3FDD2", "CD82CCADDC9D48181DDE0980", "933F689BB681A518B4753154");
+			"children" = ("E9EC46E0A54BDB24DC80C5EF", "9F65053B29B58997BC5DF650", "83CB4CC02FE7B558145DD908", "19ECBB60A32B003F67169178", "0EBDB4D4E7DD106737697CCA", "A1BD03412323C63194AD1363", "9C8B88F922E97FC7FAC3FDD2", "8866C91B45688D7784FB91DD", "CD82CCADDC9D48181DDE0980", "933F689BB681A518B4753154");
 			"name" = "AsteroidKVMiOS";
 			"sourceTree" = "<group>";
 		};
@@ -121,7 +131,7 @@
 		"B648A590C0C640C271A7246E" = {
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
-			"files" = ("F807B708C70B49B591EF19E7", "3D5E7B954904F47AA96A92D4", "5FDECEB0AE4933A7C9BE0AB8", "E99C2A36DCE9FB9167F6CC9E", "19AE3632AAEF56E7FFF15B62", "F26029F8D7AC60BB6DDB0ED8", "A7E9509D55A3C7FBE1F1ED45");
+			"files" = ("F807B708C70B49B591EF19E7", "3D5E7B954904F47AA96A92D4", "5FDECEB0AE4933A7C9BE0AB8", "E99C2A36DCE9FB9167F6CC9E", "19AE3632AAEF56E7FFF15B62", "F26029F8D7AC60BB6DDB0ED8", "A7E9509D55A3C7FBE1F1ED45", "008CD11DE98D06352ADCF198");
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
 		"54584200B689C1620F485C0E" = {
@@ -230,9 +240,19 @@
 			"productReference" = "3E610C9606FC638E4FC45DBF";
 			"productType" = "com.apple.product-type.application";
 		};
+		"78EAA5A8CEB809FF52025672" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "ios/Tests/MobileContractTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"297C21BCAFDA9C4AEBC66276" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "78EAA5A8CEB809FF52025672";
+		};
 		"980303C8B109FC5CBEC85E69" = {
 			"isa" = "PBXGroup";
-			"children" = ();
+			"children" = ("78EAA5A8CEB809FF52025672");
 			"name" = "AsteroidKVMiOSTests";
 			"sourceTree" = "<group>";
 		};
@@ -272,7 +292,7 @@
 		"1B67562B407140E4A17C01BA" = {
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
-			"files" = ();
+			"files" = ("297C21BCAFDA9C4AEBC66276");
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
 		"0A9F25945EA0E0341E2F2688" = {
@@ -347,9 +367,19 @@
 			"productReference" = "D7A2FB57F917A48910FD905E";
 			"productType" = "com.apple.product-type.bundle.unit-test";
 		};
+		"EC5B5BC90570453C4D13D84A" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "ios/UITests/MobileUITests.swift";
+			"sourceTree" = "<group>";
+		};
+		"84FF13658A718F98E99F33D9" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "EC5B5BC90570453C4D13D84A";
+		};
 		"16A1AD778D142423FC445FBD" = {
 			"isa" = "PBXGroup";
-			"children" = ();
+			"children" = ("EC5B5BC90570453C4D13D84A");
 			"name" = "AsteroidKVMiOSUITests";
 			"sourceTree" = "<group>";
 		};
@@ -362,7 +392,7 @@
 		"899F60491CE57C552FA7B146" = {
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
-			"files" = ();
+			"files" = ("84FF13658A718F98E99F33D9");
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
 		"2308590D8259BC37735532ED" = {

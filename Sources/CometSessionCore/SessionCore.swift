@@ -66,6 +66,9 @@ import CometMedia
   private var heartbeatTask: Task<Void, Never>?
   private var connectTask: Task<Void, Never>?
   private var ocrTask: Task<Void, Never>?
+  private var suspensionTask: Task<Void, Never>?
+  private var ocrOperation = UUID()
+  @Published public var ocrError: String?
   private var settingsTasks: [String: Task<Void, Never>] = [:]
   private var generation = UUID()
   private var password: String?
@@ -116,6 +119,9 @@ import CometMedia
   // Editing endpoint identity ends the old session before adopting new credentials or certificate policy.
   public func replaceProfile(_ updated: ConnectionProfile, password: String?) async {
     await disconnect()
+    typingDraft = ""
+    typingNotice = nil
+    typingOperation = nil
     if let password, !password.isEmpty { credentialsChanged() }
     self.profile = updated.securingReplacement(of: profile)
     self.password = password?.isEmpty == false ? password : nil
@@ -135,7 +141,12 @@ import CometMedia
     connectTask = Task { [weak self] in
       guard let self else { return }
       await establish()
-      if ticket == generation { connectTask = nil }
+      if ticket == generation {
+        connectTask = nil
+        if phase == .disconnected && shouldReconnect {
+          connectionFailed(URLError(.cannotConnectToHost))
+        }
+      }
     }
   }
 
@@ -156,7 +167,8 @@ import CometMedia
         try await api.login(
           password: secret,
           onApprovalRequired: { @MainActor [weak self] in
-            self?.message = "Approve this sign-in on the Comet’s screen."
+            guard let self, ticket == self.generation else { return }
+            self.message = "Approve this sign-in on the Comet’s screen."
           })
       }
       let discovered = try await api.discover()
@@ -172,17 +184,26 @@ import CometMedia
       }
       configureInput()
       let ws = try await api.socket("/api/ws", query: ["stream": "true"])
+      guard ticket == generation, !Task.isCancelled else {
+        ws.cancel(with: .goingAway, reason: nil)
+        await api.close()
+        return
+      }
       socket = ws
       let output = HIDOutput(
         send: { event in
           try await ws.send(.string(String(decoding: event.json.data(), as: UTF8.self)))
         }, paste: { text, keymap in try await api.paste(text, keymap: keymap) })
       output.nativeTypingIntervalMilliseconds = profile.nativeTypingIntervalMilliseconds
-      output.onPasteChanged = { [weak self] busy in self?.pasting = busy }
+      output.onPasteChanged = { [weak self] busy in
+        guard let self, ticket == self.generation else { return }
+        self.pasting = busy
+      }
       output.onError = { [weak self] error in
-        self?.message = error.localizedDescription
-        self?.interruptAutomation()
-        self?.releaseCapture()
+        guard let self, ticket == self.generation else { return }
+        self.message = error.localizedDescription
+        self.interruptAutomation()
+        self.releaseCapture()
       }
       self.output = output
       lastStateMessage = Date()
@@ -190,9 +211,18 @@ import CometMedia
       let media = mediaFactory(api, mailbox)
       self.media = media
       mediaConnectionsStarted += 1
-      media.onFeatures = { [weak self] features in self?.mediaFeatures = features }
-      media.onConnected = { [weak self] in self?.reconnectAttempt = 0 }
-      media.onError = { [weak self] error in self?.connectionFailed(error) }
+      media.onFeatures = { [weak self] features in
+        guard let self, ticket == self.generation else { return }
+        self.mediaFeatures = features
+      }
+      media.onConnected = { [weak self] in
+        guard let self, ticket == self.generation else { return }
+        self.reconnectAttempt = 0
+      }
+      media.onError = { [weak self] error in
+        guard let self, ticket == self.generation else { return }
+        self.connectionFailed(error)
+      }
       try await media.start(microphone: microphone, muted: profile.muted)
       guard ticket == generation else { return }
       phase = state.online == false ? .noSignal : .connected
@@ -211,14 +241,20 @@ import CometMedia
             // Poll optional device objects only when discovery confirmed their endpoints.
             if tick % 10 == 0 {
               if state.config != .null {
-                state.config = try await api.call("/api/system/get_config")["config"]
+                let value = try await api.call("/api/system/get_config")["config"]
+                guard ticket == generation, !Task.isCancelled else { return }
+                state.config = value
               }
               if state.system != .null {
-                state.system = try await api.call("/api/system/get_param")
+                let value = try await api.call("/api/system/get_param")
+                guard ticket == generation, !Task.isCancelled else { return }
+                state.system = value
               }
               if state.functions != .null {
-                state.functions = try await api.call(
+                let value = try await api.call(
                   "/api/system/otg_functions", query: ["wait_ready": "false"])
+                guard ticket == generation, !Task.isCancelled else { return }
+                state.functions = value
               }
             }
           } catch {
@@ -252,6 +288,7 @@ import CometMedia
       do {
         while !Task.isCancelled, ticket == generation {
           let message = try await ws.receive()
+          guard ticket == generation, !Task.isCancelled else { return }
           let data: Data
           switch message {
           case .string(let text): data = Data(text.utf8)
@@ -325,15 +362,19 @@ import CometMedia
     generation = UUID()
     connectTask?.cancel()
     connectTask = nil
-    Task {
-      await cleanConnections()
-      phase = .reconnecting
-    }
+    phase = .reconnecting
+    suspensionTask = Task { await cleanConnections() }
   }
 
   // Resume eligible sessions through the normal bounded reconnection path.
   public func wake() {
-    if shouldReconnect {
+    guard shouldReconnect else { return }
+    let ticket = generation
+    Task { [weak self] in
+      guard let self else { return }
+      await suspensionTask?.value
+      guard ticket == generation, shouldReconnect else { return }
+      suspensionTask = nil
       phase = .disconnected
       connectionFailed(URLError(.networkConnectionLost))
     }
@@ -366,6 +407,7 @@ import CometMedia
     connectTask?.cancel()
     connectTask = nil
     releaseCapture()
+    ocrText = nil
     if pasting {
       output?.stop()
     } else {
@@ -400,6 +442,7 @@ import CometMedia
     settingsTasks.removeAll()
     output?.stop()
     output = nil
+    pasting = false
     microphone = false
     media?.stop()
     media = nil
@@ -425,8 +468,9 @@ import CometMedia
   private var typingOperation: UUID?
 
   @discardableResult public func submitText(_ text: String) -> Bool {
-    guard active, !pasting, let output, !text.isEmpty,
-      text.unicodeScalars.count <= 16_384 else { return false }
+    guard active, profile.keyboardEnabled, !pasting, let output, !output.pasting, !text.isEmpty,
+      text.unicodeScalars.count <= 16_384
+    else { return false }
     interruptAutomation(manualInput: true)
     _ = input.releaseAll()
     typingDraft = text
@@ -450,7 +494,7 @@ import CometMedia
   // Send balanced remote shortcut transitions through the session’s ordered input queue.
   public func shortcut(_ codes: [String]) {
     interruptAutomation(manualInput: true)
-    guard active, !pasting else { return }
+    guard active, profile.keyboardEnabled, !pasting else { return }
     releaseCapture()
     output?.enqueue(codes.map { .key($0, true) } + codes.reversed().map { .key($0, false) })
   }
@@ -582,6 +626,8 @@ import CometMedia
       message = "Text Recognition needs a received video frame."
       return
     }
+    ocrError = nil
+    ocrText = nil
     ocrSelecting = true
   }
 
@@ -589,19 +635,30 @@ import CometMedia
   public func recognize(frame: VideoFrame, crop: CGRect) {
     ocrSelecting = false
     ocrBusy = true
+    ocrError = nil
+    let ticket = generation
+    let operation = UUID()
+    ocrOperation = operation
     ocrTask = Task { [weak self] in
       guard let self else { return }
       do {
         let text = try await TextRecognition.recognize(
           frame: frame, crop: crop, languages: ocrLanguages)
-        if !Task.isCancelled { ocrText = text }
-      } catch { if !Task.isCancelled { message = error.localizedDescription } }
+        guard !Task.isCancelled, ticket == generation, operation == ocrOperation else { return }
+        ocrText = text
+      } catch {
+        guard !Task.isCancelled, ticket == generation, operation == ocrOperation else { return }
+        ocrError = error.localizedDescription
+        ocrText = ""
+      }
+      guard operation == ocrOperation else { return }
       ocrBusy = false
     }
   }
 
   // Cancel pending recognition and clear selection flags without retaining a result.
   public func cancelOCR() {
+    ocrOperation = UUID()
     ocrSelecting = false
     ocrTask?.cancel()
     ocrTask = nil

@@ -44,6 +44,7 @@ import WebRTC
       do {
         while !Task.isCancelled, let socket, self.generation == generation {
           let message = try await socket.receive()
+          guard !Task.isCancelled, self.generation == generation else { return }
           let data: Data
           switch message {
           case .data(let d): data = d
