@@ -179,6 +179,23 @@ The test suite covers actual HTTP/WebSocket traffic, a native H.264 sender and r
 
 Run the same unit selection locally with `./scripts/test.sh --unit`; it includes adversarial agent tests and local TLS/redirect fixtures. [Security fixes and remaining limits →](docs/security.md) Hardware, native GPU/video integration, interactive UI, and real Codex tests remain explicit local test commands. The workflow uses macOS 26 and Xcode 26.6; pushes to other branches do not trigger it.
 
+### Publish a GitHub release
+
+Once [Release macOS app](.github/workflows/release.yml) is on `main`, open
+**Actions → Release macOS app → Run workflow**, select **main**, and enter a version
+such as `1.2.3` (or `v1.2.3`). Use three numbers without leading zeros; prerelease
+suffixes are not supported. The workflow runs unit tests, builds the exact selected
+commit with that app version, verifies signing and both architectures, and publishes
+tag `v1.2.3` with generated release notes, `AsteroidKVM-1.2.3-macOS-universal.zip`,
+and `SHA256SUMS.txt`. The build number is the workflow run number.
+
+The workflow uses GitHub's automatic token; no personal token is needed. Existing
+tags are rejected and releases are never overwritten. If publication fails after
+tag creation, inspect any remaining draft/tag before retrying with a new version
+or deliberately removing that failed release and tag. Builds retain the current
+ad-hoc signing; publishing a GitHub release does not add Developer ID signing or
+Apple notarization.
+
 ## Built to stay understandable
 
 | Module | Responsibility |

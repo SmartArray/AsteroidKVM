@@ -1,0 +1,152 @@
+name: Release macOS app
+run-name: Release ${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.2.3 or v1.2.3)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Finish a release before starting another; publishing must never be interrupted by a newer run.
+concurrency:
+  group: macos-official-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Test and package release
+    runs-on: macos-26
+    timeout-minutes: 50
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Require main branch
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "::error::Run this workflow from the main branch."
+            exit 1
+          fi
+
+      - name: Check out the exact dispatched commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Validate version and reject an existing tag
+        id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(./scripts/release-version.sh "$REQUESTED_VERSION")
+          RELEASE_TAG="v$version"
+          matches=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$RELEASE_TAG" \
+            --jq "[.[] | select(.ref == \"refs/tags/$RELEASE_TAG\")] | length")
+          if [[ "$matches" != 0 ]]; then
+            echo "::error::Tag $RELEASE_TAG already exists. Choose a new version."
+            exit 1
+          fi
+          printf 'version=%s\ntag=%s\n' "$version" "$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Check toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Run unit tests
+        run: ./scripts/test.sh --unit
+
+      - name: Build versioned universal app
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ./scripts/build.sh "MARKETING_VERSION=$RELEASE_VERSION" \
+            "CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER"
+
+      - name: Verify and package app
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          app_path="build/DerivedData/Build/Products/Release/AsteroidKVM.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app_path/Contents/Info.plist")" = "$RELEASE_VERSION"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app_path/Contents/Info.plist")" = "$GITHUB_RUN_NUMBER"
+          codesign --verify --deep --strict "$app_path"
+          lipo "$app_path/Contents/MacOS/AsteroidKVM" -verify_arch arm64 x86_64
+          lipo "$app_path/Contents/Frameworks/WebRTC.framework/WebRTC" -verify_arch arm64 x86_64
+          for resource in server.py backend.py setup.py requirements.lock parser-runtime.json; do
+            test -s "$app_path/Contents/Resources/$resource"
+          done
+          mkdir -p build/release
+          archive="AsteroidKVM-$RELEASE_VERSION-macOS-universal.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$app_path" "build/release/$archive"
+          cd build/release
+          shasum -a 256 "$archive" > SHA256SUMS.txt
+
+      - name: Upload verified release package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-package-${{ github.run_id }}
+          path: build/release/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+          overwrite: true
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Repository write access is granted only to this job, after tests and packaging succeed.
+    permissions:
+      contents: write
+    env:
+      RELEASE_VERSION: ${{ needs.build.outputs.version }}
+      RELEASE_TAG: ${{ needs.build.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Download the verified package from this run
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: release-package-${{ github.run_id }}
+          path: release
+
+      - name: Verify downloaded checksum
+        working-directory: release
+        run: sha256sum --check SHA256SUMS.txt
+
+      - name: Create tag at the tested commit
+        run: |
+          # Creation is atomic and fails if another actor has already created this tag.
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$GITHUB_SHA" > /dev/null
+
+      - name: Create release with app and checksum
+        run: |
+          cat > release-notes.md <<'NOTES'
+          Download the universal macOS app ZIP below and extract AsteroidKVM.app.
+          Requires macOS 14 or later; supports Apple Silicon and Intel.
+
+          This build is ad-hoc signed, not Developer ID signed or notarized.
+          The optional managed local parser requires Apple Silicon and downloads its models separately from Settings.
+          SHA256SUMS.txt contains the archive's SHA-256 checksum.
+          NOTES
+          # gh uploads assets before publishing; a failed upload leaves a draft rather than an incomplete public release.
+          release_url=$(gh release create "$RELEASE_TAG" \
+            "release/AsteroidKVM-$RELEASE_VERSION-macOS-universal.zip" release/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "AsteroidKVM $RELEASE_VERSION" --generate-notes --notes-file release-notes.md)
+          printf 'Published [%s](%s) from %s.\n' "$RELEASE_TAG" "$release_url" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
