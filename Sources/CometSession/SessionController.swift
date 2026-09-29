@@ -47,8 +47,8 @@ import CometMedia
   var automationLease: UUID?
   public lazy var mcpServer = DeviceMCPServer(session: self)
 
-  public func interruptAutomation() {
-    mcpServer.stopAutomation()
+  public func interruptAutomation(manualInput: Bool = false) {
+    mcpServer.stopAutomation(manualInput: manualInput)
     onAgentInterruption?()
   }
 
@@ -362,7 +362,7 @@ import CometMedia
 
   // Grant input only to an active session after the registry releases its other sessions.
   public func capture() {
-    interruptAutomation()
+    interruptAutomation(manualInput: true)
     guard active, !pasting, !ocrSelecting, !ocrBusy else { return }
     onCapture?(id)
     captured = true
@@ -433,7 +433,7 @@ import CometMedia
 
   // Native paste locks live input for the operation and never retains clipboard text after completion.
   public func paste() {
-    interruptAutomation()
+    interruptAutomation(manualInput: true)
     guard active, !pasting, let text = NSPasteboard.general.string(forType: .string) else { return }
     _ = input.releaseAll()
     output?.paste(text, keymap: profile.keymap)
@@ -441,7 +441,7 @@ import CometMedia
 
   // Send balanced remote shortcut transitions through the session’s ordered input queue.
   public func shortcut(_ codes: [String]) {
-    interruptAutomation()
+    interruptAutomation(manualInput: true)
     guard active, !pasting else { return }
     releaseCapture()
     output?.enqueue(codes.map { .key($0, true) } + codes.reversed().map { .key($0, false) })

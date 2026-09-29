@@ -11,7 +11,11 @@ import os
   @Published public private(set) var status = "Disabled"
   @Published public private(set) var clients: [String] = []
   @Published public private(set) var history: [MCPActivity] = []
-  @Published public private(set) var paused = false
+  public enum ControlPauseReason {
+    case manualInput, interrupted, stopRequested
+  }
+  @Published public private(set) var pauseReason: ControlPauseReason?
+  public var paused: Bool { pauseReason != nil }
   private weak var session: SessionController?
   private var transport: MCPHTTPServer?
   private var secret: String?
@@ -170,11 +174,13 @@ import os
       ], options: [.prettyPrinted, .sortedKeys])
     return String(decoding: data, as: UTF8.self)
   }
-  public func stopAutomation() {
+  public func stopAutomation(manualInput: Bool = false) {
     if let old = perceptionStore { Task { await old.reset() } }
     perceptionStore = nil
     clearPerceptionDiagnostics()
-    if owner != nil { paused = true }
+    if owner != nil {
+      pauseReason = manualInput ? .manualInput : (pauseReason ?? .interrupted)
+    }
     for peer in peers.values {
       peer.task?.cancel()
       peer.observation = nil
@@ -184,10 +190,10 @@ import os
     owner = nil
   }
   public func pauseControl() {
-    paused = true
+    pauseReason = .stopRequested
     stopAutomation()
   }
-  public func resumeControl() { paused = false }
+  public func resumeControl() { pauseReason = nil }
   private func release(_ client: String) {
     peers[client]?.task?.cancel()
     if owner == client {
@@ -393,6 +399,9 @@ import os
           throw AgentError("This endpoint is read-only.")
         }
         guard !paused else {
+          if pauseReason == .manualInput {
+            throw AgentError("Control is paused after manual input. Resume MCP in the status bar or MCP settings.")
+          }
           throw AgentError("Control is paused. Resume it in the app's MCP settings.")
         }
         let automaticID =

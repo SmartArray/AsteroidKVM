@@ -207,6 +207,7 @@ struct SessionView: View {
       HStack(spacing: 8) {
         Circle().fill(session.active ? Color.green : Color.secondary).frame(width: 6, height: 6)
         Text(session.phase.rawValue).accessibilityIdentifier("connection-status")
+        MCPResumeControlButton(session: session, server: session.mcpServer)
         Spacer()
         if let agent = model.agents[session.id] {
           AgentSessionControls(agent: agent)
@@ -256,6 +257,31 @@ struct SessionView: View {
       guard !Task.isCancelled else { return }
       model.setTranscription(true, for: session)
       transcriptionStartTask = nil
+    }
+  }
+}
+
+// Observe the server directly so a pause/resume redraws independently of session updates.
+private struct MCPResumeControlButton: View {
+  @ObservedObject var session: SessionController
+  @ObservedObject var server: DeviceMCPServer
+
+  var body: some View {
+    if session.active, session.profile.mcp?.enabled == true,
+      session.profile.mcp?.allowControl == true, server.pauseReason == .manualInput
+    {
+      Button {
+        session.releaseCapture()
+        server.resumeControl()
+      } label: {
+        Label("Resume MCP", systemImage: "play.circle")
+      }
+      .buttonStyle(.plain)
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .help("Resume MCP control paused by manual input")
+      .accessibilityLabel("Resume MCP control")
+      .accessibilityIdentifier("mcp-resume-status")
     }
   }
 }

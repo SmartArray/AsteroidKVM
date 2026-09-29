@@ -376,10 +376,49 @@ final class MCPTests: XCTestCase {
     session.capture()
     XCTAssertFalse(session.agentOwnsInput)
     XCTAssertTrue(server.paused)
+    XCTAssertEqual(server.pauseReason, .manualInput)
     session.updateProfile { $0.host = "another.invalid" }
     let revoked = try await request(server, token: token, client: client, method: "tools/list")
     XCTAssertEqual(revoked.status, 401)
     XCTAssertTrue(server.clients.isEmpty)
+  }
+
+  @MainActor func testManualInputPauseCanResumeWithoutClearingOtherStopReasons() async throws {
+    let (session, server, token) = fixture()
+    defer { server.disable() }
+    session.output = HIDOutput(send: { _ in }, paste: { _, _ in })
+    let client = try await initialize(server, token)
+
+    session.capture()
+    XCTAssertFalse(server.paused, "Manual input without an MCP owner must not create a pause")
+    session.releaseCapture()
+    let initial = try await screen(server, token, client)
+    let action: (String, String) -> [String: JSONValue] = { frame, id in
+      ["frameId": .string(frame), "actionId": .string(id), "x": .number(10), "y": .number(10)]
+    }
+    _ = try await call(server, token, client, "click", action(initial, "initial"))
+    session.capture()
+    XCTAssertEqual(server.pauseReason, .manualInput)
+    let blocked = try await call(server, token, client, "click", action(initial, "paused"))
+    XCTAssertEqual(blocked["isError"].bool, true)
+
+    // The status-bar button releases local input before making remote control available.
+    session.releaseCapture()
+    server.resumeControl()
+    XCTAssertNil(server.pauseReason)
+    XCTAssertFalse(server.paused)
+    XCTAssertFalse(session.captured)
+    let fresh = try await screen(server, token, client)
+    let resumed = try await call(server, token, client, "click", action(fresh, "resumed"))
+    XCTAssertNotEqual(resumed["isError"].bool, true)
+    XCTAssertTrue(session.agentOwnsInput)
+
+    session.interruptAutomation()
+    XCTAssertEqual(server.pauseReason, .interrupted)
+    server.pauseControl()
+    session.capture()
+    XCTAssertEqual(server.pauseReason, .stopRequested,
+                   "Manual input must not relabel an explicit stop when no client owns control")
   }
 
   @MainActor func testWaitForVisualChangeAndTimeout() async throws {

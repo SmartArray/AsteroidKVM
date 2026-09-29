@@ -54,7 +54,7 @@ A frame ID is scoped to the MCP client that received it. The latest observation 
 
 Only one controller can own a device's input: an external MCP client or the built-in agent. Observation-only requests do not acquire control. Another device remains independent.
 
-- **Stop Automation** in the remote toolbar or MCP settings cancels input and pauses MCP control. Resume explicitly in MCP settings. Clicking back into the remote display takes manual control and pauses an existing MCP controller.
+- **Stop Automation** in the remote toolbar or MCP settings cancels input and pauses MCP control. Resume explicitly in MCP settings. Clicking back into the remote display takes manual control and pauses an existing MCP controller. After manual input, a subtle **Resume MCP** button appears beside **Connected** in the status bar; clicking it releases manual capture, resumes MCP control, and hides the button.
 - **⌃⌥⌘Esc** while the app is active releases input. The application menu command stops all devices; the remote display's shortcut and toolbar stop its device.
 - Ownership expires after 30 seconds without requests while idle. An operation is cancelled after 120 seconds. Very long text at slow intervals can therefore execute only partially.
 - Clients expire after five idle minutes. HTTP `DELETE` ends a client session and releases input. MCP cancellation notifications cancel the matching request.
