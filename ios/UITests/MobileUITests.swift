@@ -270,6 +270,43 @@ final class MobileUITests: XCTestCase {
     XCTAssertTrue(keyboard.waitForNonExistence(timeout: 5))
   }
 
+  @MainActor func testTrackpadMovementClickAndSwitchBackToAbsolute() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1"]
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    let controls = app.buttons["connection-controls"]
+    XCTAssertTrue(controls.waitForExistence(timeout: 10))
+    func selectMode(_ title: String) {
+      controls.tap()
+      app.buttons["Settings"].tap()
+      app.buttons["mouse-mode-setting"].tap()
+      app.buttons[title].tap()
+      app.buttons["Done"].tap()
+    }
+    let surface = app.descendants(matching: .any).matching(identifier: "Remote computer").firstMatch
+    func expect(_ predicate: String) {
+      XCTAssertTrue(
+        XCTWaiter.wait(
+          for: [
+            XCTNSPredicateExpectation(
+              predicate: NSPredicate(format: predicate), object: surface)
+          ], timeout: 5) == .completed)
+    }
+    selectMode("Trackpad")
+    surface.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).press(
+      forDuration: 0.05,
+      thenDragTo: surface.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.5)),
+      withVelocity: .slow, thenHoldForDuration: 0)
+    expect("value CONTAINS 'absolute=0' AND NOT value CONTAINS 'relative=0'")
+    surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    expect("value CONTAINS 'leftDown=1 leftUp=1' AND value CONTAINS 'absolute=0'")
+    selectMode("Absolute")
+    surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    expect("value CONTAINS 'leftDown=2 leftUp=2' AND NOT value CONTAINS 'absolute=0'")
+  }
+
   @MainActor func testKeyboardToolbarChordsScrollingAndPreference() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"

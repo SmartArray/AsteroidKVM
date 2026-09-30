@@ -16,10 +16,13 @@
       let downs = events.filter { $0 == .button("left", true) }.count
       let ups = events.filter { $0 == .button("left", false) }.count
       let moves = events.filter { $0.type == "mouse_move" || $0.type == "mouse_relative" }.count
+      let absolute = events.filter { $0.type == "mouse_move" }.count
+      let relative = events.filter { $0.type == "mouse_relative" }.count
       let keys = events.filter { $0.type == "key" }.map {
         "\($0.payload["key"].string ?? ""):\($0.payload["state"].bool == true ? "down" : "up")"
       }.joined(separator: ",")
-      return "leftDown=\(downs) leftUp=\(ups) moves=\(moves) keys=\(keys) text=\(text)"
+      return
+        "leftDown=\(downs) leftUp=\(ups) moves=\(moves) absolute=\(absolute) relative=\(relative) keys=\(keys) text=\(text)"
     }
   }
 

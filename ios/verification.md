@@ -12,6 +12,8 @@ Implementation date: 2026-09-29. Toolchain: Xcode 27.0 (27A266a), macOS 27.0. Mi
 
 ## Automated evidence
 
+Trackpad follow-up (2026-09-30): iOS now switches the live advertised HID output (`usb_rel` / `usb`) instead of only writing the KVM startup preference. It verifies the resulting HID state and reapplies the saved mode after reconnect, including no-signal sessions. Duplicate phase notifications are ignored so routine streamer updates cannot release input. Two local HTTP/WebSocket protocol tests passed for mode changes, reconnect/no-signal, idempotence, unsupported outputs and rejected changes. The iPhone 17e UI regression passed for relative drags, balanced taps and switching back to absolute input; all 17 mobile contract tests passed. Generic Simulator and unsigned device builds passed. Real-KVM confirmation remains pending.
+
 | Check | Result |
 | --- | --- |
 | Generic iOS Simulator build, arm64 and x86_64 | Passed |

@@ -34,7 +34,7 @@ Use **Test connection** below the editor fields to check the entered credentials
 
 ## Controls
 
-- **One finger:** absolute pointer movement; tap to click, double-tap to double-click, long-press to right-click, double-tap then hold/move to drag. Trackpad mode sends relative motion without jumping to touch-down.
+- **One finger:** absolute pointer movement; tap to click, double-tap to double-click, long-press to right-click, double-tap then hold/move to drag. Trackpad mode sends relative motion without jumping to touch-down. Selecting a mouse mode switches the KVM’s advertised live HID output and verifies it; the saved mode is reapplied on reconnect, including without a video signal. Unsupported or unsuccessful switches show an error.
 - **Two fingers:** local pan and anchored pinch zoom, 1×–6×. Settings → Fit to Screen resets the view.
 - **Three fingers:** remote vertical scrolling. Position the pointer over the desired panel first. Reverse scrolling defaults to off; direction and sensitivity are configurable. System accessibility/editing gestures can take priority; the remote view also exposes accessibility scroll actions.
 - **Round button:** tap for controls; drag to another safe-area corner. Its corner persists across launches and adapts to resizing.

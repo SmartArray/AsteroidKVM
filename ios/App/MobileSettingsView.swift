@@ -41,11 +41,10 @@ struct MobileSettingsView: View {
               get: { session.profile.mobileMouseMode },
               set: { value in
                 session.updateProfile { $0.mobileMouseMode = value }
-                if session.state.system["absolute_mouse"].bool != nil {
-                  session.setSystemParameter("absolute_mouse", value: String(value == .absolute))
-                }
+                session.synchronizeMobileMouseMode()
               })
           ) { ForEach(MobileMouseMode.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
+          .accessibilityIdentifier("mouse-mode-setting")
           Toggle("Send mouse input", isOn: preference(\.mouseEnabled))
           Text("Trackpad sensitivity")
           Slider(value: preference(\.mouseSensitivity), in: 0.1...4)

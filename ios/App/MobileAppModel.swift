@@ -89,16 +89,13 @@ import UIKit
     session = created
     pendingInitialConnection = created.id
     initialConnectionAllowed = false
-    phaseObserver = created.$phase.sink { [weak created] phase in
-      // Apply the saved mode only after the device advertises its switching endpoint.
-      if phase == .connected, let created,
-        let absolute = created.state.system["absolute_mouse"].bool,
-        absolute != (created.profile.mobileMouseMode == .absolute)
-      {
+    phaseObserver = created.$phase.removeDuplicates().sink { [weak created] phase in
+      // Reapply the saved gesture mode to the live HID output after every connection.
+      // The system startup preference can disagree with the running USB mouse.
+      if phase == .connected || phase == .noSignal {
         Task { @MainActor [weak created] in
           guard let created, created.active else { return }
-          created.setSystemParameter(
-            "absolute_mouse", value: String(created.profile.mobileMouseMode == .absolute))
+          created.synchronizeMobileMouseMode()
         }
       }
       UIApplication.shared.isIdleTimerDisabled =

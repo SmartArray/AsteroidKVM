@@ -34,6 +34,62 @@ final class ProtocolE2ETests: XCTestCase {
       profile: ConnectionProfile(name: "Fixture", host: "127.0.0.1", port: port, scheme: "http"))
   }
 
+  // A persisted startup flag must never stand in for the running USB mouse mode.
+  @MainActor func testMobileMouseModeSwitchesLiveOutputAndReappliesAfterReconnect() async throws {
+    var profile = ConnectionProfile(name: "Trackpad", host: "127.0.0.1", port: port, scheme: "http")
+    profile.mobileMouseMode = .trackpad
+    let session = SessionController(
+      profile: profile, password: "test-password",
+      mediaFactory: { _, _ in FixtureMedia() })
+    session.connect()
+    try await waitUntil { session.active }
+    session.synchronizeMobileMouseMode()
+    try await waitUntil { session.state.hid["mouse"]["absolute"].bool == false }
+    XCTAssertEqual(session.state.system["absolute_mouse"].bool, true)
+    session.updateProfile { $0.mobileMouseMode = .absolute }
+    session.synchronizeMobileMouseMode()
+    try await waitUntil { session.state.hid["mouse"]["absolute"].bool == true }
+    session.updateProfile { $0.mobileMouseMode = .trackpad }
+    await session.disconnect()
+    session.connect()
+    try await waitUntil { session.active }
+    // Mouse mode also applies while the target has no video signal.
+    session.phase = .noSignal
+    session.synchronizeMobileMouseMode()
+    try await waitUntil { session.state.hid["mouse"]["absolute"].bool == false }
+    let service = try XCTUnwrap(session.api)
+    _ = try await service.applyMobileMouseMode(.trackpad)
+    let recorded = try await service.call("/test/state")
+    XCTAssertEqual(
+      recorded["mouse_switches"], .array([.string("usb_rel"), .string("usb"), .string("usb_rel")]))
+    await session.disconnect()
+  }
+
+  func testMobileMouseModeRejectsUnsupportedAndUnappliedOutput() async throws {
+    let service = api()
+    try await service.login(password: "test-password")
+    try await service.call(
+      "/test/mouse", method: "POST",
+      body: JSONValue.object(["mouse_outputs": .array([.string("usb")])]).data())
+    do {
+      _ = try await service.applyMobileMouseMode(.trackpad)
+      XCTFail("Unsupported relative output was accepted")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("does not advertise")) }
+    let unsupported = try await service.call("/test/state")
+    XCTAssertEqual(unsupported["mouse_switches"], .array([]))
+    try await service.call(
+      "/test/mouse", method: "POST",
+      body: JSONValue.object([
+        "mouse_outputs": .array([.string("usb"), .string("usb_rel")]),
+        "ignore_mouse_switch": .bool(true),
+      ]).data())
+    do {
+      _ = try await service.applyMobileMouseMode(.trackpad)
+      XCTFail("An unchanged live output was accepted")
+    } catch { XCTAssertTrue(error.localizedDescription.contains("did not switch")) }
+    await service.close()
+  }
+
   // Exercise authenticated multipart EDID uploads and byte-exact restoration through the production URLSession.
   func testEDIDReadApplyRestoreAndAuthentication() async throws {
     let service = api()

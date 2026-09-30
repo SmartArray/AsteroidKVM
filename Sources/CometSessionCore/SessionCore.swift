@@ -538,6 +538,15 @@ import CometMedia
       }, apply: { $0.system = $1 })
   }
 
+  // Apply the iOS gesture preference to the running mouse, independently of boot configuration.
+  public func synchronizeMobileMouseMode() {
+    let mode = profile.mobileMouseMode
+    performSetting(
+      "hid:mouse_output",
+      operation: { try await $0.applyMobileMouseMode(mode) },
+      apply: { $0.hid = $1 })
+  }
+
   // Update a supported HID option and read its actual resulting state.
   public func setHID(_ key: String, value: String) {
     interruptAutomation()

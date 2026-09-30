@@ -20,6 +20,10 @@ state = {
     "pastes": [],
     "edid": "",
     "edid_writes": 0,
+    "mouse_output": "usb",
+    "mouse_outputs": ["usb", "usb_rel"],
+    "mouse_switches": [],
+    "ignore_mouse_switch": False,
     "params": {
         "desired_fps": 60,
         "h264_bitrate": 5000,
@@ -80,6 +84,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply({"token": token})
         if path == "/test/state":
             return self.reply({k: v for k, v in state.items() if k != "tokens"})
+        if path == "/test/mouse":
+            state.update(json.loads(body))
+            return self.reply({})
         if self.token() not in state["tokens"]:
             return self.reply({}, 403)
         if path == "/test/offer":
@@ -123,10 +130,22 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(
                 {
                     "keyboard": {"online": True},
-                    "mouse": {"online": True},
+                    "mouse": {
+                        "online": True,
+                        "absolute": state["mouse_output"] == "usb",
+                        "outputs": {"available": state["mouse_outputs"], "active": state["mouse_output"]},
+                    },
                     "jiggler": {"enabled": False},
                 }
             )
+        if path == "/api/hid/set_params":
+            output = query.get("mouse_output", [None])[0]
+            if output not in state["mouse_outputs"]:
+                return self.reply({}, 400)
+            state["mouse_switches"].append(output)
+            if not state["ignore_mouse_switch"]:
+                state["mouse_output"] = output
+            return self.reply({})
         if path == "/api/streamer":
             return self.reply(
                 {
