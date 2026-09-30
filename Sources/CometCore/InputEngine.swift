@@ -166,7 +166,7 @@ public struct InputEngine: Sendable {
     case event(HIDEvent)
     case paste(String, String)
     case keyboardText(String, String)
-    case keyboardKey(String)
+    case keyboardChord([String])
     case barrier(CheckedContinuation<Void, Never>)
   }
   private var pending: [Command] = []
@@ -184,7 +184,7 @@ public struct InputEngine: Sendable {
     var accepted: [Command] = []
     pending.removeAll { command in
       switch command {
-      case .keyboardText, .keyboardKey, .barrier:
+      case .keyboardText, .keyboardChord, .barrier:
         accepted.append(command)
         return true
       default: return false
@@ -251,12 +251,18 @@ public struct InputEngine: Sendable {
   }
 
   public func keyboardKey(_ code: String) {
-    guard !pasting else { return }
+    keyboardChord([code])
+  }
+
+  // A software-keyboard chord is one accepted command, including its balanced releases.
+  public func keyboardChord(_ codes: [String]) {
+    guard !pasting, !codes.isEmpty else { return }
     guard pending.count < 512 else {
       onError?(CometError.unsupported("Keyboard input is waiting for the KVM. Wait before typing more."))
       return
     }
-    pending.append(.keyboardKey(code))
+    var seen: Set<String> = []
+    pending.append(.keyboardChord(codes.filter { seen.insert($0).inserted }))
     drain()
   }
 
@@ -366,12 +372,17 @@ public struct InputEngine: Sendable {
             finishPaste(.success(()))
           case .keyboardText(let text, let keymap):
             try await printText(text, keymap)
-          case .keyboardKey(let code):
-            keys.insert(code)
-            try await send(.key(code, true))
-            try Task.checkCancellation()
-            try await send(.key(code, false))
-            keys.remove(code)
+          case .keyboardChord(let codes):
+            for code in codes {
+              try Task.checkCancellation()
+              keys.insert(code)
+              try await send(.key(code, true))
+            }
+            for code in codes.reversed() {
+              try Task.checkCancellation()
+              try await send(.key(code, false))
+              keys.remove(code)
+            }
           case .barrier(let continuation): continuation.resume()
           }
         } catch {

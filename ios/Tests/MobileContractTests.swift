@@ -5,6 +5,25 @@ import CoreGraphics
 import XCTest
 
 final class MobileContractTests: XCTestCase {
+  @MainActor func testSoftwareKeyboardChordsStayOrderedAndBalancedAcrossFocusChanges() async {
+    let record = KeyboardRecord()
+    let output = HIDOutput(
+      send: { event in
+        try await Task.sleep(for: .milliseconds(5))
+        await record.append("\(event.payload["key"].string ?? ""):\(event.payload["state"].bool == true ? "down" : "up")")
+      }, paste: { text, _ in await record.append(text) })
+    output.keyboardText("before", keymap: "en-us")
+    output.keyboardChord(["ControlLeft", "AltLeft", "Delete"])
+    output.keyboardChord(["ShiftLeft", "ShiftLeft", "ArrowRight"])
+    output.keyboardText("after", keymap: "en-us")
+    output.releasePhysicalInput()
+    await output.flush()
+    let entries = await record.entries
+    XCTAssertEqual(entries, ["before", "ControlLeft:down", "AltLeft:down", "Delete:down",
+      "Delete:up", "AltLeft:up", "ControlLeft:up", "ShiftLeft:down", "ArrowRight:down",
+      "ArrowRight:up", "ShiftLeft:up", "after"])
+  }
+
   @MainActor func testSoftwareKeyboardKeepsTextAndKeysOrderedAcrossFocusChanges() async {
     let record = KeyboardRecord()
     let output = HIDOutput(

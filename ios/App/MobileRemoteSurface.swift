@@ -10,9 +10,11 @@ struct MobileRemoteSurface: UIViewRepresentable {
   var blocked: Bool
   var fitToken: Int
   var keyboardVisible = false
+  @AppStorage("keyboardToolbarEnabled") private var keyboardToolbarEnabled = true
   func makeUIView(context: Context) -> RemoteTouchView { RemoteTouchView(session: session) }
   func updateUIView(_ view: RemoteTouchView, context: Context) {
-    view.synchronize(blocked: blocked, fitToken: fitToken, keyboardVisible: keyboardVisible)
+    view.synchronize(blocked: blocked, fitToken: fitToken, keyboardVisible: keyboardVisible,
+      toolbarEnabled: keyboardToolbarEnabled)
   }
   static func dismantleUIView(_ view: RemoteTouchView, coordinator: ()) {
     view.cancelInteraction()
@@ -80,13 +82,24 @@ final class RemoteTouchView: UIView {
     // A native text responder supplies the system keyboard and owns local IME composition.
     keyboardInput.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
     addSubview(keyboardInput)
-    keyboardInput.onText = { [weak self] text in
+    keyboardInput.onText = { [weak self] text, modifiers in
       guard let self, self.canSend, self.session.profile.keyboardEnabled else { return }
-      self.session.output?.keyboardText(text, keymap: self.session.profile.keymap)
+      if modifiers.isEmpty {
+        self.session.output?.keyboardText(text, keymap: self.session.profile.keymap)
+      } else {
+        let chords = text.map { MobileKeyCodes.shortcutKeys(for: $0) }
+        guard chords.allSatisfy({ $0 != nil }) else {
+          self.session.message = "This character cannot be combined with shortcut modifiers. Deselect the modifiers to type it normally."
+          return
+        }
+        for chord in chords.compactMap({ $0 }) {
+          self.session.output?.keyboardChord(modifiers + chord)
+        }
+      }
     }
-    keyboardInput.onKey = { [weak self] code in
+    keyboardInput.onKey = { [weak self] code, modifiers in
       guard let self, self.canSend, self.session.profile.keyboardEnabled else { return }
-      self.session.output?.keyboardKey(code)
+      self.session.output?.keyboardChord(modifiers + [code])
     }
     if let device = metal.device {
       do {
@@ -133,7 +146,8 @@ final class RemoteTouchView: UIView {
       lastBounds = bounds.size
     }
   }
-  func synchronize(blocked: Bool, fitToken: Int, keyboardVisible: Bool) {
+  func synchronize(blocked: Bool, fitToken: Int, keyboardVisible: Bool, toolbarEnabled: Bool) {
+    keyboardInput.setToolbarEnabled(toolbarEnabled)
     keyboardRequested = keyboardVisible && session.profile.keyboardEnabled
     let unavailable = blocked || !session.active || session.pasting
     if unavailable != self.blocked {
@@ -183,6 +197,7 @@ final class RemoteTouchView: UIView {
     }
   }
   func dismissKeyboard() {
+    keyboardInput.clearModifiers()
     keyboardInput.resignFirstResponder()
     keyboardInput.text = ""
   }
@@ -475,14 +490,133 @@ final class RemoteTouchView: UIView {
   }
 }
 
+/// A native accessory keeps the keys attached to both docked and floating iPad keyboards.
+private final class RemoteKeyboardToolbar: UIView {
+  var onKey: ((String) -> Void)?
+  private var selected: Set<String> = []
+  private var modifierButtons: [String: UIButton] = [:]
+  private let modifiers = [("Ctrl", "ControlLeft"), ("Alt", "AltLeft"),
+    ("Shift", "ShiftLeft"), ("Win/⌘", "MetaLeft"), ("AltGr", "AltRight")]
+  override var intrinsicContentSize: CGSize { CGSize(width: UIView.noIntrinsicMetric, height: 60) }
+
+  init() {
+    super.init(frame: CGRect(x: 0, y: 0, width: 0, height: 60))
+    autoresizingMask = [.flexibleWidth]
+    let background = UIVisualEffectView(effect: UIBlurEffect(style: .systemChromeMaterial))
+    background.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(background)
+    let scroll = UIScrollView()
+    scroll.translatesAutoresizingMaskIntoConstraints = false
+    scroll.showsHorizontalScrollIndicator = true
+    scroll.alwaysBounceHorizontal = true
+    scroll.accessibilityIdentifier = "keyboard-special-keys"
+    addSubview(scroll)
+    let stack = UIStackView()
+    stack.axis = .horizontal
+    stack.spacing = 6
+    stack.alignment = .center
+    stack.translatesAutoresizingMaskIntoConstraints = false
+    scroll.addSubview(stack)
+    NSLayoutConstraint.activate([
+      background.leadingAnchor.constraint(equalTo: leadingAnchor),
+      background.trailingAnchor.constraint(equalTo: trailingAnchor),
+      background.topAnchor.constraint(equalTo: topAnchor),
+      background.bottomAnchor.constraint(equalTo: bottomAnchor),
+      scroll.leadingAnchor.constraint(equalTo: safeAreaLayoutGuide.leadingAnchor),
+      scroll.trailingAnchor.constraint(equalTo: safeAreaLayoutGuide.trailingAnchor),
+      scroll.topAnchor.constraint(equalTo: topAnchor), scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
+      stack.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 10),
+      stack.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -10),
+      stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor),
+      stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor),
+      stack.heightAnchor.constraint(equalTo: scroll.frameLayoutGuide.heightAnchor),
+    ])
+    let keys = [("Esc", "Escape"), ("Tab", "Tab"), ("←", "ArrowLeft"), ("↑", "ArrowUp"),
+      ("↓", "ArrowDown"), ("→", "ArrowRight")]
+      + (1...12).map { ("F\($0)", "F\($0)") }
+      + [("Home", "Home"), ("End", "End"), ("PgUp", "PageUp"), ("PgDn", "PageDown"),
+        ("Ins", "Insert"), ("Del", "Delete"), ("Caps", "CapsLock"), ("PrtSc", "PrintScreen"),
+        ("ScrLk", "ScrollLock"), ("Pause", "Pause"), ("NumLk", "NumLock")]
+    for (title, code) in modifiers + keys {
+      let isModifier = modifiers.contains { $0.1 == code }
+      let button = UIButton(type: .system)
+      var config = UIButton.Configuration.filled()
+      config.title = title
+      config.baseBackgroundColor = .secondarySystemGroupedBackground
+      config.baseForegroundColor = .label
+      config.cornerStyle = .medium
+      config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
+      button.configuration = config
+      button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+      button.accessibilityIdentifier = "keyboard-key-\(code)"
+      button.accessibilityLabel = ["ControlLeft": "Control", "AltLeft": "Alt",
+        "ShiftLeft": "Shift", "MetaLeft": "Windows or Command", "AltRight": "AltGr",
+        "ArrowLeft": "Left arrow", "ArrowUp": "Up arrow", "ArrowDown": "Down arrow",
+        "ArrowRight": "Right arrow", "PageUp": "Page up", "PageDown": "Page down",
+        "CapsLock": "Caps Lock", "PrintScreen": "Print Screen", "ScrollLock": "Scroll Lock",
+        "NumLock": "Num Lock"][code] ?? code
+      if isModifier {
+        modifierButtons[code] = button
+        button.accessibilityHint = "Select for the next key. Tap again to deselect."
+      }
+      button.configurationUpdateHandler = { button in
+        button.configuration?.baseBackgroundColor = button.isSelected ? .systemIndigo : .secondarySystemGroupedBackground
+        button.configuration?.baseForegroundColor = button.isSelected ? .white : .label
+      }
+      button.addAction(UIAction { [weak self] _ in
+        guard let self else { return }
+        if isModifier {
+          if !self.selected.insert(code).inserted { self.selected.remove(code) }
+          self.updateModifiers()
+        } else {
+          self.onKey?(code)
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+      }, for: .touchUpInside)
+      stack.addArrangedSubview(button)
+      button.widthAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+      button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+    }
+  }
+  required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+  func consumeModifiers() -> [String] {
+    let codes = modifiers.map(\.1).filter { selected.contains($0) }
+    clearModifiers()
+    return codes
+  }
+  func clearModifiers() {
+    selected.removeAll()
+    updateModifiers()
+  }
+  private func updateModifiers() {
+    for (code, button) in modifierButtons {
+      button.isSelected = selected.contains(code)
+      button.accessibilityValue = button.isSelected ? "Selected" : "Not selected"
+    }
+  }
+}
+
 // Only committed text reaches the KVM; composition and prediction remain local to UIKit.
 private final class RemoteKeyboardInputView: UITextView, UITextViewDelegate {
-  var onText: ((String) -> Void)?
-  var onKey: ((String) -> Void)?
+  var onText: ((String, [String]) -> Void)?
+  var onKey: ((String, [String]) -> Void)?
+  private let toolbar = RemoteKeyboardToolbar()
+  private var toolbarEnabled = false
+
+  func setToolbarEnabled(_ enabled: Bool) {
+    guard enabled != toolbarEnabled else { return }
+    toolbarEnabled = enabled
+    clearModifiers()
+    inputAccessoryView = enabled ? toolbar : nil
+    if isFirstResponder { reloadInputViews() }
+  }
+  func clearModifiers() { toolbar.clearModifiers() }
+  private func sendKey(_ code: String) { onKey?(code, toolbar.consumeModifiers()) }
   override var hasText: Bool { true }  // Backspace must work on the remote document even with no local text.
   init() {
     super.init(frame: .zero, textContainer: nil)
     delegate = self
+    toolbar.onKey = { [weak self] code in self?.sendKey(code) }
     backgroundColor = .clear
     textColor = .clear
     tintColor = .clear
@@ -503,13 +637,13 @@ private final class RemoteKeyboardInputView: UITextView, UITextViewDelegate {
     guard markedTextRange == nil, !text.isEmpty else { return }
     let committed = text ?? ""
     text = ""
-    onText?(committed)
+    onText?(committed, toolbar.consumeModifiers())
   }
   func textView(
     _ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String
   ) -> Bool {
     if markedTextRange == nil, text == "\n" {
-      onKey?("Enter")
+      sendKey("Enter")
       return false
     }
     return true
@@ -518,12 +652,30 @@ private final class RemoteKeyboardInputView: UITextView, UITextViewDelegate {
     if markedTextRange != nil || !text.isEmpty {
       super.deleteBackward()
     } else {
-      onKey?("Backspace")
+      sendKey("Backspace")
     }
   }
 }
 
 enum MobileKeyCodes {
+  // Shortcut chords use the same browser/USB key identities as the Special keys menu.
+  static func shortcutKeys(for character: Character) -> [String]? {
+    let text = String(character)
+    if text.count == 1, let scalar = text.uppercased().unicodeScalars.first,
+      text.uppercased().unicodeScalars.count == 1, (65...90).contains(scalar.value) {
+      return (text == text.uppercased() ? ["ShiftLeft"] : []) + ["Key" + String(scalar)]
+    }
+    if let value = character.asciiValue, (48...57).contains(value) { return ["Digit" + text] }
+    let keys = [" ": "Space", "\t": "Tab", "\n": "Enter", "-": "Minus", "=": "Equal",
+      "[": "BracketLeft", "]": "BracketRight", "\\": "Backslash", ";": "Semicolon",
+      "'": "Quote", "`": "Backquote", ",": "Comma", ".": "Period", "/": "Slash"]
+    if let code = keys[text] { return [code] }
+    let shifted = ["!": "Digit1", "@": "Digit2", "#": "Digit3", "$": "Digit4", "%": "Digit5",
+      "^": "Digit6", "&": "Digit7", "*": "Digit8", "(": "Digit9", ")": "Digit0",
+      "_": "Minus", "+": "Equal", "{": "BracketLeft", "}": "BracketRight", "|": "Backslash",
+      ":": "Semicolon", "\"": "Quote", "~": "Backquote", "<": "Comma", ">": "Period", "?": "Slash"]
+    return shifted[text].map { ["ShiftLeft", $0] }
+  }
   static func modifier(_ code: Int) -> (KeyModifiers, String)? {
     [
       224: (.control, "ControlLeft"), 225: (.shift, "ShiftLeft"), 226: (.option, "AltLeft"),

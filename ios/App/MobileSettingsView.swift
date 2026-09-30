@@ -9,6 +9,7 @@ struct MobileSettingsView: View {
   var guide: () -> Void
   @Environment(\.dismiss) private var dismiss
   @AppStorage("appearance") private var appearance = "System"
+  @AppStorage("keyboardToolbarEnabled") private var keyboardToolbarEnabled = true
   @State private var confirmation: DeviceChange?
   @State private var about = false
   private struct DeviceChange: Identifiable {
@@ -55,6 +56,10 @@ struct MobileSettingsView: View {
             .font(.caption).foregroundStyle(.secondary)
         }
         Section("Keyboard & Type") {
+          Toggle("Show special-key toolbar", isOn: $keyboardToolbarEnabled)
+            .accessibilityIdentifier("keyboard-toolbar-setting")
+          Text("Swipe the toolbar for more keys. Tap modifiers to apply them to the next key.")
+            .font(.caption).foregroundStyle(.secondary)
           Toggle("Send keyboard input", isOn: preference(\.keyboardEnabled))
           Toggle("Use native keyboard layout", isOn: preference(\.nativeLayout)).disabled(
             !session.state.mappedText)

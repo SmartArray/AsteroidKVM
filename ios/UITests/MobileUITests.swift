@@ -270,6 +270,102 @@ final class MobileUITests: XCTestCase {
     XCTAssertTrue(keyboard.waitForNonExistence(timeout: 5))
   }
 
+  @MainActor func testKeyboardToolbarChordsScrollingAndPreference() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    app.launchEnvironment["ASTEROID_RESET_KEYBOARD_TOOLBAR"] = "1"
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1"]
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    let controls = app.buttons["connection-controls"]
+    XCTAssertTrue(controls.waitForExistence(timeout: 10))
+    controls.tap()
+    app.buttons["Keyboard"].tap()
+    let toolbar = app.scrollViews["keyboard-special-keys"]
+    XCTAssertTrue(toolbar.waitForExistence(timeout: 5))
+    let keyboard = app.keyboards.firstMatch
+    if app.otherElements["UIContinuousPathIntroductionView"].exists { app.buttons["Continue"].tap() }
+    let control = app.buttons["keyboard-key-ControlLeft"]
+    control.tap()
+    XCTAssertEqual(control.value as? String, "Selected")
+    keyboard.keys["c"].tap()
+    let surface = app.descendants(matching: .any).matching(identifier: "Remote computer").firstMatch
+    func expectKeys(_ sequence: String) {
+      XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+        predicate: NSPredicate(format: "value CONTAINS %@", sequence), object: surface)], timeout: 10) == .completed)
+    }
+    expectKeys("ControlLeft:down,KeyC:down,KeyC:up,ControlLeft:up")
+    XCTAssertEqual(control.value as? String, "Not selected")
+    app.buttons["keyboard-key-AltLeft"].tap()
+    func tapToolbarKey(_ code: String) {
+      let button = app.buttons["keyboard-key-\(code)"]
+      for _ in 0..<16 {
+        if button.isHittable && toolbar.frame.contains(CGPoint(x: button.frame.midX, y: button.frame.midY)) { break }
+        let movingLeft = button.frame.midX > toolbar.frame.midX
+        toolbar.coordinate(withNormalizedOffset: CGVector(dx: movingLeft ? 0.8 : 0.2, dy: 0.5)).press(
+          forDuration: 0.05,
+          thenDragTo: toolbar.coordinate(withNormalizedOffset: CGVector(dx: movingLeft ? 0.2 : 0.8, dy: 0.5)),
+          withVelocity: .slow, thenHoldForDuration: 0.2)
+      }
+      XCTAssertTrue(button.isHittable)
+      button.tap()
+    }
+    tapToolbarKey("F4")
+    expectKeys("AltLeft:down,F4:down,F4:up,AltLeft:up")
+    screenshot("keyboard-special-keys", app)
+    tapToolbarKey("ArrowRight")
+    expectKeys("ArrowRight:down,ArrowRight:up")
+    tapToolbarKey("End")
+    expectKeys("End:down,End:up")
+    XCTAssertTrue(keyboard.exists)
+    controls.tap()
+    XCTAssertTrue(toolbar.waitForNonExistence(timeout: 5))
+    controls.tap()
+    app.buttons["Settings"].tap()
+    let toggle = app.switches["keyboard-toolbar-setting"]
+    for _ in 0..<4 {
+      if toggle.isHittable { break }
+      app.swipeUp()
+    }
+    XCTAssertEqual(toggle.value as? String, "1")
+    // SwiftUI exposes the whole row as a switch; target the actual trailing toggle.
+    toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+    XCTAssertEqual(toggle.value as? String, "0")
+    app.buttons["Done"].tap()
+    app.terminate()
+    app.launchEnvironment.removeValue(forKey: "ASTEROID_RESET_KEYBOARD_TOOLBAR")
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1"]
+    app.launch()
+    XCTAssertTrue(controls.waitForExistence(timeout: 10))
+    controls.tap()
+    app.buttons["Keyboard"].tap()
+    XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+    XCTAssertFalse(toolbar.exists)
+    controls.tap()
+    controls.tap()
+    app.buttons["Settings"].tap()
+    for _ in 0..<4 {
+      if toggle.isHittable { break }
+      app.swipeUp()
+    }
+    XCTAssertEqual(toggle.value as? String, "0")
+    // SwiftUI exposes the whole row as a switch; target the actual trailing toggle.
+    toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+    app.buttons["Done"].tap()
+    controls.tap()
+    app.buttons["Keyboard"].tap()
+    XCTAssertTrue(toolbar.waitForExistence(timeout: 5))
+    XCTAssertEqual(app.buttons["keyboard-key-ControlLeft"].value as? String, "Not selected")
+    app.buttons["keyboard-key-ControlLeft"].tap()
+    controls.tap()
+    controls.tap()
+    app.buttons["Keyboard"].tap()
+    XCTAssertTrue(toolbar.waitForExistence(timeout: 5))
+    XCTAssertEqual(app.buttons["keyboard-key-ControlLeft"].value as? String, "Not selected")
+    screenshot("keyboard-toolbar-modifiers", app)
+    controls.tap()
+  }
+
   @MainActor func testConnectionProbeSuccessFailureAndEditedCredentials() throws {
     let server = try ConnectionTestServer()
     defer { server.close() }

@@ -101,6 +101,16 @@ Confirming Close connection now dismisses the controls sheet first, then perform
 
 The updated hold-to-close UI check verifies that Close connection and Type disappear, Connections becomes visible, and Add connection opens a usable editor. It passed on iPhone 17e (`/tmp/AsteroidKVM-Close-Dismiss-Menu.xcresult`) and on iPad mini with the final floating-button guard (`/tmp/AsteroidKVM-Close-Dismiss-Final.xcresult`). Final generic Simulator and unsigned device builds passed; local ZIP artifacts were refreshed.
 
+## Scrollable software-keyboard toolbar
+
+A native 60-point input accessory contains 34 modifier and special keys in a horizontal scroll view, with 44-point minimum hit targets and adaptive system colors. Ctrl, Alt, Shift, Windows/Command and AltGr are local, one-shot selections: they join the next special key or software-keyboard character, then clear. Closing or disabling the toolbar clears selections. The app-wide `keyboardToolbarEnabled` preference defaults to true and is exposed under Keyboard & Type in Settings.
+
+The shared HID queue now accepts an entire software-keyboard chord as one command, presses keys in order, and releases them in reverse order. It deduplicates modifiers, preserves accepted chords across focus changes, and keeps them ordered with committed text. Normal typing still uses the configured firmware keymap. Modifier shortcuts use browser/USB key identities for Latin letters, digits and US punctuation, consistent with the existing shortcuts menu; unsupported characters produce a message rather than silently sending incorrect text. Real target-layout behavior remains part of KVM acceptance.
+
+All 17 mobile contracts passed, including ordered/balanced chords across focus changes. The persistent-keyboard typing, rotation, zoom/center and dismissal regression passed on iPhone and iPad. Final toolbar UI checks passed on both devices: default-on state, Ctrl+C, Alt+F4, arrows, End, horizontal scrolling, clearing modifiers on dismissal, disabling, relaunch persistence and re-enabling. Evidence: `/tmp/AsteroidKVM-Toolbar-Final-iPhone.xcresult` and `/tmp/AsteroidKVM-Toolbar-Final-iPad.xcresult`. Contracts and existing keyboard checks are in `/tmp/AsteroidKVM-Toolbar-Tests.xcresult` and `/tmp/AsteroidKVM-Toolbar-iPad.xcresult`; those earlier bundles also contain initial toolbar-test failures from overshooting scroll gestures and tapping a switch row's label rather than its trailing control. The final checks target the actual switch and use controlled horizontal drags.
+
+Generic Simulator and unsigned device builds passed. Both ZIP artifacts were refreshed. Light iPhone and dark iPad screenshots were visually inspected and saved as `build/screenshots/ios-keyboard-special-keys.png`, `ios-keyboard-toolbar-modifiers.png` and `ios-keyboard-toolbar-ipad.png`.
+
 ## Local build artifacts
 
 - `build/AsteroidKVM-iOS-Simulator.zip`: installable Simulator app, both simulator architectures.

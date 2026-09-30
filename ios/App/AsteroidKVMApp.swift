@@ -11,6 +11,9 @@ import SwiftUI
       if ProcessInfo.processInfo.environment["ASTEROID_RESET_WELCOME"] == "1" {
         UserDefaults.standard.removeObject(forKey: "welcomeVersion")
       }
+      if ProcessInfo.processInfo.environment["ASTEROID_RESET_KEYBOARD_TOOLBAR"] == "1" {
+        UserDefaults.standard.removeObject(forKey: "keyboardToolbarEnabled")
+      }
     #endif
   }
   var body: some Scene {
