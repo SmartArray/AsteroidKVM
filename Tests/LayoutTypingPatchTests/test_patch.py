@@ -155,5 +155,102 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
 
 
+class BytecodeInstallerTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.package = Path(self.temp.name).resolve() / 'kvmd'
+        self.backup = Path(self.temp.name) / 'backup.json'
+        self.overlays = {name: (ROOT / 'scripts/patches' / ('bytecode-' + Path(name).name)).read_text()
+                         for name in patcher.FILES}
+        for name in patcher.FILES:
+            path = (self.package / name).with_suffix('.pyc')
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'vendor bytecode fixture')
+        # Real import/character validation is exercised by the on-device preflight.
+        probe = patch.object(patcher, 'verify_bytecode')
+        self.probe = probe.start()
+        self.addCleanup(probe.stop)
+
+    def run_action(self, action='apply'):
+        with contextlib.redirect_stdout(io.StringIO()):
+            patcher.install_bytecode(self.package, self.overlays, action, self.backup)
+
+    def test_check_is_read_only(self):
+        self.run_action('check')
+        self.probe.assert_called_once()
+        self.assertFalse(self.backup.exists())
+        for name in patcher.FILES:
+            self.assertFalse((self.package / name).exists())
+
+    def test_apply_repeat_restore_repeat_and_reapply(self):
+        self.run_action()
+        backup = self.backup.read_bytes()
+        mtimes = {name: (self.package / name).stat().st_mtime_ns for name in patcher.FILES}
+        self.run_action()
+        for name in patcher.FILES:
+            self.assertEqual((self.package / name).stat().st_mtime_ns, mtimes[name])
+        self.run_action('restore')
+        self.run_action('restore')
+        for name in patcher.FILES:
+            self.assertFalse((self.package / name).exists())
+            self.assertEqual((self.package / name).with_suffix('.pyc').read_bytes(), b'vendor bytecode fixture')
+        self.run_action()
+        self.assertEqual(self.backup.read_bytes(), backup)
+
+    def test_incompatible_interfaces_prevent_any_write(self):
+        self.probe.side_effect = RuntimeError('unsupported firmware')
+        with self.assertRaises(RuntimeError):
+            self.run_action()
+        self.assertFalse(self.backup.exists())
+        self.assertFalse(any((self.package / name).exists() for name in patcher.FILES))
+
+    def test_firmware_changes_are_refused(self):
+        self.run_action()
+        (self.package / patcher.FILES[0]).with_suffix('.pyc').write_bytes(b'new firmware')
+        for action in ('apply', 'restore', 'check'):
+            with self.assertRaisesRegex(RuntimeError, 'Vendor bytecode changed'):
+                self.run_action(action)
+
+    def test_unknown_source_is_not_overwritten(self):
+        source = self.package / patcher.FILES[0]
+        source.write_text('# third-party source\n')
+        with self.assertRaisesRegex(RuntimeError, 'existing source'):
+            self.run_action()
+        self.assertEqual(source.read_text(), '# third-party source\n')
+        self.assertFalse(self.backup.exists())
+
+    def test_partial_install_and_restore_are_recoverable(self):
+        self.run_action()
+        (self.package / patcher.FILES[1]).unlink()
+        self.run_action()
+        self.assertTrue((self.package / patcher.FILES[1]).is_file())
+        (self.package / patcher.FILES[0]).unlink()
+        self.run_action('restore')
+        self.assertFalse(any((self.package / name).exists() for name in patcher.FILES))
+
+    def test_write_failure_removes_new_sources(self):
+        original = patcher.atomic_write
+        def fail_second(path, *args):
+            if path == self.package / patcher.FILES[1]:
+                raise OSError('disk failure')
+            return original(path, *args)
+        with patch.object(patcher, 'atomic_write', side_effect=fail_second):
+            with self.assertRaises(OSError):
+                self.run_action()
+        self.assertFalse(any((self.package / name).exists() for name in patcher.FILES))
+        self.run_action()
+
+    def test_edited_overlay_and_missing_manifest_are_refused(self):
+        self.run_action()
+        source = self.package / patcher.FILES[0]
+        source.write_bytes(source.read_bytes() + b'\n# edited\n')
+        with self.assertRaisesRegex(RuntimeError, 'Overlay changed'):
+            self.run_action('restore')
+        self.backup.unlink()
+        with self.assertRaisesRegex(RuntimeError, 'without its backup'):
+            self.run_action()
+
+
 if __name__ == '__main__':
     unittest.main()

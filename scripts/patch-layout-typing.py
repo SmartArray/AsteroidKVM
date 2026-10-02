@@ -147,7 +147,155 @@ def install(package, patch, action, backup):
     print('Restart the KVM daemon before using native typing (see the guide).')
 
 
-def remote_main(options, patch):
+OVERLAY_MARKER = b'# AsteroidKVM layout typing bytecode overlay v1\n'
+BYTECODE_BACKUP = '/var/lib/asteroidkvm/layout-typing-bytecode-v1.json'
+BYTECODE_PROBE = r'''
+import asyncio, importlib, inspect, json, sys
+from pathlib import Path
+from unittest.mock import AsyncMock, Mock, patch
+options = json.loads(sys.stdin.read())
+package = Path(options['package'])
+sys.path.insert(0, str(package.parent))
+printer = importlib.import_module('kvmd.keyboard.printer')
+hid = importlib.import_module('kvmd.apps.kvmd.api.hid')
+from kvmd.htserver import _get_exposed_ws
+from kvmd.plugins.hid import BaseHid
+assert inspect.iscoroutinefunction(BaseHid.send_key_events), 'HID emission is not async'
+assert {'no_ignore_keys', 'slow'} <= set(inspect.signature(BaseHid.send_key_events).parameters)
+# Execute candidate overlays in an isolated process without writing source/cache files.
+for module, name in [(printer, 'keyboard/printer.py'), (hid, 'apps/kvmd/api/hid.py')]:
+    assert Path(module.__file__).resolve().parent == (package / name).parent, 'Wrong installed package'
+    module.__file__ = str(package / name)
+    exec(compile(options['overlays'][name], module.__file__, 'exec'), module.__dict__)
+assert printer._ch_to_keysym('€') == 0x20AC
+assert printer._ch_to_keysym('a') == ord('a')
+async def check():
+    output = Mock(send_key_events=AsyncMock())
+    with patch.object(hid.HidApi, '_HidApi__load_jiggler_schedule', lambda self: None):
+        api = hid.HidApi(output, '/usr/share/kvmd/keymaps/de')
+    state = await api.get_keymaps()
+    assert state['mapped_text'] is True and 'de' in state['keymaps']['available']
+    handlers = [item.handler for item in _get_exposed_ws(api) if item.event_type == 'mapped_text']
+    assert len(handlers) == 1, 'Expected exactly one mapped_text handler'
+    handler = handlers[0]
+    for text in 'aAzZäöüÄÖÜß@€[]{}\\|~ ':
+        ws = Mock(send_event=AsyncMock())
+        output.send_key_events.reset_mock()
+        await handler(ws, {'text': text, 'keymap': 'de'})
+        ws.send_event.assert_awaited_once_with('mapped_text_result', {'mapped': True, 'text': text})
+        output.send_key_events.assert_awaited_once()
+        held = set()
+        for key, pressed in output.send_key_events.call_args.args[0]:
+            if pressed:
+                assert key not in held
+                held.add(key)
+            else:
+                assert key in held
+                held.remove(key)
+        assert not held, 'Unbalanced key sequence'
+    for event in [{}, {'text': ''}, {'text': 'ab'}, {'text': '\n'}, {'text': 'a', 'keymap': '../de'}]:
+        ws = Mock(send_event=AsyncMock())
+        output.send_key_events.reset_mock()
+        await handler(ws, event)
+        output.send_key_events.assert_not_called()
+        ws.send_event.assert_awaited_once_with('mapped_text_result', {'mapped': False, 'reason': 'invalid'})
+asyncio.run(check())
+print('Device preflight passed: capability, German keymap, Euro, balanced HID sequences, invalid input.')
+'''
+
+
+def verify_bytecode(package, overlays):
+    subprocess.run([sys.executable, '-B', '-c', BYTECODE_PROBE],
+                   input=json.dumps({'package': str(package), 'overlays': overlays}).encode(),
+                   check=True, timeout=45)
+
+
+def install_bytecode(package, overlays, action, backup):
+    package = package.resolve()
+    current = {}
+    vendor = {}
+    for name in FILES:
+        path = package / name
+        compiled = path.with_suffix('.pyc')
+        if (compiled.is_symlink() or not compiled.is_file()
+                or not compiled.resolve().is_relative_to(package) or path.is_symlink()):
+            raise RuntimeError('Expected original vendor bytecode: ' + str(compiled))
+        vendor[name] = hashlib.sha256(compiled.read_bytes()).hexdigest()
+        current[name] = path.read_bytes() if path.exists() else None
+        if current[name] is not None and not current[name].startswith(OVERLAY_MARKER):
+            raise RuntimeError('Refusing to replace existing source: ' + str(path))
+    manifest = None
+    if backup.exists():
+        manifest = json.loads(backup.read_text())
+        if manifest['package'] != str(package) or manifest['vendor'] != vendor:
+            raise RuntimeError('Vendor bytecode changed since installation; refusing to overwrite firmware changes.')
+        if set(manifest['overlays']) != set(FILES):
+            raise RuntimeError('Invalid bytecode overlay backup.')
+        for name in FILES:
+            if current[name] not in (None, manifest['overlays'][name].encode()):
+                raise RuntimeError('Overlay changed since installation: ' + name)
+    elif any(value is not None for value in current.values()):
+        raise RuntimeError('Overlay exists without its backup manifest; refusing to overwrite it.')
+    if action == 'restore':
+        if manifest is None:
+            raise RuntimeError('No bytecode overlay backup found at ' + str(backup))
+        desired = dict.fromkeys(FILES)
+    else:
+        if manifest and manifest['overlays'] != overlays:
+            raise RuntimeError('Installed overlays belong to a different installer version; restore first.')
+        desired = {name: overlays[name].encode() for name in FILES}
+        for name in FILES:
+            compile(desired[name], str(package / name), 'exec')
+        verify_bytecode(package, overlays)
+    modified = [name for name in FILES if desired[name] != current[name]]
+    for name in FILES:
+        print(('Would update: ' if name in modified else 'Unchanged: ') + name, flush=True)
+    if action == 'check':
+        print('Bytecode overlays are applicable.' if modified else 'Bytecode overlays are already installed.')
+        return
+    if not modified:
+        print('Already restored.' if action == 'restore' else 'Already installed; no files changed.')
+        return
+    if manifest is None:
+        manifest = {'package': str(package), 'vendor': vendor, 'overlays': overlays}
+        backup.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        atomic_write(backup, json.dumps(manifest, indent=2).encode(), 0o600, os.geteuid(), os.getegid())
+    attempted = []
+    def replace(name, data):
+        path = package / name
+        if data is None:
+            path.unlink(missing_ok=True)
+        else:
+            info = path.with_suffix('.pyc').stat()
+            atomic_write(path, data, stat.S_IMODE(info.st_mode), info.st_uid, info.st_gid)
+        for cache in (path.parent / '__pycache__').glob(path.stem + '.*.pyc'):
+            cache.unlink()
+    try:
+        for name in modified:
+            path = package / name
+            if (path.read_bytes() if path.exists() else None) != current[name]:
+                raise RuntimeError('Source changed during installation: ' + name)
+            if hashlib.sha256(path.with_suffix('.pyc').read_bytes()).hexdigest() != vendor[name]:
+                raise RuntimeError('Vendor bytecode changed during installation: ' + name)
+            attempted.append(name)
+            replace(name, desired[name])
+    except Exception as error:
+        failures = []
+        for name in reversed(attempted):
+            try:
+                replace(name, current[name])
+            except Exception as rollback_error:
+                failures.append(name + ': ' + str(rollback_error))
+        if failures:
+            raise RuntimeError('Rollback incomplete; rerun or restore using ' + str(backup)
+                               + '. ' + '; '.join(failures)) from error
+        raise
+    print('Vendor bytecode restored.' if action == 'restore' else 'Bytecode overlays installed.')
+    print('Original vendor .pyc files are unchanged. Backup manifest: ' + str(backup))
+    print('Restart the KVM daemon to activate this change.')
+
+
+def remote_main(options, patch, overlays):
     import fcntl  # Linux appliance only; the launcher also runs on macOS.
     if os.geteuid() != 0:
         raise RuntimeError('Connect as root; source installation and backups require root access.')
@@ -159,12 +307,19 @@ def remote_main(options, patch):
             raise RuntimeError('Cannot locate kvmd. Supply --package-dir /absolute/path/to/kvmd.')
         package = Path(spec.origin).resolve().parent
     print('Package: ' + str(package), flush=True)
+    bytecode = any(not (package / name).exists() or (package / name).read_bytes().startswith(OVERLAY_MARKER)
+                   for name in FILES)
+    def perform():
+        if bytecode:
+            install_bytecode(package, overlays, options['action'], Path(BYTECODE_BACKUP))
+        else:
+            install(package, patch, options['action'], Path(BACKUP))
     if options['action'] == 'check':
-        install(package, patch, 'check', Path(BACKUP))
+        perform()
     else:
         with open('/run/asteroidkvm-layout-typing.lock', 'a') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            install(package, patch, options['action'], Path(BACKUP))
+            perform()
 
 
 def main():
@@ -187,11 +342,13 @@ def main():
     patch = (script.parent / 'patches/glkvm-layout-typing.patch').read_text()
     if hashlib.sha256(patch.encode()).hexdigest() != PATCH_SHA256:
         raise RuntimeError('Bundled patch checksum mismatch.')
+    overlays = {name: (script.parent / 'patches' / ('bytecode-' + Path(name).name)).read_text()
+                for name in FILES}
     options = {'package_dir': args.package_dir,
                'action': 'check' if args.check else 'restore' if args.restore else 'apply'}
     # All variable values travel over stdin, never through the remote shell.
     source = script.read_text().split('\nif __name__ == "__main__":')[0]
-    payload = source + '\ntry:\n    remote_main(' + repr(options) + ', ' + repr(patch) + ')\n'
+    payload = source + '\ntry:\n    remote_main(' + repr(options) + ', ' + repr(patch) + ', ' + repr(overlays) + ')\n'
     payload += 'except Exception as error:\n    print("Patch failed: " + str(error), file=sys.stderr)\n    sys.exit(1)\n'
     command = ['ssh', '-T', '-o', 'ConnectTimeout=45', '-o', 'ServerAliveInterval=10',
                '-o', 'ServerAliveCountMax=3']
