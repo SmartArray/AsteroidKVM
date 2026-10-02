@@ -1,0 +1,7 @@
+# GLKVM layout typing patch
+
+`glkvm-layout-typing.patch` contains the two runtime file diffs from [GLKVM PR #158](https://github.com/gl-inet/glkvm/pull/158), commit [`e163db84a66ab3e0de0147e0b6d4e7a344baa37c`](https://github.com/gl-inet/glkvm/commit/e163db84a66ab3e0de0147e0b6d4e7a344baa37c), by Yoshi Jäger. The upstream test-file diff and mail headers are omitted; runtime hunks are unchanged. The SSH installer pins the SHA-256 of this local patch.
+
+`Tests/LayoutTypingPatchTests/fixtures/hid.py.txt` and `printer.py.txt` are the upstream files at that commit with these hunks reversed, reproducing the pre-patch source for offline installer tests. Their original copyright notices are retained. These GLKVM/PiKVM sources are licensed under GNU GPL version 3 or later; see [GLKVM-LICENSE](GLKVM-LICENSE), copied from the pinned upstream commit.
+
+See the [installation guide](../../docs/layout-typing-patch.md) for use and recovery.

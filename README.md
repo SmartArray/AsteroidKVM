@@ -106,7 +106,7 @@ access and GL.iNet firmware with `/etc/init.d/S98kvmd` are required. Use `--chec
 before the destination for a read-only health check. This is a recovery workaround,
 not a fix for the firmware's keyboard timeout.
 
-**Firmware support matters.** Native-layout typing requires the daemon’s `mapped_text` capability and the GLKVM Layout-Aware Typing patch. Standard physical input and paste remain available without it. Choose the keymap that matches the remote OS; use Paste for dead keys and composed text. [Keyboard details →](docs/usage.md#controls)
+**Firmware support matters.** Native-layout typing requires the daemon’s `mapped_text` capability and the GLKVM Layout-Aware Typing patch. [Install it over SSH using the idempotent patch script →](docs/layout-typing-patch.md) Standard physical input and paste remain available without it. Choose the keymap that matches the remote OS; use Paste for dead keys and composed text. [Keyboard details →](docs/usage.md#controls)
 
 **USB identity spoofing:** [UsbFingerprintComet](https://github.com/SmartArray/UsbFingerprintComet) is a companion project that captures a physical USB device’s identity and descriptors on Windows and exports a Comet JSON profile. Its Linux importer applies compatible identity and descriptor fields to the Comet while preserving its keyboard and mouse functions, with preview, backup, and restore support. Matching is limited to supported fields; it is not a complete USB protocol clone. Follow the [capture-to-Comet guide](https://github.com/SmartArray/UsbFingerprintComet/blob/main/docs/comet-security-showcase.md) for setup and comparison with the original device.
 

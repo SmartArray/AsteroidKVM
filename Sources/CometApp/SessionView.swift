@@ -313,7 +313,7 @@ struct KeyboardPopover: View {
       .disabled(!session.state.mappedText).accessibilityIdentifier("native-layout-toggle")
       // Link the optional daemon patch beside its requirement so users can inspect native typing support.
       Text(
-        "Requires the GLKVM Layout-Aware Typing daemon patch. Standard keyboard input and paste work without it. [See here](https://github.com/gl-inet/glkvm/pull/158)."
+        "Requires the GLKVM Layout-Aware Typing daemon patch. Standard keyboard input and paste work without it. [Installation guide](https://github.com/SmartArray/AsteroidKVM/blob/main/docs/layout-typing-patch.md)."
       ).font(.caption).foregroundStyle(.secondary)
       Toggle(
         "Enable Paste with ⌘V",

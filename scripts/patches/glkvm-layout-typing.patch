@@ -1,0 +1,65 @@
+diff --git a/kvmd/apps/kvmd/api/hid.py b/kvmd/apps/kvmd/api/hid.py
+index b3416c62..045bc6bf 100644
+--- a/kvmd/apps/kvmd/api/hid.py
++++ b/kvmd/apps/kvmd/api/hid.py
+@@ -156,6 +156,7 @@ async def get_keymaps(self) -> dict:  # Ugly hack to generate hid_keymaps_state
+             if os.access(path, os.R_OK) and stat.S_ISREG(os.stat(path).st_mode):
+                 keymaps.add(keymap_name)
+         return {
++            "mapped_text": True,
+             "keymaps": {
+                 "default": self.__default_keymap_name,
+                 "available": sorted(keymaps),
+@@ -280,6 +281,23 @@ def __process_ws_bin_delta_request(self, data: bytes, handler: Callable[[Iterabl
+ 
+     # =====
+ 
++    @exposed_ws("mapped_text")
++    async def __ws_mapped_text_handler(self, ws: WsSession, event: dict) -> None:
++        # One printable Unicode scalar per event bounds work and makes failure
++        # unambiguous. Await the sequence so later keys on this socket stay ordered.
++        try:
++            text = event["text"]
++            if not isinstance(text, str) or len(text) != 1 or not text.isprintable():
++                raise ValueError("Expected one printable character")
++            symmap = self.__ensure_symmap(event.get("keymap", self.__default_keymap_name))
++            events = list(text_to_evdev_keys(text, symmap))
++        except Exception:
++            await ws.send_event("mapped_text_result", {"mapped": False, "reason": "invalid"})
++            return
++        if events:
++            await self.__hid.send_key_events(events, no_ignore_keys=True, slow=False)
++        await ws.send_event("mapped_text_result", {"mapped": bool(events), "text": text})
++
+     @exposed_ws("key")
+     async def __ws_key_handler(self, _: WsSession, event: dict) -> None:
+         try:
+diff --git a/kvmd/keyboard/printer.py b/kvmd/keyboard/printer.py
+index 1ab07a95..0f8b3adc 100644
+--- a/kvmd/keyboard/printer.py
++++ b/kvmd/keyboard/printer.py
+@@ -81,9 +81,12 @@ def _load_libxkbcommon() -> (ctypes.CDLL | None):
+ def _ch_to_keysym_fallback(cp: int) -> int:
+     """Pure Python fallback for xkb_utf32_to_keysym.
+     For Latin-1 printable range the keysym equals the Unicode code point.
+-    For code points above U+00FF the keysym is 0x01000000 + code point."""
++    Above U+00FF, EuroSign retains its legacy keysym; other code points
++    use 0x01000000 + code point."""
+     if (0x0020 <= cp <= 0x007E) or (0x00A0 <= cp <= 0x00FF):
+         return cp
++    if cp == 0x20AC:
++        return cp  # EuroSign has a legacy keysym, used by the supplied keymaps.
+     if cp > 0x00FF:
+         return cp | 0x01000000
+     return 0  # non-mappable control characters
+@@ -91,6 +94,10 @@ def _ch_to_keysym_fallback(cp: int) -> int:
+ 
+ def _ch_to_keysym(ch: str) -> int:
+     assert len(ch) == 1
++    # Some native xkbcommon builds return the obsolete 0x13A4 alias for Euro.
++    # Our X11 keymaps consistently use EuroSign (0x20AC).
++    if ch == "€":
++        return 0x20AC
+     if _libxkbcommon is not None:
+         return _libxkbcommon.xkb_utf32_to_keysym(ord(ch))
+     return _ch_to_keysym_fallback(ord(ch))

@@ -28,6 +28,8 @@ The app does not import that file automatically. Its token is never added to sav
 
 ## Controls
 
+Native-layout typing needs the optional daemon patch. Follow the [SSH patch guide](layout-typing-patch.md) to check compatibility, install, or restore it.
+
 - Activating a connected remote-display window focuses its screen and captures keyboard/mouse input automatically. Initial connection also captures when that window is active. Local dialogs and popovers retain their controls. After explicitly releasing input, click the display or reactivate its window to capture again.
 - **⌃⌥⌘Escape** releases remote input. **⌃⌘F** toggles native fullscreen.
 - Escape cancels OCR selection first, and otherwise reaches the remote computer while captured.
