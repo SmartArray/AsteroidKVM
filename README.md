@@ -156,6 +156,10 @@ Passwords stay in memory unless you explicitly choose **Remember password in Key
 | **⌘Return** in chat | Send an agent request |
 | **⌘Q / ⌘W / ⌘,** | Quit, close, and Settings stay local |
 
+### Generate an ASUS display EDID
+
+Use `./scripts/create-edid.sh --output asus-1440p.hex` to construct a validated **ASUS Display** EDID (`AUS`, 2560 × 1440 at approximately 60 Hz, stereo HDMI audio). The display name, numeric identity, and resolution are configurable; binary output is also supported. The tool reuses the app's EDID generator and never applies changes to a KVM automatically. [Options and examples →](docs/edid-tool.md)
+
 ## Tested beyond the happy path
 
 The test suite covers actual HTTP/WebSocket traffic, a native H.264 sender and receiver, Metal presentation, keyboard ordering, local OCR, session isolation, and agent cancellation. Native UI tests exercise the shipped app. Hardware tests use an explicitly supplied session.

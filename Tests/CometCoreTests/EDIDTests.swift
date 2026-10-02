@@ -4,6 +4,43 @@ import CometSession
 import XCTest
 
 final class EDIDTests: XCTestCase {
+  func testCustomDisplayNamesPreserveTimingAudioAndIdentity() throws {
+    let identity = EDIDIdentity(
+      manufacturer: "AUS", product: 0x24b2, serial: 0x01010101, week: 33, year: 2020)
+    let original = try EDIDPreset.quadHD.document(identity: identity, displayName: "Asteroid KVM")
+    let renamed = try original.replacingDisplayName("ASUS Display")
+    XCTAssertEqual(renamed.displayName, "ASUS Display")
+    XCTAssertEqual(renamed.identity, identity)
+    XCTAssertEqual(Array(renamed.bytes[8..<12]), [0x06, 0xb3, 0xb2, 0x24])
+    XCTAssertEqual(renamed.bytes[..<72], original.bytes[..<72])
+    XCTAssertEqual(renamed.bytes[90..<127], original.bytes[90..<127])
+    XCTAssertEqual(renamed.bytes[128...], original.bytes[128...])
+    XCTAssertEqual(renamed.bytes.count, 256)
+    XCTAssertEqual(try EDIDDocument(hex: renamed.hex), renamed)
+    XCTAssertFalse(String(decoding: renamed.bytes, as: UTF8.self).contains("Asteroid"))
+    for name in ["A", "ASUS Display", "ASUS ABCDEFGH"] {
+      XCTAssertEqual(try original.replacingDisplayName(name).displayName, name)
+    }
+    for name in ["", "   ", "ASUS ", " ASUS", "ASUS ABCDEFGHI", "ASUS\nMonitor", "ASUS\u{0}Test", "ASÜS"] {
+      XCTAssertThrowsError(try original.replacingDisplayName(name))
+    }
+  }
+
+  func testAddingNameOnlyUsesAnUnusedDescriptor() throws {
+    var bytes = try EDIDPreset.fullHD.document().bytes
+    bytes.replaceSubrange(72..<90, with: [0, 0, 0, 0x10] + Array(repeating: 0, count: 14))
+    bytes[127] = UInt8((256 - bytes[..<127].reduce(0) { $0 + Int($1) } % 256) % 256)
+    let nameless = try EDIDDocument(bytes: bytes)
+    XCTAssertNil(nameless.displayName)
+    XCTAssertEqual(try nameless.replacingDisplayName("ASUS").displayName, "ASUS")
+
+    // A serial descriptor is meaningful data, not free space for a display name.
+    for offset in [72, 108] { bytes[offset + 3] = 0xff }
+    bytes[127] = UInt8((256 - bytes[..<127].reduce(0) { $0 + Int($1) } % 256) % 256)
+    let occupied = try EDIDDocument(bytes: bytes)
+    XCTAssertThrowsError(try occupied.replacingDisplayName("ASUS"))
+  }
+
   // Golden identity bytes catch endianness errors; every bundled mode retains HDMI audio and valid checksums.
   func testPresetsAndIdentityEncoding() throws {
     for preset in EDIDPreset.allCases {

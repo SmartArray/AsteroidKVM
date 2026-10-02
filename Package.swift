@@ -10,7 +10,8 @@ let package = Package(
         .library(name: "CometMedia", targets: ["CometMedia"]),
         .library(name: "CometAgent", targets: ["CometAgent"]),
         .library(name: "CometSession", targets: ["CometSession"]),
-        .executable(name: "CometApp", targets: ["CometApp"])
+        .executable(name: "CometApp", targets: ["CometApp"]),
+        .executable(name: "create-edid", targets: ["EDIDTool"])
     ],
     dependencies: [.package(url: "https://github.com/stasel/WebRTC.git", exact: "153.0.0")],
     targets: [
@@ -19,6 +20,7 @@ let package = Package(
         .target(name: "CometAgent", dependencies: ["CometCore"]),
         .target(name: "CometSession", dependencies: ["CometCore", "CometMedia", "CometAgent"]),
         .executableTarget(name: "CometApp", dependencies: ["CometCore", "CometMedia", "CometAgent", "CometSession"]),
+        .executableTarget(name: "EDIDTool", dependencies: ["CometCore"]),
         .testTarget(name: "CometCoreTests", dependencies: ["CometCore", "CometMedia", "CometAgent", "CometSession"])
     ]
 )

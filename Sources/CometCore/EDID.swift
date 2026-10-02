@@ -66,7 +66,9 @@ public enum EDIDPreset: String, CaseIterable, Identifiable, Sendable {
   }
 
   // Build a complete two-block EDID with basic HDMI audio and one preferred progressive detailed timing.
-  public func document(identity: EDIDIdentity = .example) throws -> EDIDDocument {
+  public func document(
+    identity: EDIDIdentity = .example, displayName: String = "DELL U2720Q"
+  ) throws -> EDIDDocument {
     var b = [UInt8](repeating: 0, count: 256)
     b.replaceSubrange(0..<8, with: [0, 255, 255, 255, 255, 255, 255, 0])
     b[18] = 1
@@ -102,13 +104,49 @@ public enum EDIDPreset: String, CaseIterable, Identifiable, Sendable {
       128..<148,
       with: [2, 3, 20, 0x40, 0x23, 9, 7, 7, 0x83, 1, 0, 0, 0x67, 3, 12, 0, 0x10, 0, 0, 52])
     EDIDDocument.fixChecksums(&b)
-    return try EDIDDocument(bytes: b).replacingIdentity(identity)
+    return try EDIDDocument(bytes: b).replacingIdentity(identity).replacingDisplayName(displayName)
   }
 }
 
 public struct EDIDDocument: Equatable, Sendable {
   public let bytes: [UInt8]
   public var hex: String { bytes.map { String(format: "%02X", $0) }.joined() }
+
+  public var displayName: String? {
+    for offset in stride(from: 54, to: 126, by: 18)
+    where bytes[offset..<offset + 5].elementsEqual([0, 0, 0, 0xfc, 0]) {
+      let text = bytes[offset + 5..<offset + 18].prefix { $0 != 0x0a && $0 != 0 }
+      return String(bytes: text, encoding: .ascii)?.trimmingCharacters(in: .whitespaces)
+    }
+    return nil
+  }
+
+  // Only replace name descriptors (or an unused slot); never discard timing/range/serial descriptors.
+  public func replacingDisplayName(_ name: String) throws -> EDIDDocument {
+    let text = Array(name.utf8)
+    guard (1...13).contains(text.count), text.allSatisfy({ (0x20...0x7e).contains($0) }),
+      name == name.trimmingCharacters(in: .whitespaces)
+    else {
+      throw EDIDError("Display name must contain 1–13 printable ASCII characters, without leading or trailing spaces.")
+    }
+    let slots = Array(stride(from: 54, to: 126, by: 18))
+    var names = slots.filter { bytes[$0..<$0 + 5].elementsEqual([0, 0, 0, 0xfc, 0]) }
+    if names.isEmpty {
+      guard let unused = slots.first(where: {
+        bytes[$0..<$0 + 5].elementsEqual([0, 0, 0, 0x10, 0])
+      }) else { throw EDIDError("This EDID has no available display-name descriptor.") }
+      names = [unused]
+    }
+    var payload = text
+    if payload.count < 13 { payload.append(0x0a) }
+    payload += Array(repeating: 0x20, count: 13 - payload.count)
+    var changed = bytes
+    for offset in names {
+      changed.replaceSubrange(offset..<offset + 18, with: [0, 0, 0, 0xfc, 0] + payload)
+    }
+    Self.fixChecksums(&changed)
+    return try EDIDDocument(bytes: changed)
+  }
 
   // Reject malformed or oversized documents before interpreting offsets or sending them to hardware.
   public init(bytes: [UInt8]) throws {
