@@ -1,13 +1,21 @@
 import AVFoundation
 import Combine
 import CometCore
+import CometMedia
 import CometSessionCore
+import CoreImage
+import CryptoKit
+import SwiftUI
 import UIKit
 
 @MainActor final class MobileAppModel: ObservableObject {
   @Published var profiles: [ConnectionProfile] = []
   @Published var session: SessionCore?
   @Published var error: String?
+  @Published private(set) var previews: [UUID: UIImage] = [:]
+  @Published private(set) var switchingConnection = false
+  private var passwords: [String: String] = [:]
+  private let previewStore = ConnectionPreviewStore()
   private let store = ProfileStore(
     url: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("AsteroidKVM/profiles.json"))
@@ -20,11 +28,21 @@ import UIKit
   init() {
     #if DEBUG && targetEnvironment(simulator)
       if ProcessInfo.processInfo.environment["ASTEROID_UI_FIXTURE"] == "1" {
-        session = makeUITestSession()
+        let first = ConnectionProfile(name: "Simulator fixture", host: "fixture.invalid")
+        profiles = [
+          first, ConnectionProfile(name: "Studio Mac", host: "studio.invalid"),
+          ConnectionProfile(name: "Home server", host: "server.invalid"),
+        ]
+        for index in profiles.indices {
+          profiles[index].id = UUID(uuidString: "00000000-0000-0000-0000-00000000000\(index + 1)")!
+        }
+        session = makeUITestSession(profile: profiles[0])
+        loadPreviews()
         return
       }
     #endif
     do { profiles = try store.load() } catch { self.error = error.localizedDescription }
+    loadPreviews()
     observers.append(
       NotificationCenter.default.addObserver(
         forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
@@ -32,9 +50,10 @@ import UIKit
         let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
         Task { @MainActor in
           if raw == AVAudioSession.InterruptionType.began.rawValue {
-            self?.suspend()
-          } else if UIApplication.shared.applicationState == .active {
-            self?.resume()
+            // An audio interruption can happen while video is still visible.
+            self?.session?.releaseCapture()
+          } else if UIApplication.shared.applicationState == .active, self?.session != nil {
+            try? await self?.audio.activate()
           }
         }
       })
@@ -48,6 +67,19 @@ import UIKit
         }
       })
   }
+  private func loadPreviews() {
+    Task {
+      for profile in profiles {
+        if let data = await previewStore.load(profile),
+          profiles.contains(where: {
+            $0.id == profile.id && $0.credentialAccount == profile.credentialAccount
+          }), previews[profile.id] == nil
+        {
+          previews[profile.id] = UIImage(data: data)
+        }
+      }
+    }
+  }
   func save(_ profile: ConnectionProfile, password: String? = nil) throws {
     var profile = profile
     if let previous = profiles.first(where: { $0.id == profile.id }) {
@@ -58,6 +90,11 @@ import UIKit
         && (!profile.rememberPassword || previous.credentialAccount != profile.credentialAccount)
       {
         try PasswordStore().remove(for: previous)
+      }
+      if previous.credentialAccount != profile.credentialAccount {
+        passwords[previous.credentialAccount] = nil
+        previews[profile.id] = nil
+        Task { await previewStore.remove(previous) }
       }
     }
     if profile.rememberPassword {
@@ -71,6 +108,9 @@ import UIKit
     }
     try store.save(updated)
     profiles = updated
+    if let password, !password.isEmpty, passwords[profile.credentialAccount] != nil {
+      passwords[profile.credentialAccount] = password
+    }
   }
   func remove(_ profile: ConnectionProfile) {
     do {
@@ -78,11 +118,21 @@ import UIKit
       let updated = profiles.filter { $0.id != profile.id }
       try store.save(updated)
       profiles = updated
+      passwords[profile.credentialAccount] = nil
+      previews[profile.id] = nil
+      Task { await previewStore.remove(profile) }
     } catch { self.error = error.localizedDescription }
   }
   func connect(_ profile: ConnectionProfile, password: String? = nil) {
     guard session == nil else { return }
-    let created = SessionCore(profile: profile, password: password)
+    if let password, !password.isEmpty { passwords[profile.credentialAccount] = password }
+    #if DEBUG && targetEnvironment(simulator)
+      if ProcessInfo.processInfo.environment["ASTEROID_UI_FIXTURE"] == "1" {
+        session = makeUITestSession(profile: profile)
+        return
+      }
+    #endif
+    let created = SessionCore(profile: profile, password: passwords[profile.credentialAccount])
     created.onProfileChanged = { [weak self] profile in
       do { try self?.save(profile) } catch { self?.error = error.localizedDescription }
     }
@@ -102,6 +152,55 @@ import UIKit
         phase == .connected && UIApplication.shared.applicationState == .active
     }
   }
+  func authenticate(_ session: SessionCore, password: String) {
+    guard self.session === session else { return }
+    passwords[session.profile.credentialAccount] = password
+    session.connect(password: password)
+  }
+
+  func capturePreview(_ source: SessionCore) async {
+    guard let frame = source.mailbox.snapshot() else { return }
+    let profile = source.profile
+    let data = await previewStore.capture(frame, profile: profile)
+    guard
+      profiles.contains(where: {
+        $0.id == profile.id && $0.credentialAccount == profile.credentialAccount
+      }),
+      let data
+    else { return }
+    previews[profile.id] = UIImage(data: data)
+  }
+
+  func switchConnection(to profile: ConnectionProfile) async {
+    guard !switchingConnection, let previous = session, previous.id != profile.id,
+      profiles.contains(where: { $0.id == profile.id })
+    else { return }
+    switchingConnection = true
+    defer { switchingConnection = false }
+    await capturePreview(previous)
+    phaseObserver = nil
+    await previous.disconnect()
+    session = nil
+    pendingInitialConnection = nil
+    initialConnectionAllowed = false
+    connect(profile)
+    // The new view's first-use gate starts the connection after any onboarding.
+  }
+
+  func sceneChanged(_ phase: ScenePhase) {
+    switch phase {
+    case .active:
+      resume()
+      UIApplication.shared.isIdleTimerDisabled = session?.active == true
+    case .inactive:
+      session?.releaseCapture()
+      UIApplication.shared.isIdleTimerDisabled = false
+    case .background:
+      if let session { Task { await capturePreview(session) } }
+      suspend()
+    @unknown default: break
+    }
+  }
   // The session view calls this only after the first-use cover has finished dismissing.
   func startPendingConnection() async {
     guard let created = session, pendingInitialConnection == created.id else { return }
@@ -113,7 +212,8 @@ import UIKit
     created.connect()
   }
   func close() async {
-    guard let closing = session else { return }
+    guard !switchingConnection, let closing = session else { return }
+    await capturePreview(closing)
     await closing.disconnect()
     closing.typingDraft = ""
     try? await audio.deactivate()
@@ -122,10 +222,16 @@ import UIKit
     initialConnectionAllowed = false
     suspended = false
     phaseObserver = nil
+    passwords.removeAll()
     UIApplication.shared.isIdleTimerDisabled = false
   }
   func suspend() {
     guard !suspended, session != nil else { return }
+    #if DEBUG && targetEnvironment(simulator)
+      if ProcessInfo.processInfo.environment["ASTEROID_UI_FIXTURE"] == "1" {
+        UITestInputRecorder.suspensions += 1
+      }
+    #endif
     suspended = true
     session?.suspend()
     UIApplication.shared.isIdleTimerDisabled = false
@@ -144,6 +250,41 @@ import UIKit
       guard let resuming, session === resuming, !suspended else { return }
       resuming.wake()
     }
+  }
+}
+
+// Small local previews survive relaunches; rendering and disk access stay off the UI actor.
+private actor ConnectionPreviewStore {
+  private let context = CIContext(options: [.cacheIntermediates: false])
+  private let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+    .appendingPathComponent("ConnectionPreviews", isDirectory: true)
+
+  private func url(_ profile: ConnectionProfile) -> URL {
+    let identity = SHA256.hash(data: Data(profile.credentialAccount.utf8))
+      .map { String(format: "%02x", $0) }.joined()
+    return directory.appendingPathComponent("\(profile.id)-\(identity).jpg")
+  }
+  func load(_ profile: ConnectionProfile) -> Data? { try? Data(contentsOf: url(profile)) }
+  func remove(_ profile: ConnectionProfile) {
+    try? FileManager.default.removeItem(at: url(profile))
+  }
+  func capture(_ frame: VideoFrame, profile: ConnectionProfile) -> Data? {
+    var image = CIImage(cvPixelBuffer: frame.buffer)
+      .transformed(by: CGAffineTransform(scaleX: frame.pixelAspect, y: 1))
+    let rotation = ((frame.rotation + profile.rotation) % 360 + 360) % 360
+    image = image.oriented(
+      rotation == 90 ? .right : rotation == 180 ? .down : rotation == 270 ? .left : .up)
+    let scale = min(1, 640 / max(image.extent.width, image.extent.height))
+    image = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+    guard
+      let data = context.jpegRepresentation(
+        of: image,
+        colorSpace: CGColorSpaceCreateDeviceRGB(),
+        options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.78])
+    else { return nil }
+    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try? data.write(to: url(profile), options: [.atomic, .completeFileProtection])
+    return data
   }
 }
 

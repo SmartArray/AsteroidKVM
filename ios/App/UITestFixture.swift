@@ -10,6 +10,7 @@
   @MainActor enum UITestInputRecorder {
     static var events: [HIDEvent] = []
     static var text = ""
+    static var suspensions = 0
     static func record(_ event: HIDEvent) { events.append(event) }
     static func recordText(_ value: String) { text += value }
     static var summary: String {
@@ -22,15 +23,14 @@
         "\($0.payload["key"].string ?? ""):\($0.payload["state"].bool == true ? "down" : "up")"
       }.joined(separator: ",")
       return
-        "leftDown=\(downs) leftUp=\(ups) moves=\(moves) absolute=\(absolute) relative=\(relative) keys=\(keys) text=\(text)"
+        "leftDown=\(downs) leftUp=\(ups) moves=\(moves) absolute=\(absolute) relative=\(relative) suspensions=\(suspensions) keys=\(keys) text=\(text)"
     }
   }
 
-  @MainActor func makeUITestSession() -> SessionCore {
+  @MainActor func makeUITestSession(profile: ConnectionProfile) -> SessionCore {
     UITestInputRecorder.events = []
     UITestInputRecorder.text = ""
-    let session = SessionCore(
-      profile: ConnectionProfile(name: "Simulator fixture", host: "fixture.invalid"))
+    let session = SessionCore(profile: profile)
     session.phase = .connected
     session.output = HIDOutput(
       send: {
@@ -63,7 +63,7 @@
         context.translateBy(x: 0, y: 720)
         context.scaleBy(x: 1, y: -1)
         UIGraphicsPushContext(context)
-        ("AsteroidKVM\nLocal test screen\nReady for your computer." as NSString).draw(
+        ("AsteroidKVM\n\(profile.name)\nReady for your computer." as NSString).draw(
           at: CGPoint(x: 80, y: 160),
           withAttributes: [
             .font: UIFont.monospacedSystemFont(ofSize: 44, weight: .medium),

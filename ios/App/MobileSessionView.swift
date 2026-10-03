@@ -9,6 +9,8 @@ private enum SessionSheet: String, Identifiable {
 struct MobileSessionView: View {
   @ObservedObject var session: SessionCore
   @EnvironmentObject private var model: MobileAppModel
+  @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @AppStorage("onboardingVersion") private var onboardingVersion = 0
   @State private var sheet: SessionSheet?
   @State private var guide = false
@@ -20,13 +22,21 @@ struct MobileSessionView: View {
   @State private var keyboardVisible = false
   @State private var keyboardAfterDismiss = false
   @State private var closing = false
+  @State private var showingConnections = false
+  @State private var switchingTo: ConnectionProfile?
   var body: some View {
     ZStack {
       Color.black.ignoresSafeArea()
       MobileRemoteSurface(
-        session: session, blocked: closing || sheet != nil || guide || onboardingVersion < 1,
+        session: session,
+        blocked: closing || model.switchingConnection || scenePhase != .active || sheet != nil
+          || guide || onboardingVersion < 1,
         fitToken: fitToken, keyboardVisible: keyboardVisible)
       VStack(spacing: 8) {
+        if model.switchingConnection {
+          ProgressView("Switching connection…").padding(12).background(
+            .regularMaterial, in: Capsule())
+        }
         if session.phase != .connected {
           Label(
             session.phase.rawValue,
@@ -71,7 +81,7 @@ struct MobileSessionView: View {
           } else {
             open(.menu)
           }
-        }.disabled(closing)
+        }.disabled(closing || model.switchingConnection)
       }
     }
     .onAppear {
@@ -91,7 +101,10 @@ struct MobileSessionView: View {
     .sheet(
       item: $sheet,
       onDismiss: {
-        if closing {
+        if let switchingTo {
+          self.switchingTo = nil
+          Task { await model.switchConnection(to: switchingTo) }
+        } else if closing {
           // Dismiss the menu before removing the view that presents it.
           Task { await model.close() }
         } else if keyboardAfterDismiss {
@@ -158,7 +171,7 @@ struct MobileSessionView: View {
       SecureField("Password", text: $password)
       Button("Cancel", role: .cancel) { session.phase = .disconnected }
       Button("Connect") {
-        session.connect(password: password)
+        model.authenticate(session, password: password)
         password = ""
       }
     } message: {
@@ -167,6 +180,7 @@ struct MobileSessionView: View {
   }
   private func open(_ target: SessionSheet) {
     session.releaseCapture()
+    showingConnections = false
     sheet = target
   }
   private func transition(_ target: SessionSheet) {
@@ -175,29 +189,133 @@ struct MobileSessionView: View {
   }
   private var menu: some View {
     NavigationStack {
-      List {
-        HoldToDisconnect {
-          closing = true
-          sheet = nil
+      ZStack {
+        if showingConnections {
+          ConnectionSwitcherView(currentID: session.id) { profile in
+            guard profile.id != session.id else {
+              sheet = nil
+              return
+            }
+            switchingTo = profile
+            sheet = nil
+          }
+          .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(x: 24)))
+        } else {
+          List {
+            HoldToDisconnect {
+              closing = true
+              sheet = nil
+            }
+            Button("Switch connection", systemImage: "rectangle.2.swap") {
+              showingConnections = true
+              Task { await model.capturePreview(session) }
+            }.accessibilityIdentifier("switch-connection")
+            Button("Keyboard", systemImage: "keyboard") {
+              keyboardAfterDismiss = true
+              sheet = nil
+            }.disabled(!session.active || session.pasting || !session.profile.keyboardEnabled)
+            Button("Type", systemImage: "square.and.pencil") { transition(.type) }.disabled(
+              !session.active || session.pasting || !session.profile.keyboardEnabled)
+            Button("Special keys", systemImage: "command.square") { transition(.keys) }.disabled(
+              !session.active || session.pasting || !session.profile.keyboardEnabled)
+            Button("Shortcuts", systemImage: "command") { transition(.shortcuts) }.disabled(
+              !session.active || session.pasting || !session.profile.keyboardEnabled)
+            Button("Settings", systemImage: "gearshape") { transition(.settings) }
+            Button("OCR", systemImage: "text.viewfinder") {
+              sheet = nil
+              session.startOCR()
+            }.disabled(!session.active || session.pasting)
+          }.transition(.opacity)
         }
-        Button("Keyboard", systemImage: "keyboard") {
-          keyboardAfterDismiss = true
-          sheet = nil
-        }.disabled(!session.active || session.pasting || !session.profile.keyboardEnabled)
-        Button("Type", systemImage: "square.and.pencil") { transition(.type) }.disabled(
-          !session.active || session.pasting || !session.profile.keyboardEnabled)
-        Button("Special keys", systemImage: "command.square") { transition(.keys) }.disabled(
-          !session.active || session.pasting || !session.profile.keyboardEnabled)
-        Button("Shortcuts", systemImage: "command") { transition(.shortcuts) }.disabled(
-          !session.active || session.pasting || !session.profile.keyboardEnabled)
-        Button("Settings", systemImage: "gearshape") { transition(.settings) }
-        Button("OCR", systemImage: "text.viewfinder") {
-          sheet = nil
-          session.startOCR()
-        }.disabled(!session.active || session.pasting)
-      }.navigationTitle(session.profile.name).navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { sheet = nil } } }
+      }
+      .animation(.easeInOut(duration: 0.2), value: showingConnections)
+      .navigationTitle(showingConnections ? "Switch connection" : session.profile.name)
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          if showingConnections {
+            Button("Back", systemImage: "chevron.left") { showingConnections = false }
+          }
+        }
+        ToolbarItem(placement: .confirmationAction) { Button("Done") { sheet = nil } }
+      }
     }.presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
+  }
+}
+
+private struct ConnectionSwitcherView: View {
+  @EnvironmentObject private var model: MobileAppModel
+  @Environment(\.colorScheme) private var colorScheme
+  let currentID: UUID
+  var select: (ConnectionProfile) -> Void
+  private let accent = Color(red: 0.72, green: 0.53, blue: 0.19)
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 6) {
+          Text("Your computers").font(.title2.bold())
+          Text("Pick up where you left off.").font(.subheadline).foregroundStyle(.secondary)
+        }
+        LazyVGrid(
+          columns: [GridItem(.adaptive(minimum: 150, maximum: 320), spacing: 14)], spacing: 18
+        ) {
+          ForEach(model.profiles) { profile in
+            let current = profile.id == currentID
+            Button {
+              select(profile)
+            } label: {
+              VStack(alignment: .leading, spacing: 0) {
+                ZStack {
+                  LinearGradient(
+                    colors: [Color(red: 0.12, green: 0.15, blue: 0.24), .black],
+                    startPoint: .topLeading, endPoint: .bottomTrailing)
+                  if let preview = model.previews[profile.id] {
+                    Image(uiImage: preview).resizable().scaledToFit()
+                  } else {
+                    VStack(spacing: 8) {
+                      Image(systemName: "desktopcomputer").font(.system(size: 30, weight: .light))
+                      Text("Ready to connect").font(.caption2)
+                    }.foregroundStyle(.white.opacity(0.65))
+                  }
+                }
+                .aspectRatio(16 / 10, contentMode: .fit)
+                .overlay(alignment: .topLeading) {
+                  if current {
+                    Label("Current", systemImage: "checkmark.circle.fill")
+                      .font(.caption2.weight(.semibold)).padding(.horizontal, 9).padding(
+                        .vertical, 5
+                      )
+                      .foregroundStyle(.white).background(.black.opacity(0.7), in: Capsule())
+                      .padding(9)
+                  }
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                  Text(profile.name).font(.headline).foregroundStyle(.primary).lineLimit(2)
+                  Text(model.previews[profile.id] == nil ? "No preview yet" : "Last viewed")
+                    .font(.caption).foregroundStyle(.secondary)
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
+              }
+              .background(Color(uiColor: .secondarySystemGroupedBackground))
+              .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+              .overlay(
+                RoundedRectangle(cornerRadius: 18).strokeBorder(
+                  current ? accent : Color.primary.opacity(0.08), lineWidth: current ? 2 : 1)
+              )
+              .shadow(color: .black.opacity(colorScheme == .dark ? 0.2 : 0.06), radius: 8, y: 4)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(profile.name)
+            .accessibilityValue(
+              (current ? "Current connection" : "Switch connection")
+                + (model.previews[profile.id] == nil ? "; No preview" : "; Preview available")
+            )
+            .accessibilityIdentifier("switch-to-\(profile.name)")
+          }
+        }
+      }.padding(20)
+    }
+    .background(Color(uiColor: .systemGroupedBackground))
+    .accessibilityIdentifier("connection-switcher")
   }
 }
 
@@ -237,7 +355,8 @@ struct FloatingMenuButton: View {
             if dragOrigin == nil { dragOrigin = position }
             guard let origin = dragOrigin else { return }
             center = bounded(
-              CGPoint(x: origin.x + value.translation.width, y: origin.y + value.translation.height),
+              CGPoint(
+                x: origin.x + value.translation.width, y: origin.y + value.translation.height),
               in: proxy.size)
           }.onEnded { value in
             let origin = dragOrigin ?? position
@@ -271,7 +390,8 @@ struct FloatingMenuButton: View {
 
   private func cornerCenter(_ corner: Int, in size: CGSize) -> CGPoint {
     bounded(
-      CGPoint(x: corner % 2 == 0 ? 38 : size.width - 38,
+      CGPoint(
+        x: corner % 2 == 0 ? 38 : size.width - 38,
         y: corner < 2 ? 38 : size.height - 38), in: size)
   }
 

@@ -22,7 +22,7 @@ import SwiftUI
         if welcomeVersion < 1 {
           AppOnboardingView { welcomeVersion = 1 }
         } else if let session = model.session {
-          MobileSessionView(session: session)
+          MobileSessionView(session: session).id(session.id)
         } else {
           ConnectionsView()
         }
@@ -30,7 +30,7 @@ import SwiftUI
       .environmentObject(model)
       .preferredColorScheme(appearance == "Dark" ? .dark : appearance == "Light" ? .light : nil)
       .onChange(of: scenePhase) { _, phase in
-        if phase == .active { model.resume() } else { model.suspend() }
+        model.sceneChanged(phase)
       }
       .alert(
         "AsteroidKVM",

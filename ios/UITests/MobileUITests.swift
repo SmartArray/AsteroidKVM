@@ -270,6 +270,77 @@ final class MobileUITests: XCTestCase {
     XCTAssertTrue(keyboard.waitForNonExistence(timeout: 5))
   }
 
+  @MainActor func testConnectionSwitcherPreviewsAndRepeatedSwitches() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1", "-appearance", "Light"]
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    let controls = app.buttons["connection-controls"]
+    func openSwitcher() {
+      XCTAssertTrue(controls.waitForExistence(timeout: 10))
+      controls.tap()
+      app.buttons["switch-connection"].tap()
+      XCTAssertTrue(app.scrollViews["connection-switcher"].waitForExistence(timeout: 5))
+    }
+    func expectPreview(_ name: String) {
+      XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+        predicate: NSPredicate(format: "value CONTAINS 'Preview available'"),
+        object: app.buttons["switch-to-" + name])], timeout: 10) == .completed)
+    }
+    openSwitcher()
+    expectPreview("Simulator fixture")
+    XCTAssertTrue(app.buttons["switch-to-Home server"].exists)
+    screenshot("connection-switcher-light", app)
+    app.buttons["switch-to-Studio Mac"].tap()
+    XCTAssertTrue(app.navigationBars["Switch connection"].waitForNonExistence(timeout: 5))
+    openSwitcher()
+    expectPreview("Studio Mac")
+    expectPreview("Simulator fixture")
+    XCTAssertTrue((app.buttons["switch-to-Studio Mac"].value as? String)?.contains("Current connection") == true)
+    screenshot("connection-switcher-recent", app)
+    app.buttons["switch-to-Simulator fixture"].tap()
+    openSwitcher()
+    XCTAssertTrue((app.buttons["switch-to-Simulator fixture"].value as? String)?.contains("Current connection") == true)
+    // Choosing the current connection only closes the picker.
+    app.buttons["switch-to-Simulator fixture"].tap()
+    openSwitcher()
+    app.buttons["Back"].tap()
+    XCTAssertTrue(app.buttons["switch-connection"].waitForExistence(timeout: 5))
+    app.buttons["Done"].tap()
+    app.terminate()
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1", "-appearance", "Dark"]
+    app.launch()
+    openSwitcher()
+    expectPreview("Simulator fixture")
+    expectPreview("Studio Mac")
+    screenshot("connection-switcher-dark", app)
+  }
+
+  @MainActor func testStreamingSuspendsOnlyAfterBackgrounding() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1"]
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    let surface = app.descendants(matching: .any).matching(identifier: "Remote computer").firstMatch
+    XCTAssertTrue(surface.waitForExistence(timeout: 10))
+    // Control Center makes the scene inactive without backgrounding it.
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.01)).press(forDuration: 0.1,
+      thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.7)))
+    let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    XCTAssertTrue(springboard.otherElements["cc-root-folder-view"].waitForExistence(timeout: 5))
+    springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98)).press(forDuration: 0.1,
+      thenDragTo: springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)))
+    XCTAssertTrue(surface.waitForExistence(timeout: 5))
+    XCTAssertTrue((surface.value as? String)?.contains("suspensions=0") == true)
+    XCUIDevice.shared.press(.home)
+    XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5))
+    app.activate()
+    XCTAssertTrue(surface.waitForExistence(timeout: 5))
+    XCTAssertTrue((surface.value as? String)?.contains("suspensions=1") == true)
+  }
+
   @MainActor func testTrackpadMovementClickAndSwitchBackToAbsolute() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
