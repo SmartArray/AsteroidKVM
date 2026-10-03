@@ -57,7 +57,7 @@ final class RemoteTouchView: UIView {
           let center = geometry.sourcePoint(viewport.inverse(
             CGPoint(x: geometry.viewport.width / 2, y: geometry.viewport.height / 2),
             in: geometry.viewport))
-          return "\(value); center=\(String(format: "%.4f,%.4f", center.x, center.y)); \(UITestInputRecorder.summary)"
+          return "\(value); center=\(String(format: "%.4f,%.4f", center.x, center.y)); \(UITestInputRecorder.summary) phase=\(session.phase.rawValue) frame=\(session.mailbox.snapshot() != nil)"
         }
       #endif
       return value

@@ -27,6 +27,26 @@
     }
   }
 
+  // Model signaling completing before the first new frame, without contacting a KVM.
+  @MainActor func simulateUITestReconnect(_ session: SessionCore) {
+    guard ProcessInfo.processInfo.environment["ASTEROID_UI_RECONNECT_DELAY"] == "1",
+      let frame = session.mailbox.snapshot()
+    else { return }
+    session.mailbox.clear()
+    session.phase = .connecting
+    Task { @MainActor [weak session] in
+      try? await Task.sleep(for: .seconds(3))
+      guard let session, session.phase == .connecting else { return }
+      session.phase = .connected
+      try? await Task.sleep(for: .seconds(2))
+      guard session.phase == .connected else { return }
+      session.mailbox.renderFrame(
+        RTCVideoFrame(
+          buffer: RTCCVPixelBuffer(pixelBuffer: frame.buffer), rotation: ._0,
+          timeStampNs: frame.timestamp + 1))
+    }
+  }
+
   @MainActor func makeUITestSession(profile: ConnectionProfile) -> SessionCore {
     UITestInputRecorder.events = []
     UITestInputRecorder.text = ""

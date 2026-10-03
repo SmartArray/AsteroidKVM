@@ -24,20 +24,32 @@ struct MobileSessionView: View {
   @State private var closing = false
   @State private var showingConnections = false
   @State private var switchingTo: ConnectionProfile?
+  @State private var readyPreviewToken: UUID?
+  private var showingConnectionPreview: Bool {
+    model.switchingConnection
+      || (!session.active
+        || (readyPreviewToken != model.previewToken && session.phase != .noSignal))
+  }
   var body: some View {
     ZStack {
       Color.black.ignoresSafeArea()
       MobileRemoteSurface(
         session: session,
-        blocked: closing || model.switchingConnection || scenePhase != .active || sheet != nil
+        blocked: closing || showingConnectionPreview || scenePhase != .active || sheet != nil
           || guide || onboardingVersion < 1,
         fitToken: fitToken, keyboardVisible: keyboardVisible)
+      if showingConnectionPreview {
+        let profile = model.switchingProfile ?? session.profile
+        ConnectingPreview(
+          image: model.previews[profile.id], name: profile.name,
+          phase: model.switchingConnection || model.startingConnection ? .connecting : session.phase,
+          awaitingCertificate: session.pendingCertificate != nil
+        )
+        .transition(.opacity)
+        .allowsHitTesting(false)
+      }
       VStack(spacing: 8) {
-        if model.switchingConnection {
-          ProgressView("Switching connection…").padding(12).background(
-            .regularMaterial, in: Capsule())
-        }
-        if session.phase != .connected {
+        if session.phase != .connected && !showingConnectionPreview {
           Label(
             session.phase.rawValue,
             systemImage: session.active ? "display.trianglebadge.exclamationmark" : "network"
@@ -69,7 +81,8 @@ struct MobileSessionView: View {
           }.padding().background(.regularMaterial, in: Capsule())
         }
         Spacer()
-        if session.phase == .disconnected && session.pendingCertificate == nil {
+        if session.phase == .disconnected && session.pendingCertificate == nil
+          && !model.startingConnection && !model.switchingConnection {
           Button("Reconnect") { session.connect() }.buttonStyle(.borderedProminent).padding(
             .bottom, 80)
         }
@@ -82,6 +95,20 @@ struct MobileSessionView: View {
             open(.menu)
           }
         }.disabled(closing || model.switchingConnection)
+      }
+    }
+    .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: showingConnectionPreview)
+    .task(id: "\(model.previewToken):\(session.phase.rawValue)") {
+      readyPreviewToken = nil
+      let token = model.previewToken
+      guard session.phase == .connected else { return }
+      // Signaling can finish before the decoder produces its first frame.
+      while !Task.isCancelled {
+        if session.mailbox.snapshot() != nil {
+          readyPreviewToken = token
+          return
+        }
+        do { try await Task.sleep(for: .milliseconds(50)) } catch { return }
       }
     }
     .onAppear {
@@ -240,6 +267,61 @@ struct MobileSessionView: View {
         ToolbarItem(placement: .confirmationAction) { Button("Done") { sheet = nil } }
       }
     }.presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
+  }
+}
+
+private struct ConnectingPreview: View {
+  let image: UIImage?
+  let name: String
+  let phase: ConnectionPhase
+  let awaitingCertificate: Bool
+  private var connecting: Bool {
+    [.connecting, .reconnecting, .connected].contains(phase)
+  }
+  private var title: String {
+    if awaitingCertificate { return "Approve certificate to continue" }
+    switch phase {
+    case .authenticating: return "Sign in to connect"
+    case .disconnected: return "Disconnected"
+    case .reconnecting: return "Reconnecting…"
+    default: return "Connecting…"
+    }
+  }
+  var body: some View {
+    GeometryReader { proxy in
+      ZStack {
+        Color(red: 0.025, green: 0.035, blue: 0.075)
+        if let image {
+          Image(uiImage: image).resizable().scaledToFit()
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .blur(radius: 2)
+        }
+        Color.black.opacity(image == nil ? 0.1 : 0.42)
+        VStack(spacing: 14) {
+          if connecting && !awaitingCertificate {
+            ProgressView().controlSize(.large).tint(.white)
+          } else {
+            Image(systemName: awaitingCertificate ? "lock.shield" : "desktopcomputer")
+              .font(.title).foregroundStyle(.white.opacity(0.85))
+          }
+          VStack(spacing: 5) {
+            Text(title).font(.headline)
+            Text(name).font(.subheadline).foregroundStyle(.white.opacity(0.7)).lineLimit(2)
+          }
+        }
+        .foregroundStyle(.white).multilineTextAlignment(.center)
+        .padding(.horizontal, 28).padding(.vertical, 24)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
+        .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.white.opacity(0.12)))
+        .padding(24)
+      }
+      .clipped()
+      .environment(\.colorScheme, .dark)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("\(title) \(name)")
+      .accessibilityValue(image == nil ? "No previous screenshot" : "Last screenshot")
+      .accessibilityIdentifier("connecting-preview")
+    }
   }
 }
 

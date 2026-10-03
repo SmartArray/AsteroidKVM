@@ -50,6 +50,8 @@ Hardware keyboards use USB key identities and the shared native-layout option. O
 
 Video continues while the app is inactive but still visible, including the minimize transition and Control Center. Losing focus releases held remote input. Streaming pauses on entering the background and reconnects on returning to the app; audio interruptions alone no longer disconnect video.
 
+Switching connections and returning from the background show the selected connection’s last screenshot, gently blurred and darkened, with a connecting indicator. The preview fades out over 0.2 seconds only after a fresh video frame arrives, and remote input stays blocked until then. Expected foreground reconnection starts immediately without a fabricated network-loss error; genuine connection failures remain visible.
+
 The first connection waits until the gesture guide has finished dismissing before starting authentication, certificate checks, or media. The guide supports Skip/Back/Next and can be replayed in Settings or Connections → More. The guide has coordinated light and dark illustrations with cobalt, magenta, turquoise and lavender accents. It follows System appearance or the Light/Dark selection in Settings. A spacious side-by-side layout adapts to iPad and landscape; large accessibility text scrolls above pinned navigation. Explanations are native labels, without animated touch dots. See [onboarding-artwork.md](onboarding-artwork.md) for bundled image paths and generation prompts. Reduce Motion disables custom transitions, including the floating button’s repeated corner-snap animation.
 
 ## Settings coverage

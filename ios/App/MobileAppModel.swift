@@ -13,7 +13,9 @@ import UIKit
   @Published var session: SessionCore?
   @Published var error: String?
   @Published private(set) var previews: [UUID: UIImage] = [:]
-  @Published private(set) var switchingConnection = false
+  @Published private(set) var switchingProfile: ConnectionProfile?
+  @Published private(set) var previewToken = UUID()
+  var switchingConnection: Bool { switchingProfile != nil }
   private var passwords: [String: String] = [:]
   private let previewStore = ConnectionPreviewStore()
   private let store = ProfileStore(
@@ -21,7 +23,8 @@ import UIKit
       .appendingPathComponent("AsteroidKVM/profiles.json"))
   private var suspended = false
   private let audio = MobileAudioSession()
-  private var pendingInitialConnection: UUID?
+  @Published private var pendingInitialConnection: UUID?
+  var startingConnection: Bool { session != nil && pendingInitialConnection == session?.id }
   private var initialConnectionAllowed = false
   private var observers: [NSObjectProtocol] = []
   private var phaseObserver: AnyCancellable?
@@ -125,10 +128,13 @@ import UIKit
   }
   func connect(_ profile: ConnectionProfile, password: String? = nil) {
     guard session == nil else { return }
+    previewToken = UUID()
     if let password, !password.isEmpty { passwords[profile.credentialAccount] = password }
     #if DEBUG && targetEnvironment(simulator)
       if ProcessInfo.processInfo.environment["ASTEROID_UI_FIXTURE"] == "1" {
-        session = makeUITestSession(profile: profile)
+        let created = makeUITestSession(profile: profile)
+        session = created
+        simulateUITestReconnect(created)
         return
       }
     #endif
@@ -158,8 +164,8 @@ import UIKit
     session.connect(password: password)
   }
 
-  func capturePreview(_ source: SessionCore) async {
-    guard let frame = source.mailbox.snapshot() else { return }
+  func capturePreview(_ source: SessionCore, frame: VideoFrame? = nil) async {
+    guard let frame = frame ?? source.mailbox.snapshot() else { return }
     let profile = source.profile
     let data = await previewStore.capture(frame, profile: profile)
     guard
@@ -175,8 +181,8 @@ import UIKit
     guard !switchingConnection, let previous = session, previous.id != profile.id,
       profiles.contains(where: { $0.id == profile.id })
     else { return }
-    switchingConnection = true
-    defer { switchingConnection = false }
+    switchingProfile = profile
+    defer { switchingProfile = nil }
     await capturePreview(previous)
     phaseObserver = nil
     await previous.disconnect()
@@ -196,7 +202,10 @@ import UIKit
       session?.releaseCapture()
       UIApplication.shared.isIdleTimerDisabled = false
     case .background:
-      if let session { Task { await capturePreview(session) } }
+      // Retain the frame synchronously, before stopping the decoder clears its mailbox.
+      if let session, let frame = session.mailbox.snapshot() {
+        Task { await capturePreview(session, frame: frame) }
+      }
       suspend()
     @unknown default: break
     }
@@ -233,6 +242,7 @@ import UIKit
       }
     #endif
     suspended = true
+    previewToken = UUID()
     session?.suspend()
     UIApplication.shared.isIdleTimerDisabled = false
   }
@@ -245,6 +255,14 @@ import UIKit
       return
     }
     let resuming = session
+    #if DEBUG && targetEnvironment(simulator)
+      if ProcessInfo.processInfo.environment["ASTEROID_UI_FIXTURE"] == "1",
+        let resuming
+      {
+        simulateUITestReconnect(resuming)
+        return
+      }
+    #endif
     Task {
       do { try await audio.activate() } catch { self.error = error.localizedDescription }
       guard let resuming, session === resuming, !suspended else { return }

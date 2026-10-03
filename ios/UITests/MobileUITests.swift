@@ -317,6 +317,51 @@ final class MobileUITests: XCTestCase {
     screenshot("connection-switcher-dark", app)
   }
 
+  @MainActor func testConnectingPreviewDuringSwitchAndResumeUntilFreshFrame() {
+    let app = XCUIApplication()
+    app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
+    app.launchEnvironment["ASTEROID_UI_RECONNECT_DELAY"] = "1"
+    app.launchArguments = ["-welcomeVersion", "1", "-onboardingVersion", "1"]
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    let controls = app.buttons["connection-controls"]
+    let preview = app.descendants(matching: .any).matching(identifier: "connecting-preview").firstMatch
+    let surface = app.descendants(matching: .any).matching(identifier: "Remote computer").firstMatch
+    func select(_ name: String) {
+      XCTAssertTrue(controls.waitForExistence(timeout: 10))
+      controls.tap()
+      app.buttons["switch-connection"].tap()
+      app.buttons["switch-to-" + name].tap()
+    }
+    func expectPreview(_ name: String, screenshotExpected: Bool) {
+      XCTAssertTrue(preview.waitForExistence(timeout: 5))
+      XCTAssertTrue((preview.label).contains(name))
+      if screenshotExpected { XCTAssertEqual(preview.value as? String, "Last screenshot") }
+    }
+    select("Studio Mac")
+    expectPreview("Studio Mac", screenshotExpected: false)
+    XCTAssertTrue(preview.waitForNonExistence(timeout: 12))
+    select("Simulator fixture")
+    expectPreview("Simulator fixture", screenshotExpected: true)
+    screenshot("connecting-last-preview", app)
+    // Signaling is connected, but the fixture deliberately holds back the first frame.
+    XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value CONTAINS 'phase=Connected frame=false'"), object: surface)], timeout: 6) == .completed)
+    XCTAssertTrue(preview.exists)
+    surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    XCTAssertTrue((surface.value as? String)?.contains("leftDown=0") == true)
+    XCTAssertTrue(preview.waitForNonExistence(timeout: 10))
+    surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    XCTAssertTrue((surface.value as? String)?.contains("leftDown=1") == true)
+    XCUIDevice.shared.press(.home)
+    XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5))
+    app.activate()
+    expectPreview("Simulator fixture", screenshotExpected: true)
+    screenshot("resume-last-preview", app)
+    XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS '-1005'")).firstMatch.exists)
+    XCTAssertTrue(preview.waitForNonExistence(timeout: 12))
+  }
+
   @MainActor func testStreamingSuspendsOnlyAfterBackgrounding() {
     let app = XCUIApplication()
     app.launchEnvironment["ASTEROID_UI_FIXTURE"] = "1"
