@@ -249,6 +249,31 @@ public actor CometAPI {
     { return .null }
   }
 
+  // The system absolute_mouse flag is a startup preference, not the live HID output.
+  // Select an advertised output and verify the running device agrees with the gesture mode.
+  public func applyMobileMouseMode(_ mode: MobileMouseMode) async throws -> JSONValue {
+    let absolute = mode == .absolute
+    let target = absolute ? "usb" : "usb_rel"
+    let current = try await call("/api/hid")
+    func matches(_ hid: JSONValue) -> Bool {
+      if let actual = hid["mouse"]["absolute"].bool { return actual == absolute }
+      return hid["mouse"]["outputs"]["active"].string == target
+    }
+    if matches(current) { return current }
+    guard current["mouse"]["outputs"]["available"].array.contains(.string(target)) else {
+      throw CometError.unsupported(
+        "This KVM does not advertise a live \(mode.rawValue) mouse output.")
+    }
+    try Task.checkCancellation()
+    try await call("/api/hid/set_params", method: "POST", query: ["mouse_output": target])
+    let updated = try await call("/api/hid")
+    guard matches(updated) else {
+      throw CometError.unsupported(
+        "The KVM did not switch to \(mode.rawValue) mouse mode. Try selecting the mode again.")
+    }
+    return updated
+  }
+
   // Refresh and merge the whole object immediately before writing so unknown fields survive.
   public func updateConfig(_ changes: [String: JSONValue]) async throws -> JSONValue {
     let fresh = try await call("/api/system/get_config")["config"].object

@@ -13,6 +13,8 @@ Control a remote computer yourself, or give Codex a task and watch it work.
 
 </div>
 
+An iPhone/iPad client is available under [`ios`](ios/README.md), using the shared session, media, input, and security code. Select the **AsteroidKVMiOS** Xcode scheme.
+
 ![AsteroidKVM displaying a remote Windows desktop with a browser and PowerShell, native toolbar controls, and connection status](docs/screenshots/remote-display.png)
 
 *The real client connected to a Windows desktop. Keyboard, display, text recognition, and Agent controls stay within reach.*
@@ -140,6 +142,8 @@ open build/DerivedData/Build/Products/Release/AsteroidKVM.app
 ```
 
 You can also open `AsteroidKVM.xcodeproj`, select **AsteroidKVM → My Mac**, and run. Xcode resolves the pinned WebRTC package automatically.
+
+The shared icon master is `Resources/AppIcon.png`. After replacing it with square, opaque artwork, run `python3 scripts/generate-icon.py` to regenerate the macOS `.icns` (rounded with transparent Dock padding) and the full-bleed 1024 × 1024 iOS icon.
 
 1. **Add your Comet** with its hostname, port, and account.
 2. **Connect and click the display** to capture input. The first click captures; subsequent clicks reach the remote machine.

@@ -18,7 +18,7 @@ The API normally wraps responses as `{"ok":true,"result":...}`. Each connection 
 | Audio playback | Remote WebRTC audio track, local mute | Native path implemented; audible playback remains a manual check |
 | Microphone | Janus `mic` feature gate, explicit macOS permission, microphone track and renegotiation | Source/native implementation; actual microphone routing remains a manual check |
 | USB functions | `GET/POST /api/system/otg_functions`, only returned function flags; refresh after mutation | Hardware returned keyboard, mouse, alternate mouse, CD-ROM, flash, and microphone flags; switching actual USB functions remains manual |
-| Device mouse | `GET /api/system/get_param`, `POST /api/system/set_param?absolute_mouse=...`; `/api/hid/set_params` for advertised output modes | Hardware read confirmed; mutation protocol inspected |
+| Device mouse | `GET /api/system/get_param`, `POST /api/system/set_param?absolute_mouse=...` set the startup preference; `POST /api/hid/set_params?mouse_output=usb_rel` (or `usb`) switches the advertised live output, verified with `GET /api/hid` | Hardware read confirmed; mutation protocol inspected; local protocol regression covers iOS mode switching and reconnect |
 | Mouse jiggler | `/api/hid/set_params` for `jiggler` and `jiggler_interval` (1–3,600 seconds); JSON `/api/hid/set_jiggler_schedule` with daily start/end `HH:MM` periods | Interval and schedule advertised by hardware; source confirms mutation contracts; not activated during verification |
 | Reboot appliance | `GET /api/upgrade/reboot`, confirmation and reconnection | Source confirmed; real appliance was not rebooted |
 

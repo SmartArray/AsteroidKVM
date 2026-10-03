@@ -95,6 +95,11 @@ public struct ConnectionProfile: Codable, Identifiable, Equatable, Sendable {
   public var certificateSHA256: String?
   public var keymap = "en-us"
   public var mcp: MCPPreferences?
+  private var mobileMouseModeOverride: MobileMouseMode?
+  public var mobileMouseMode: MobileMouseMode {
+    get { mobileMouseModeOverride ?? .absolute }
+    set { mobileMouseModeOverride = newValue }
+  }
   public var nativeLayout = false
   // Optional storage keeps profiles saved before this preference compatible with decoding.
   public static let defaultNativeTypingIntervalMilliseconds = 50

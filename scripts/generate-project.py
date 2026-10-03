@@ -57,6 +57,9 @@ products = []
 groups = []
 targets = []
 for name, source, kind, dependencies in [
+    ("AsteroidKVMiOS", "ios/App", "com.apple.product-type.application", ["CometCore", "CometMedia", "CometSessionCore"]),
+    ("AsteroidKVMiOSTests", "ios/Tests", "com.apple.product-type.bundle.unit-test", ["CometCore", "CometMedia", "CometSessionCore"]),
+    ("AsteroidKVMiOSUITests", "ios/UITests", "com.apple.product-type.bundle.ui-testing", []),
     (
         "AsteroidKVM",
         "Sources/CometApp",
@@ -91,7 +94,7 @@ for name, source, kind, dependencies in [
     groups.append(
         obj(name + "Group", "PBXGroup", children=files, name=name, sourceTree="<group>")
     )
-    ext = "app" if name == "AsteroidKVM" else "xctest"
+    ext = "app" if kind == "com.apple.product-type.application" else "xctest"
     product = obj(
         name + "Product",
         "PBXFileReference",
@@ -197,7 +200,25 @@ for name, source, kind, dependencies in [
             INFOPLIST_KEY_NSHighResolutionCapable="YES",
             INFOPLIST_KEY_NSLocalNetworkUsageDescription="Connect to your GL.iNet Comet appliances on the local network.",
         )
+    if name.startswith("AsteroidKVMiOS"):
+        settings.update(SDKROOT="iphoneos", SUPPORTED_PLATFORMS="iphoneos iphonesimulator",
+                        IPHONEOS_DEPLOYMENT_TARGET="17.0", TARGETED_DEVICE_FAMILY="1,2",
+                        SUPPORTS_MACCATALYST="NO", LD_RUNPATH_SEARCH_PATHS=["$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks"])
+        if name == "AsteroidKVMiOS":
+            settings.update(INFOPLIST_FILE="ios/Info.plist", ASSETCATALOG_COMPILER_APPICON_NAME="AppIcon",
+                            MARKETING_VERSION="1.0.0", CURRENT_PROJECT_VERSION="1")
+            resources = []
+            for path, file_type in [("ios/Assets.xcassets", "folder.assetcatalog"), ("Resources/ThirdPartyNotices.txt", "text")]:
+                ref = obj(name + path, "PBXFileReference", lastKnownFileType=file_type, path=path, sourceTree="<group>")
+                objects[groups[-1]]["children"].append(ref)
+                resources.append(obj(name + path + "Build", "PBXBuildFile", fileRef=ref))
+            phases.append(obj(name + "Resources", "PBXResourcesBuildPhase", buildActionMask=2147483647, files=resources, runOnlyForDeploymentPostprocessing=0))
     target_dependencies = []
+    if name == "AsteroidKVMiOSUITests":
+        settings["TEST_TARGET_NAME"] = "AsteroidKVMiOS"
+        proxy = obj("MobileUIProxy", "PBXContainerItemProxy", containerPortal=oid("Project"), proxyType=1,
+                    remoteGlobalIDString=oid("AsteroidKVMiOSTarget"), remoteInfo="AsteroidKVMiOS")
+        target_dependencies.append(obj("MobileUIDependency", "PBXTargetDependency", target=oid("AsteroidKVMiOSTarget"), targetProxy=proxy))
     if name == "AsteroidKVMUITests":
         settings["TEST_TARGET_NAME"] = "AsteroidKVM"
         proxy = obj(
@@ -307,7 +328,7 @@ schemes.mkdir(parents=True, exist_ok=True)
 
 # Point shared schemes at the generated native targets using the same deterministic identifiers.
 def reference(name):
-    return f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{oid(name+"Target")}" BuildableName="{name}.{"app" if name == "AsteroidKVM" else "xctest"}" BlueprintName="{name}" ReferencedContainer="container:AsteroidKVM.xcodeproj"/>'
+    return f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{oid(name+"Target")}" BuildableName="{name}.{"app" if name in ["AsteroidKVM", "AsteroidKVMiOS"] else "xctest"}" BlueprintName="{name}" ReferencedContainer="container:AsteroidKVM.xcodeproj"/>'
 
 
 (schemes / "AsteroidKVM.xcscheme").write_text(f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -319,3 +340,9 @@ def reference(name):
 <AnalyzeAction buildConfiguration="Debug"/><ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES"/>
 </Scheme>""")
 print("Generated AsteroidKVM.xcodeproj")
+
+# Mobile scheme uses dedicated platform-safe tests, never the desktop aggregate.
+mobile_scheme = (schemes / "AsteroidKVM.xcscheme").read_text()
+for old, new in [("AsteroidKVMCoreTests", "AsteroidKVMiOSTests"), ("AsteroidKVMUITests", "AsteroidKVMiOSUITests"), ("AsteroidKVM", "AsteroidKVMiOS")]:
+    mobile_scheme = mobile_scheme.replace(reference(old), reference(new))
+(schemes / "AsteroidKVMiOS.xcscheme").write_text(mobile_scheme)

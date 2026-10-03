@@ -1,0 +1,31 @@
+name: iOS CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  mobile:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Show toolchain
+        run: xcodebuild -version
+      - name: Verify project generation
+        run: |
+          python3 scripts/generate-project.py
+          git diff --exit-code -- AsteroidKVM.xcodeproj
+          python3 scripts/generate-project.py
+          git diff --exit-code -- AsteroidKVM.xcodeproj
+      - name: Simulator contracts and UI
+        run: ./scripts/ios.sh test
+      - name: Unsigned device build
+        run: ./scripts/ios.sh device

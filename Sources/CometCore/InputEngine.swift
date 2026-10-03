@@ -165,11 +165,35 @@ public struct InputEngine: Sendable {
   private enum Command {
     case event(HIDEvent)
     case paste(String, String)
+    case keyboardText(String, String)
+    case keyboardChord([String])
     case barrier(CheckedContinuation<Void, Never>)
   }
   private var pending: [Command] = []
   private var worker: Task<Void, Never>?
   private var pasteRunning = false
+  private var pasteCompletion: ((Result<Void, Error>) -> Void)?
+  private func finishPaste(_ result: Result<Void, Error>) {
+    let completion = pasteCompletion; pasteCompletion = nil; completion?(result)
+  }
+  // A local focus change cannot discard a session-owned print request.
+  public func releasePhysicalInput() {
+    guard !pasting else { return }
+    // Keyboard commits are deliberate actions, not held physical input. Keep them
+    // ordered through keyboard dismissal, viewport resizing and focus changes.
+    var accepted: [Command] = []
+    pending.removeAll { command in
+      switch command {
+      case .keyboardText, .keyboardChord, .barrier:
+        accepted.append(command)
+        return true
+      default: return false
+      }
+    }
+    releaseAll()
+    pending += accepted
+    drain()
+  }
   private var keys: Set<String> = []
   private var buttons: Set<String> = []
   public var nativeTypingIntervalMilliseconds = ConnectionProfile.defaultNativeTypingIntervalMilliseconds
@@ -202,6 +226,43 @@ public struct InputEngine: Sendable {
       track(event)
       pending.append(.event(event))
     }
+    drain()
+  }
+
+  // Reuse firmware text mapping without locking out subsequent software-keyboard input.
+  // Adjacent pending commits coalesce, but never across a key or pointer event.
+  public func keyboardText(_ text: String, keymap: String) {
+    guard !pasting, !text.isEmpty else { return }
+    let queued = pending.reduce(0) { count, command in
+      if case .keyboardText(let value, _) = command { return count + value.unicodeScalars.count }
+      return count
+    }
+    guard queued + text.unicodeScalars.count <= 16_384, pending.count < 512 else {
+      onError?(CometError.unsupported("Keyboard input is waiting for the KVM. Wait before typing more."))
+      return
+    }
+    if case .keyboardText(let previous, let previousKeymap) = pending.last, previousKeymap == keymap {
+      pending.removeLast()
+      pending.append(.keyboardText(previous + text, keymap))
+    } else {
+      pending.append(.keyboardText(text, keymap))
+    }
+    drain()
+  }
+
+  public func keyboardKey(_ code: String) {
+    keyboardChord([code])
+  }
+
+  // A software-keyboard chord is one accepted command, including its balanced releases.
+  public func keyboardChord(_ codes: [String]) {
+    guard !pasting, !codes.isEmpty else { return }
+    guard pending.count < 512 else {
+      onError?(CometError.unsupported("Keyboard input is waiting for the KVM. Wait before typing more."))
+      return
+    }
+    var seen: Set<String> = []
+    pending.append(.keyboardChord(codes.filter { seen.insert($0).inserted }))
     drain()
   }
 
@@ -240,6 +301,7 @@ public struct InputEngine: Sendable {
     if hadQueuedPaste && !pasteRunning {
       pasting = false
       onPasteChanged?(false)
+      finishPaste(.failure(CancellationError()))
     }
     pending += possibleKeys.sorted().map { .event(.key($0, false)) }
     pending += possibleButtons.sorted().map { .event(.button($0, false)) }
@@ -249,13 +311,15 @@ public struct InputEngine: Sendable {
   }
 
   // Paste locks out live input synchronously, then waits behind releases in the same FIFO.
-  public func paste(_ text: String, keymap: String) {
-    guard !pasting else { return }
-    releaseAll()
+  @discardableResult public func paste(_ text: String, keymap: String, completion: ((Result<Void, Error>) -> Void)? = nil) -> Bool {
+    guard !pasting else { return false }
+    releasePhysicalInput()
+    pasteCompletion = completion
     pasting = true
     onPasteChanged?(true)
     pending.append(.paste(text, keymap))
     drain()
+    return true
   }
 
   // Place a FIFO barrier so callers can await prior output without reordering it.
@@ -268,6 +332,7 @@ public struct InputEngine: Sendable {
 
   // Cancel owned asynchronous work and release resources without affecting another session.
   public func stop() {
+    finishPaste(.failure(CancellationError()))
     worker?.cancel()
     worker = nil
     for command in pending {
@@ -304,9 +369,24 @@ public struct InputEngine: Sendable {
             try await printText(text, keymap)
             pasting = false
             onPasteChanged?(false)
+            finishPaste(.success(()))
+          case .keyboardText(let text, let keymap):
+            try await printText(text, keymap)
+          case .keyboardChord(let codes):
+            for code in codes {
+              try Task.checkCancellation()
+              keys.insert(code)
+              try await send(.key(code, true))
+            }
+            for code in codes.reversed() {
+              try Task.checkCancellation()
+              try await send(.key(code, false))
+              keys.remove(code)
+            }
           case .barrier(let continuation): continuation.resume()
           }
         } catch {
+          finishPaste(.failure(error))
           onError?(error)
           for queued in pending {
             if case .barrier(let continuation) = queued { continuation.resume() }

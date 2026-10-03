@@ -1,817 +1,1153 @@
 // !$*UTF8*$!
 {
-	"archiveVersion" = 1;
-	"classes" = {
+	archiveVersion = 1;
+	classes = {
 	};
-	"objectVersion" = 60;
-	"objects" = {
-		"F58117D5A5E2E2F07B7A5553" = {
-			"isa" = "XCLocalSwiftPackageReference";
-			"relativePath" = ".";
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		21AEF1F3559CA6C5E9E1EB40 /* Sources/CometApp/MCPSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A2FB417DE836A83DE90A82 /* Sources/CometApp/MCPSettingsView.swift */; };
+		008CD11DE98D06352ADCF198 /* ios/App/UITestFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8866C91B45688D7784FB91DD /* ios/App/UITestFixture.swift */; };
+		19AE3632AAEF56E7FFF15B62 /* ios/App/MobileRemoteSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EBDB4D4E7DD106737697CCA /* ios/App/MobileRemoteSurface.swift */; };
+		1CBDC7E088711291CEF741EE /* services/omniparser/parser-runtime.json in Resources */ = {isa = PBXBuildFile; fileRef = 0166DF2194BE184B8A3DD6E8 /* services/omniparser/parser-runtime.json */; };
+		1D92AB48D57C9014EBF47E3E /* CometMedia in Frameworks */ = {isa = PBXBuildFile; productRef = D6E83CCD9E30E4D7367321C3 /* CometMedia */; };
+		1E0DDADF7FD41F7A0A708035 /* Tests/CometCoreTests/EDIDHardwareTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BBAB64F5134911C965155A8 /* Tests/CometCoreTests/EDIDHardwareTests.swift */; };
+		297C21BCAFDA9C4AEBC66276 /* ios/Tests/MobileContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EAA5A8CEB809FF52025672 /* ios/Tests/MobileContractTests.swift */; };
+		298201CA082D2E2B8A3521DA /* services/omniparser/server.py in Resources */ = {isa = PBXBuildFile; fileRef = 8B649396177F2F1837A2D363 /* services/omniparser/server.py */; };
+		2F0E9492174BB64964F7F9C0 /* Resources/ThirdPartyNotices.txt in Resources */ = {isa = PBXBuildFile; fileRef = 933F689BB681A518B4753154 /* Resources/ThirdPartyNotices.txt */; };
+		314A5134BCF459B8103DE3A7 /* Tests/CometCoreTests/LocalWebRTCPeer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EA6ACF9FA671A8EF8A12B4B /* Tests/CometCoreTests/LocalWebRTCPeer.swift */; };
+		33FAA64755E08172FFF27DBA /* services/omniparser/backend.py in Resources */ = {isa = PBXBuildFile; fileRef = F2F0EBBF9956450376685310 /* services/omniparser/backend.py */; };
+		3D5E7B954904F47AA96A92D4 /* ios/App/GestureOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F65053B29B58997BC5DF650 /* ios/App/GestureOnboardingView.swift */; };
+		4028C0F92CF432AB2121BC77 /* Tests/CometCoreTests/GeometryAndStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1605437A1DACB178CC2D93AC /* Tests/CometCoreTests/GeometryAndStorageTests.swift */; };
+		46423992EE1B7F85BD156972 /* CometCore in Frameworks */ = {isa = PBXBuildFile; productRef = 02FED7680B1C4CCDA29D3661 /* CometCore */; };
+		4A01C04F8F8B2CB036A97732 /* Tests/CometUITests/CometUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 909A6CAA5D8AB54BA54C82E0 /* Tests/CometUITests/CometUITests.swift */; };
+		4B1C20102842DED7C76065D5 /* Tests/CometCoreTests/TranscriptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E68D5DB2202E375DD2FD6E99 /* Tests/CometCoreTests/TranscriptionTests.swift */; };
+		4BAC53BF4287AF0D1BB8C43C /* Tests/CometCoreTests/HardwareE2ETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011F0AD834BD13AC45DD47A0 /* Tests/CometCoreTests/HardwareE2ETests.swift */; };
+		4C4D4C08E9918BBC9D0893EC /* Tests/CometCoreTests/AgentSecurityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84180C1295ABED5C96121431 /* Tests/CometCoreTests/AgentSecurityTests.swift */; };
+		4D7A498D1236F3D70582247F /* Tests/CometCoreTests/InputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A7710DD58150DFD07D0D709 /* Tests/CometCoreTests/InputTests.swift */; };
+		58FB572A673398A0D271C19A /* Tests/CometCoreTests/ParserInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F4B77F3EA83E67740DD505A /* Tests/CometCoreTests/ParserInstallerTests.swift */; };
+		5D53B1B3F4B50E80B2CADD9C /* CometCore in Frameworks */ = {isa = PBXBuildFile; productRef = BA7F54EF5782D5C82F4F722F /* CometCore */; };
+		5FDECEB0AE4933A7C9BE0AB8 /* ios/App/JigglerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83CB4CC02FE7B558145DD908 /* ios/App/JigglerSettingsView.swift */; };
+		620CB6096580A260AFB23A54 /* CometSession in Frameworks */ = {isa = PBXBuildFile; productRef = 17D5F96374EAC85C3C318894 /* CometSession */; };
+		63F901DDB1E31B8DF6CB9290 /* Sources/CometApp/TranscriptionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A6107EE1C4C8784F36E213 /* Sources/CometApp/TranscriptionViews.swift */; };
+		644D7CD6277BCC9BFF406993 /* CometAgent in Frameworks */ = {isa = PBXBuildFile; productRef = C459E4FB0C950C256C94F6A7 /* CometAgent */; };
+		67F0900C4F29BE1A6188D64F /* Sources/CometApp/AgentOptionsPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4ABD47EF10F2FD9F62F2A59 /* Sources/CometApp/AgentOptionsPopover.swift */; };
+		68D964EE503F3BDD34814822 /* Tests/CometCoreTests/NativeCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE8BA413CD34F241C99E0B0B /* Tests/CometCoreTests/NativeCompositionTests.swift */; };
+		698EABFAA7572B4BC0080605 /* Resources/ThirdPartyNotices.txt in Resources */ = {isa = PBXBuildFile; fileRef = F8DE933081D38EA706A53A8D /* Resources/ThirdPartyNotices.txt */; };
+		742B2CA2A75CADA148ED1E87 /* Sources/CometApp/SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9BF2566BB59AA03DF66CF9 /* Sources/CometApp/SettingsView.swift */; };
+		78FE98C96E509C72D308B3CA /* CometMedia in Frameworks */ = {isa = PBXBuildFile; productRef = B17B74358E870C538E96524D /* CometMedia */; };
+		7BC95057E795D0DB7CEB56C4 /* services/omniparser/requirements.lock in Resources */ = {isa = PBXBuildFile; fileRef = 8510232D73D2853C79C68A25 /* services/omniparser/requirements.lock */; };
+		7D9ED400E9441C3EE529B3C0 /* Sources/CometApp/JigglerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91A8936FD9EF20917381D3ED /* Sources/CometApp/JigglerSettingsView.swift */; };
+		82B7C2B111C70F603E130B38 /* Tests/CometCoreTests/AgentHardwareE2ETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49C8D2E3742CEFE67BDCA174 /* Tests/CometCoreTests/AgentHardwareE2ETests.swift */; };
+		8466FAB0087CB83531985A4F /* CometCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6D572CEB9005447B9E9A5899 /* CometCore */; };
+		84FF13658A718F98E99F33D9 /* ios/UITests/MobileUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC5B5BC90570453C4D13D84A /* ios/UITests/MobileUITests.swift */; };
+		884D5EA1CEDE8735723A19D4 /* Tests/CometCoreTests/TransportSecurityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF52CE61DAACF416A92DFF8A /* Tests/CometCoreTests/TransportSecurityTests.swift */; };
+		88AB45472ADB433A7356367B /* Resources/AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 99E38A031DA5313CE8FCA26C /* Resources/AppIcon.icns */; };
+		897F07CE08F70BD488E13D02 /* Sources/CometApp/CometApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FAA345547E9EB730A282822 /* Sources/CometApp/CometApp.swift */; };
+		919806CC27BC4C006310E5B3 /* Sources/CometApp/RemoteDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DCB73069E5B79BFBD4C96F5 /* Sources/CometApp/RemoteDisplayView.swift */; };
+		9E38EB77AF9A918F404BACF7 /* Tests/CometCoreTests/AgentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8779C4E7F8A1F2784CC3FE /* Tests/CometCoreTests/AgentTests.swift */; };
+		A38F9BB775E59AD6C92A087B /* Tests/CometCoreTests/RemoteSurfaceLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13BA354DB62D2E65AF146498 /* Tests/CometCoreTests/RemoteSurfaceLifecycleTests.swift */; };
+		A47630A8D34C53B440247677 /* CometSessionCore in Frameworks */ = {isa = PBXBuildFile; productRef = 32EA2BE4FA129D706408E33B /* CometSessionCore */; };
+		A48A754B89A5E34CA7E3D382 /* CometAgent in Frameworks */ = {isa = PBXBuildFile; productRef = EC5E7778451F1C220783C935 /* CometAgent */; };
+		A7B43CBBBAC5F53514202149 /* Sources/CometApp/ConnectionManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73F31A2D8737ABB86C43D35 /* Sources/CometApp/ConnectionManagerView.swift */; };
+		A7E9509D55A3C7FBE1F1ED45 /* ios/App/MobileSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C8B88F922E97FC7FAC3FDD2 /* ios/App/MobileSettingsView.swift */; };
+		A906510C3959A33B0EF26EE1 /* CometMedia in Frameworks */ = {isa = PBXBuildFile; productRef = EF8378E750A850AFDE5A4018 /* CometMedia */; };
+		C3FD477D4B2D9EEC908650AB /* ios/Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CD82CCADDC9D48181DDE0980 /* ios/Assets.xcassets */; };
+		CADB17560BAB2DACF54736D6 /* services/omniparser/setup.py in Resources */ = {isa = PBXBuildFile; fileRef = 38696BF1682CD37CC297D690 /* services/omniparser/setup.py */; };
+		CDE456D0B9663CA2EB4C11A9 /* Tests/CometCoreTests/SecurityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00FC5A6FC8217CF8A3573A0 /* Tests/CometCoreTests/SecurityTests.swift */; };
+		CF0A3454A2DD16CA9FAFB585 /* Sources/CometApp/DisplaySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC3259E92F7C6EE05F15ECA /* Sources/CometApp/DisplaySettingsView.swift */; };
+		D0852B3DE5B58AA8C3387D8B /* CometSession in Frameworks */ = {isa = PBXBuildFile; productRef = E9A98F0C6E713C98C405917C /* CometSession */; };
+		D245E62E87862FD8CBA720F0 /* CometCore in Frameworks */ = {isa = PBXBuildFile; productRef = 70FAFED79596022939A5E66C /* CometCore */; };
+		DD106D3A5D52DA8AA2F8FA50 /* Sources/CometApp/PerceptionSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D097CA593900FA4D8BFC8846 /* Sources/CometApp/PerceptionSettingsView.swift */; };
+		E51869C682D4E5BEADD5ECB4 /* Tests/CometCoreTests/MCPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E1BE1480953D055C1E896A /* Tests/CometCoreTests/MCPTests.swift */; };
+		E99C2A36DCE9FB9167F6CC9E /* ios/App/MobileAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19ECBB60A32B003F67169178 /* ios/App/MobileAppModel.swift */; };
+		E99CB06E828168013DFC299B /* CometSessionCore in Frameworks */ = {isa = PBXBuildFile; productRef = E4330F61610B91B0CDC7F867 /* CometSessionCore */; };
+		ED99C36C51A191D42CDD9506 /* Tests/CometCoreTests/EDIDTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC7D434125C3E079435D4E4 /* Tests/CometCoreTests/EDIDTests.swift */; };
+		F1325941676E229E72161C8E /* Sources/CometApp/AgentChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8295A1A01CED3D190727BF1 /* Sources/CometApp/AgentChatView.swift */; };
+		F26029F8D7AC60BB6DDB0ED8 /* ios/App/MobileSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1BD03412323C63194AD1363 /* ios/App/MobileSessionView.swift */; };
+		F63A5B69D599D239FF05EFD4 /* Sources/CometApp/SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8759855BCFAC9341DD552C9 /* Sources/CometApp/SessionView.swift */; };
+		F789935ADE445E72319A6D33 /* Tests/CometCoreTests/MediaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F37FCBB48859E6A34A05BAA1 /* Tests/CometCoreTests/MediaTests.swift */; };
+		F79D541225961CBA56191D15 /* Tests/CometCoreTests/ProtocolE2ETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A576CCD5BCC2125E70C835D /* Tests/CometCoreTests/ProtocolE2ETests.swift */; };
+		F7CA31C75E671B83EEA469BF /* Tests/CometCoreTests/PerceptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87448D1B4CD402474272562D /* Tests/CometCoreTests/PerceptionTests.swift */; };
+		F807B708C70B49B591EF19E7 /* ios/App/AsteroidKVMApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EC46E0A54BDB24DC80C5EF /* ios/App/AsteroidKVMApp.swift */; };
+		FE1526FC5E59461C81241D7C /* CometMedia in Frameworks */ = {isa = PBXBuildFile; productRef = 8D17F4F1F8A3FD4C7EFE5D53 /* CometMedia */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		3DDD014B50A4CB7CB4B4C5A6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F6F4DA8D93E88A08220E03B7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 370F2713D58F5AFBD8B4D2B2;
+			remoteInfo = AsteroidKVM;
 		};
-		"C8295A1A01CED3D190727BF1" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/AgentChatView.swift";
-			"sourceTree" = "<group>";
+		637750CEFFE9950A385BE8BC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F6F4DA8D93E88A08220E03B7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 541B876A855842F16006E328;
+			remoteInfo = AsteroidKVMiOS;
 		};
-		"F1325941676E229E72161C8E" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "C8295A1A01CED3D190727BF1";
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		38A2FB417DE836A83DE90A82 /* Sources/CometApp/MCPSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/MCPSettingsView.swift; sourceTree = "<group>"; };
+		011F0AD834BD13AC45DD47A0 /* Tests/CometCoreTests/HardwareE2ETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/HardwareE2ETests.swift; sourceTree = "<group>"; };
+		0166DF2194BE184B8A3DD6E8 /* services/omniparser/parser-runtime.json */ = {isa = PBXFileReference; lastKnownFileType = text; path = "services/omniparser/parser-runtime.json"; sourceTree = "<group>"; };
+		0A7710DD58150DFD07D0D709 /* Tests/CometCoreTests/InputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/InputTests.swift; sourceTree = "<group>"; };
+		0EA6ACF9FA671A8EF8A12B4B /* Tests/CometCoreTests/LocalWebRTCPeer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/LocalWebRTCPeer.swift; sourceTree = "<group>"; };
+		0EBDB4D4E7DD106737697CCA /* ios/App/MobileRemoteSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/App/MobileRemoteSurface.swift; sourceTree = "<group>"; };
+		13BA354DB62D2E65AF146498 /* Tests/CometCoreTests/RemoteSurfaceLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/RemoteSurfaceLifecycleTests.swift; sourceTree = "<group>"; };
+		1605437A1DACB178CC2D93AC /* Tests/CometCoreTests/GeometryAndStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/GeometryAndStorageTests.swift; sourceTree = "<group>"; };
+		19ECBB60A32B003F67169178 /* ios/App/MobileAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/App/MobileAppModel.swift; sourceTree = "<group>"; };
+		1DCB73069E5B79BFBD4C96F5 /* Sources/CometApp/RemoteDisplayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/RemoteDisplayView.swift; sourceTree = "<group>"; };
+		2BBAB64F5134911C965155A8 /* Tests/CometCoreTests/EDIDHardwareTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/EDIDHardwareTests.swift; sourceTree = "<group>"; };
+		2C7BA0A40AEFE8E6EB9D0D46 /* AsteroidKVMUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = AsteroidKVMUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		38696BF1682CD37CC297D690 /* services/omniparser/setup.py */ = {isa = PBXFileReference; lastKnownFileType = text; path = services/omniparser/setup.py; sourceTree = "<group>"; };
+		3D8779C4E7F8A1F2784CC3FE /* Tests/CometCoreTests/AgentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/AgentTests.swift; sourceTree = "<group>"; };
+		3E610C9606FC638E4FC45DBF /* AsteroidKVMiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = AsteroidKVMiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3FAA345547E9EB730A282822 /* Sources/CometApp/CometApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/CometApp.swift; sourceTree = "<group>"; };
+		3FC7D434125C3E079435D4E4 /* Tests/CometCoreTests/EDIDTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/EDIDTests.swift; sourceTree = "<group>"; };
+		44E1BE1480953D055C1E896A /* Tests/CometCoreTests/MCPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/MCPTests.swift; sourceTree = "<group>"; };
+		49C8D2E3742CEFE67BDCA174 /* Tests/CometCoreTests/AgentHardwareE2ETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/AgentHardwareE2ETests.swift; sourceTree = "<group>"; };
+		6A576CCD5BCC2125E70C835D /* Tests/CometCoreTests/ProtocolE2ETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/ProtocolE2ETests.swift; sourceTree = "<group>"; };
+		78EAA5A8CEB809FF52025672 /* ios/Tests/MobileContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/Tests/MobileContractTests.swift; sourceTree = "<group>"; };
+		7F4B77F3EA83E67740DD505A /* Tests/CometCoreTests/ParserInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/ParserInstallerTests.swift; sourceTree = "<group>"; };
+		83CB4CC02FE7B558145DD908 /* ios/App/JigglerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/App/JigglerSettingsView.swift; sourceTree = "<group>"; };
+		84180C1295ABED5C96121431 /* Tests/CometCoreTests/AgentSecurityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/AgentSecurityTests.swift; sourceTree = "<group>"; };
+		8510232D73D2853C79C68A25 /* services/omniparser/requirements.lock */ = {isa = PBXFileReference; lastKnownFileType = text; path = services/omniparser/requirements.lock; sourceTree = "<group>"; };
+		87448D1B4CD402474272562D /* Tests/CometCoreTests/PerceptionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/PerceptionTests.swift; sourceTree = "<group>"; };
+		8866C91B45688D7784FB91DD /* ios/App/UITestFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/App/UITestFixture.swift; sourceTree = "<group>"; };
+		8B649396177F2F1837A2D363 /* services/omniparser/server.py */ = {isa = PBXFileReference; lastKnownFileType = text; path = services/omniparser/server.py; sourceTree = "<group>"; };
+		8BC3259E92F7C6EE05F15ECA /* Sources/CometApp/DisplaySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/DisplaySettingsView.swift; sourceTree = "<group>"; };
+		909A6CAA5D8AB54BA54C82E0 /* Tests/CometUITests/CometUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometUITests/CometUITests.swift; sourceTree = "<group>"; };
+		91A8936FD9EF20917381D3ED /* Sources/CometApp/JigglerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/JigglerSettingsView.swift; sourceTree = "<group>"; };
+		933F689BB681A518B4753154 /* Resources/ThirdPartyNotices.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Resources/ThirdPartyNotices.txt; sourceTree = "<group>"; };
+		99E38A031DA5313CE8FCA26C /* Resources/AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Resources/AppIcon.icns; sourceTree = "<group>"; };
+		9C8B88F922E97FC7FAC3FDD2 /* ios/App/MobileSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/App/MobileSettingsView.swift; sourceTree = "<group>"; };
+		9F65053B29B58997BC5DF650 /* ios/App/GestureOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/App/GestureOnboardingView.swift; sourceTree = "<group>"; };
+		A1BD03412323C63194AD1363 /* ios/App/MobileSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/App/MobileSessionView.swift; sourceTree = "<group>"; };
+		AA31C1689ECDE197F9DFFC16 /* AsteroidKVM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = AsteroidKVM.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BC52D3569E4E80A128F00396 /* AsteroidKVMCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = AsteroidKVMCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BE9BF2566BB59AA03DF66CF9 /* Sources/CometApp/SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/SettingsView.swift; sourceTree = "<group>"; };
+		BED37B159C1E881B3ECBC805 /* AsteroidKVMiOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = AsteroidKVMiOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C4ABD47EF10F2FD9F62F2A59 /* Sources/CometApp/AgentOptionsPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/AgentOptionsPopover.swift; sourceTree = "<group>"; };
+		C8295A1A01CED3D190727BF1 /* Sources/CometApp/AgentChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/AgentChatView.swift; sourceTree = "<group>"; };
+		CD82CCADDC9D48181DDE0980 /* ios/Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = ios/Assets.xcassets; sourceTree = "<group>"; };
+		CE8BA413CD34F241C99E0B0B /* Tests/CometCoreTests/NativeCompositionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/NativeCompositionTests.swift; sourceTree = "<group>"; };
+		D097CA593900FA4D8BFC8846 /* Sources/CometApp/PerceptionSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/PerceptionSettingsView.swift; sourceTree = "<group>"; };
+		D4A6107EE1C4C8784F36E213 /* Sources/CometApp/TranscriptionViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/TranscriptionViews.swift; sourceTree = "<group>"; };
+		D73F31A2D8737ABB86C43D35 /* Sources/CometApp/ConnectionManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/ConnectionManagerView.swift; sourceTree = "<group>"; };
+		D7A2FB57F917A48910FD905E /* AsteroidKVMiOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = AsteroidKVMiOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E00FC5A6FC8217CF8A3573A0 /* Tests/CometCoreTests/SecurityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/SecurityTests.swift; sourceTree = "<group>"; };
+		E68D5DB2202E375DD2FD6E99 /* Tests/CometCoreTests/TranscriptionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/TranscriptionTests.swift; sourceTree = "<group>"; };
+		E8759855BCFAC9341DD552C9 /* Sources/CometApp/SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CometApp/SessionView.swift; sourceTree = "<group>"; };
+		E9EC46E0A54BDB24DC80C5EF /* ios/App/AsteroidKVMApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/App/AsteroidKVMApp.swift; sourceTree = "<group>"; };
+		EC5B5BC90570453C4D13D84A /* ios/UITests/MobileUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios/UITests/MobileUITests.swift; sourceTree = "<group>"; };
+		F2F0EBBF9956450376685310 /* services/omniparser/backend.py */ = {isa = PBXFileReference; lastKnownFileType = text; path = services/omniparser/backend.py; sourceTree = "<group>"; };
+		F37FCBB48859E6A34A05BAA1 /* Tests/CometCoreTests/MediaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/MediaTests.swift; sourceTree = "<group>"; };
+		F8DE933081D38EA706A53A8D /* Resources/ThirdPartyNotices.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Resources/ThirdPartyNotices.txt; sourceTree = "<group>"; };
+		FF52CE61DAACF416A92DFF8A /* Tests/CometCoreTests/TransportSecurityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/CometCoreTests/TransportSecurityTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		04AEF97F998D1B2F0A82D0DE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D245E62E87862FD8CBA720F0 /* CometCore in Frameworks */,
+				FE1526FC5E59461C81241D7C /* CometMedia in Frameworks */,
+				644D7CD6277BCC9BFF406993 /* CometAgent in Frameworks */,
+				620CB6096580A260AFB23A54 /* CometSession in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"C4ABD47EF10F2FD9F62F2A59" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/AgentOptionsPopover.swift";
-			"sourceTree" = "<group>";
+		0A9F25945EA0E0341E2F2688 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				46423992EE1B7F85BD156972 /* CometCore in Frameworks */,
+				A906510C3959A33B0EF26EE1 /* CometMedia in Frameworks */,
+				E99CB06E828168013DFC299B /* CometSessionCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"67F0900C4F29BE1A6188D64F" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "C4ABD47EF10F2FD9F62F2A59";
+		2308590D8259BC37735532ED /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"3FAA345547E9EB730A282822" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/CometApp.swift";
-			"sourceTree" = "<group>";
+		54584200B689C1620F485C0E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5D53B1B3F4B50E80B2CADD9C /* CometCore in Frameworks */,
+				1D92AB48D57C9014EBF47E3E /* CometMedia in Frameworks */,
+				A47630A8D34C53B440247677 /* CometSessionCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"897F07CE08F70BD488E13D02" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "3FAA345547E9EB730A282822";
+		7622F597942F16D0D58BCA41 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"D73F31A2D8737ABB86C43D35" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/ConnectionManagerView.swift";
-			"sourceTree" = "<group>";
+		F12EA19E5CD4069719411A8C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8466FAB0087CB83531985A4F /* CometCore in Frameworks */,
+				78FE98C96E509C72D308B3CA /* CometMedia in Frameworks */,
+				A48A754B89A5E34CA7E3D382 /* CometAgent in Frameworks */,
+				D0852B3DE5B58AA8C3387D8B /* CometSession in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"A7B43CBBBAC5F53514202149" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "D73F31A2D8737ABB86C43D35";
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		16A1AD778D142423FC445FBD /* AsteroidKVMiOSUITests */ = {
+			isa = PBXGroup;
+			children = (
+				EC5B5BC90570453C4D13D84A /* ios/UITests/MobileUITests.swift */,
+			);
+			name = AsteroidKVMiOSUITests;
+			sourceTree = "<group>";
 		};
-		"8BC3259E92F7C6EE05F15ECA" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/DisplaySettingsView.swift";
-			"sourceTree" = "<group>";
+		2EB2D8158FC6EF9EB19CB439 = {
+			isa = PBXGroup;
+			children = (
+				6D71828BD9B3400D8CE2158D /* AsteroidKVMiOS */,
+				980303C8B109FC5CBEC85E69 /* AsteroidKVMiOSTests */,
+				16A1AD778D142423FC445FBD /* AsteroidKVMiOSUITests */,
+				3A8052B8F051E374C46D23F0 /* AsteroidKVM */,
+				FEDC1618AF439EA1057F85F5 /* AsteroidKVMCoreTests */,
+				D2CBD192FAB66F33707006B6 /* AsteroidKVMUITests */,
+				FE0A091FDBFB3E9C31B7A1BD /* Products */,
+			);
+			sourceTree = "<group>";
 		};
-		"CF0A3454A2DD16CA9FAFB585" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "8BC3259E92F7C6EE05F15ECA";
+		3A8052B8F051E374C46D23F0 /* AsteroidKVM */ = {
+			isa = PBXGroup;
+			children = (
+				C8295A1A01CED3D190727BF1 /* Sources/CometApp/AgentChatView.swift */,
+				C4ABD47EF10F2FD9F62F2A59 /* Sources/CometApp/AgentOptionsPopover.swift */,
+				3FAA345547E9EB730A282822 /* Sources/CometApp/CometApp.swift */,
+				D73F31A2D8737ABB86C43D35 /* Sources/CometApp/ConnectionManagerView.swift */,
+				8BC3259E92F7C6EE05F15ECA /* Sources/CometApp/DisplaySettingsView.swift */,
+				91A8936FD9EF20917381D3ED /* Sources/CometApp/JigglerSettingsView.swift */,
+				38A2FB417DE836A83DE90A82 /* Sources/CometApp/MCPSettingsView.swift */,
+				D097CA593900FA4D8BFC8846 /* Sources/CometApp/PerceptionSettingsView.swift */,
+				1DCB73069E5B79BFBD4C96F5 /* Sources/CometApp/RemoteDisplayView.swift */,
+				E8759855BCFAC9341DD552C9 /* Sources/CometApp/SessionView.swift */,
+				BE9BF2566BB59AA03DF66CF9 /* Sources/CometApp/SettingsView.swift */,
+				D4A6107EE1C4C8784F36E213 /* Sources/CometApp/TranscriptionViews.swift */,
+				F8DE933081D38EA706A53A8D /* Resources/ThirdPartyNotices.txt */,
+				99E38A031DA5313CE8FCA26C /* Resources/AppIcon.icns */,
+				8B649396177F2F1837A2D363 /* services/omniparser/server.py */,
+				F2F0EBBF9956450376685310 /* services/omniparser/backend.py */,
+				38696BF1682CD37CC297D690 /* services/omniparser/setup.py */,
+				8510232D73D2853C79C68A25 /* services/omniparser/requirements.lock */,
+				0166DF2194BE184B8A3DD6E8 /* services/omniparser/parser-runtime.json */,
+			);
+			name = AsteroidKVM;
+			sourceTree = "<group>";
 		};
-		"91A8936FD9EF20917381D3ED" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/JigglerSettingsView.swift";
-			"sourceTree" = "<group>";
+		6D71828BD9B3400D8CE2158D /* AsteroidKVMiOS */ = {
+			isa = PBXGroup;
+			children = (
+				E9EC46E0A54BDB24DC80C5EF /* ios/App/AsteroidKVMApp.swift */,
+				9F65053B29B58997BC5DF650 /* ios/App/GestureOnboardingView.swift */,
+				83CB4CC02FE7B558145DD908 /* ios/App/JigglerSettingsView.swift */,
+				19ECBB60A32B003F67169178 /* ios/App/MobileAppModel.swift */,
+				0EBDB4D4E7DD106737697CCA /* ios/App/MobileRemoteSurface.swift */,
+				A1BD03412323C63194AD1363 /* ios/App/MobileSessionView.swift */,
+				9C8B88F922E97FC7FAC3FDD2 /* ios/App/MobileSettingsView.swift */,
+				8866C91B45688D7784FB91DD /* ios/App/UITestFixture.swift */,
+				CD82CCADDC9D48181DDE0980 /* ios/Assets.xcassets */,
+				933F689BB681A518B4753154 /* Resources/ThirdPartyNotices.txt */,
+			);
+			name = AsteroidKVMiOS;
+			sourceTree = "<group>";
 		};
-		"7D9ED400E9441C3EE529B3C0" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "91A8936FD9EF20917381D3ED";
+		980303C8B109FC5CBEC85E69 /* AsteroidKVMiOSTests */ = {
+			isa = PBXGroup;
+			children = (
+				78EAA5A8CEB809FF52025672 /* ios/Tests/MobileContractTests.swift */,
+			);
+			name = AsteroidKVMiOSTests;
+			sourceTree = "<group>";
 		};
-		"38A2FB417DE836A83DE90A82" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/MCPSettingsView.swift";
-			"sourceTree" = "<group>";
+		D2CBD192FAB66F33707006B6 /* AsteroidKVMUITests */ = {
+			isa = PBXGroup;
+			children = (
+				909A6CAA5D8AB54BA54C82E0 /* Tests/CometUITests/CometUITests.swift */,
+			);
+			name = AsteroidKVMUITests;
+			sourceTree = "<group>";
 		};
-		"21AEF1F3559CA6C5E9E1EB40" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "38A2FB417DE836A83DE90A82";
+		FE0A091FDBFB3E9C31B7A1BD /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3E610C9606FC638E4FC45DBF /* AsteroidKVMiOS.app */,
+				D7A2FB57F917A48910FD905E /* AsteroidKVMiOSTests.xctest */,
+				BED37B159C1E881B3ECBC805 /* AsteroidKVMiOSUITests.xctest */,
+				AA31C1689ECDE197F9DFFC16 /* AsteroidKVM.app */,
+				BC52D3569E4E80A128F00396 /* AsteroidKVMCoreTests.xctest */,
+				2C7BA0A40AEFE8E6EB9D0D46 /* AsteroidKVMUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
 		};
-		"D097CA593900FA4D8BFC8846" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/PerceptionSettingsView.swift";
-			"sourceTree" = "<group>";
+		FEDC1618AF439EA1057F85F5 /* AsteroidKVMCoreTests */ = {
+			isa = PBXGroup;
+			children = (
+				49C8D2E3742CEFE67BDCA174 /* Tests/CometCoreTests/AgentHardwareE2ETests.swift */,
+				84180C1295ABED5C96121431 /* Tests/CometCoreTests/AgentSecurityTests.swift */,
+				3D8779C4E7F8A1F2784CC3FE /* Tests/CometCoreTests/AgentTests.swift */,
+				2BBAB64F5134911C965155A8 /* Tests/CometCoreTests/EDIDHardwareTests.swift */,
+				3FC7D434125C3E079435D4E4 /* Tests/CometCoreTests/EDIDTests.swift */,
+				1605437A1DACB178CC2D93AC /* Tests/CometCoreTests/GeometryAndStorageTests.swift */,
+				011F0AD834BD13AC45DD47A0 /* Tests/CometCoreTests/HardwareE2ETests.swift */,
+				0A7710DD58150DFD07D0D709 /* Tests/CometCoreTests/InputTests.swift */,
+				0EA6ACF9FA671A8EF8A12B4B /* Tests/CometCoreTests/LocalWebRTCPeer.swift */,
+				44E1BE1480953D055C1E896A /* Tests/CometCoreTests/MCPTests.swift */,
+				F37FCBB48859E6A34A05BAA1 /* Tests/CometCoreTests/MediaTests.swift */,
+				CE8BA413CD34F241C99E0B0B /* Tests/CometCoreTests/NativeCompositionTests.swift */,
+				7F4B77F3EA83E67740DD505A /* Tests/CometCoreTests/ParserInstallerTests.swift */,
+				87448D1B4CD402474272562D /* Tests/CometCoreTests/PerceptionTests.swift */,
+				6A576CCD5BCC2125E70C835D /* Tests/CometCoreTests/ProtocolE2ETests.swift */,
+				13BA354DB62D2E65AF146498 /* Tests/CometCoreTests/RemoteSurfaceLifecycleTests.swift */,
+				E00FC5A6FC8217CF8A3573A0 /* Tests/CometCoreTests/SecurityTests.swift */,
+				E68D5DB2202E375DD2FD6E99 /* Tests/CometCoreTests/TranscriptionTests.swift */,
+				FF52CE61DAACF416A92DFF8A /* Tests/CometCoreTests/TransportSecurityTests.swift */,
+			);
+			name = AsteroidKVMCoreTests;
+			sourceTree = "<group>";
 		};
-		"DD106D3A5D52DA8AA2F8FA50" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "D097CA593900FA4D8BFC8846";
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		370F2713D58F5AFBD8B4D2B2 /* AsteroidKVM */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 530F472BADFF1AB6EDEB721E /* Build configuration list for PBXNativeTarget "AsteroidKVM" */;
+			buildPhases = (
+				C99F1240DC33CA07A4BA3882 /* Sources */,
+				F12EA19E5CD4069719411A8C /* Frameworks */,
+				2AC7AB26953A78AD46B49603 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AsteroidKVM;
+			packageProductDependencies = (
+				6D572CEB9005447B9E9A5899 /* CometCore */,
+				B17B74358E870C538E96524D /* CometMedia */,
+				EC5E7778451F1C220783C935 /* CometAgent */,
+				E9A98F0C6E713C98C405917C /* CometSession */,
+			);
+			productName = AsteroidKVM;
+			productReference = AA31C1689ECDE197F9DFFC16 /* AsteroidKVM.app */;
+			productType = "com.apple.product-type.application";
 		};
-		"1DCB73069E5B79BFBD4C96F5" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/RemoteDisplayView.swift";
-			"sourceTree" = "<group>";
+		4351745369D40590F4215D08 /* AsteroidKVMiOSTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EDEF92E35CA1F47B9AA26D5C /* Build configuration list for PBXNativeTarget "AsteroidKVMiOSTests" */;
+			buildPhases = (
+				1B67562B407140E4A17C01BA /* Sources */,
+				0A9F25945EA0E0341E2F2688 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AsteroidKVMiOSTests;
+			packageProductDependencies = (
+				02FED7680B1C4CCDA29D3661 /* CometCore */,
+				EF8378E750A850AFDE5A4018 /* CometMedia */,
+				E4330F61610B91B0CDC7F867 /* CometSessionCore */,
+			);
+			productName = AsteroidKVMiOSTests;
+			productReference = D7A2FB57F917A48910FD905E /* AsteroidKVMiOSTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		"919806CC27BC4C006310E5B3" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "1DCB73069E5B79BFBD4C96F5";
+		541B876A855842F16006E328 /* AsteroidKVMiOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5C3162CE58C79B1468EB5C94 /* Build configuration list for PBXNativeTarget "AsteroidKVMiOS" */;
+			buildPhases = (
+				B648A590C0C640C271A7246E /* Sources */,
+				54584200B689C1620F485C0E /* Frameworks */,
+				7B1930F825F39E076F9C1E9A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AsteroidKVMiOS;
+			packageProductDependencies = (
+				BA7F54EF5782D5C82F4F722F /* CometCore */,
+				D6E83CCD9E30E4D7367321C3 /* CometMedia */,
+				32EA2BE4FA129D706408E33B /* CometSessionCore */,
+			);
+			productName = AsteroidKVMiOS;
+			productReference = 3E610C9606FC638E4FC45DBF /* AsteroidKVMiOS.app */;
+			productType = "com.apple.product-type.application";
 		};
-		"E8759855BCFAC9341DD552C9" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/SessionView.swift";
-			"sourceTree" = "<group>";
+		55DB8E8AD9C3E97E28F00328 /* AsteroidKVMCoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 257174400596069F4E15DDF8 /* Build configuration list for PBXNativeTarget "AsteroidKVMCoreTests" */;
+			buildPhases = (
+				3C5673A1737C6961C781543E /* Sources */,
+				04AEF97F998D1B2F0A82D0DE /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AsteroidKVMCoreTests;
+			packageProductDependencies = (
+				70FAFED79596022939A5E66C /* CometCore */,
+				8D17F4F1F8A3FD4C7EFE5D53 /* CometMedia */,
+				C459E4FB0C950C256C94F6A7 /* CometAgent */,
+				17D5F96374EAC85C3C318894 /* CometSession */,
+			);
+			productName = AsteroidKVMCoreTests;
+			productReference = BC52D3569E4E80A128F00396 /* AsteroidKVMCoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		"F63A5B69D599D239FF05EFD4" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "E8759855BCFAC9341DD552C9";
+		63F94586010B49AE1DFFA43D /* AsteroidKVMiOSUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D41E8BEA716EB7FBF17EE74A /* Build configuration list for PBXNativeTarget "AsteroidKVMiOSUITests" */;
+			buildPhases = (
+				899F60491CE57C552FA7B146 /* Sources */,
+				2308590D8259BC37735532ED /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				98CED2160F4B4D519EE35F0B /* PBXTargetDependency */,
+			);
+			name = AsteroidKVMiOSUITests;
+			packageProductDependencies = (
+			);
+			productName = AsteroidKVMiOSUITests;
+			productReference = BED37B159C1E881B3ECBC805 /* AsteroidKVMiOSUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
-		"BE9BF2566BB59AA03DF66CF9" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/SettingsView.swift";
-			"sourceTree" = "<group>";
+		AD3A50AF68E84DC2A4FA461C /* AsteroidKVMUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 89372AC2BD03CB7BC51B19CC /* Build configuration list for PBXNativeTarget "AsteroidKVMUITests" */;
+			buildPhases = (
+				8BE8A2893A9801B0B057888F /* Sources */,
+				7622F597942F16D0D58BCA41 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6176B977F600F04EFDE7793A /* PBXTargetDependency */,
+			);
+			name = AsteroidKVMUITests;
+			packageProductDependencies = (
+			);
+			productName = AsteroidKVMUITests;
+			productReference = 2C7BA0A40AEFE8E6EB9D0D46 /* AsteroidKVMUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
-		"742B2CA2A75CADA148ED1E87" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "BE9BF2566BB59AA03DF66CF9";
-		};
-		"D4A6107EE1C4C8784F36E213" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Sources/CometApp/TranscriptionViews.swift";
-			"sourceTree" = "<group>";
-		};
-		"63F901DDB1E31B8DF6CB9290" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "D4A6107EE1C4C8784F36E213";
-		};
-		"3A8052B8F051E374C46D23F0" = {
-			"isa" = "PBXGroup";
-			"children" = ("C8295A1A01CED3D190727BF1", "C4ABD47EF10F2FD9F62F2A59", "3FAA345547E9EB730A282822", "D73F31A2D8737ABB86C43D35", "8BC3259E92F7C6EE05F15ECA", "91A8936FD9EF20917381D3ED", "38A2FB417DE836A83DE90A82", "D097CA593900FA4D8BFC8846", "1DCB73069E5B79BFBD4C96F5", "E8759855BCFAC9341DD552C9", "BE9BF2566BB59AA03DF66CF9", "D4A6107EE1C4C8784F36E213", "F8DE933081D38EA706A53A8D", "99E38A031DA5313CE8FCA26C", "8B649396177F2F1837A2D363", "F2F0EBBF9956450376685310", "38696BF1682CD37CC297D690", "8510232D73D2853C79C68A25", "0166DF2194BE184B8A3DD6E8");
-			"name" = "AsteroidKVM";
-			"sourceTree" = "<group>";
-		};
-		"AA31C1689ECDE197F9DFFC16" = {
-			"isa" = "PBXFileReference";
-			"explicitFileType" = "wrapper.application";
-			"path" = "AsteroidKVM.app";
-			"sourceTree" = "BUILT_PRODUCTS_DIR";
-		};
-		"6D572CEB9005447B9E9A5899" = {
-			"isa" = "XCSwiftPackageProductDependency";
-			"package" = "F58117D5A5E2E2F07B7A5553";
-			"productName" = "CometCore";
-		};
-		"B17B74358E870C538E96524D" = {
-			"isa" = "XCSwiftPackageProductDependency";
-			"package" = "F58117D5A5E2E2F07B7A5553";
-			"productName" = "CometMedia";
-		};
-		"EC5E7778451F1C220783C935" = {
-			"isa" = "XCSwiftPackageProductDependency";
-			"package" = "F58117D5A5E2E2F07B7A5553";
-			"productName" = "CometAgent";
-		};
-		"E9A98F0C6E713C98C405917C" = {
-			"isa" = "XCSwiftPackageProductDependency";
-			"package" = "F58117D5A5E2E2F07B7A5553";
-			"productName" = "CometSession";
-		};
-		"8466FAB0087CB83531985A4F" = {
-			"isa" = "PBXBuildFile";
-			"productRef" = "6D572CEB9005447B9E9A5899";
-		};
-		"78FE98C96E509C72D308B3CA" = {
-			"isa" = "PBXBuildFile";
-			"productRef" = "B17B74358E870C538E96524D";
-		};
-		"A48A754B89A5E34CA7E3D382" = {
-			"isa" = "PBXBuildFile";
-			"productRef" = "EC5E7778451F1C220783C935";
-		};
-		"D0852B3DE5B58AA8C3387D8B" = {
-			"isa" = "PBXBuildFile";
-			"productRef" = "E9A98F0C6E713C98C405917C";
-		};
-		"C99F1240DC33CA07A4BA3882" = {
-			"isa" = "PBXSourcesBuildPhase";
-			"buildActionMask" = 2147483647;
-			"files" = ("F1325941676E229E72161C8E", "67F0900C4F29BE1A6188D64F", "897F07CE08F70BD488E13D02", "A7B43CBBBAC5F53514202149", "CF0A3454A2DD16CA9FAFB585", "7D9ED400E9441C3EE529B3C0", "21AEF1F3559CA6C5E9E1EB40", "DD106D3A5D52DA8AA2F8FA50", "919806CC27BC4C006310E5B3", "F63A5B69D599D239FF05EFD4", "742B2CA2A75CADA148ED1E87", "63F901DDB1E31B8DF6CB9290");
-			"runOnlyForDeploymentPostprocessing" = 0;
-		};
-		"F12EA19E5CD4069719411A8C" = {
-			"isa" = "PBXFrameworksBuildPhase";
-			"buildActionMask" = 2147483647;
-			"files" = ("8466FAB0087CB83531985A4F", "78FE98C96E509C72D308B3CA", "A48A754B89A5E34CA7E3D382", "D0852B3DE5B58AA8C3387D8B");
-			"runOnlyForDeploymentPostprocessing" = 0;
-		};
-		"F8DE933081D38EA706A53A8D" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text";
-			"path" = "Resources/ThirdPartyNotices.txt";
-			"sourceTree" = "<group>";
-		};
-		"698EABFAA7572B4BC0080605" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "F8DE933081D38EA706A53A8D";
-		};
-		"99E38A031DA5313CE8FCA26C" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "image.icns";
-			"path" = "Resources/AppIcon.icns";
-			"sourceTree" = "<group>";
-		};
-		"88AB45472ADB433A7356367B" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "99E38A031DA5313CE8FCA26C";
-		};
-		"8B649396177F2F1837A2D363" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text";
-			"path" = "services/omniparser/server.py";
-			"sourceTree" = "<group>";
-		};
-		"298201CA082D2E2B8A3521DA" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "8B649396177F2F1837A2D363";
-		};
-		"F2F0EBBF9956450376685310" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text";
-			"path" = "services/omniparser/backend.py";
-			"sourceTree" = "<group>";
-		};
-		"33FAA64755E08172FFF27DBA" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "F2F0EBBF9956450376685310";
-		};
-		"38696BF1682CD37CC297D690" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text";
-			"path" = "services/omniparser/setup.py";
-			"sourceTree" = "<group>";
-		};
-		"CADB17560BAB2DACF54736D6" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "38696BF1682CD37CC297D690";
-		};
-		"8510232D73D2853C79C68A25" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text";
-			"path" = "services/omniparser/requirements.lock";
-			"sourceTree" = "<group>";
-		};
-		"7BC95057E795D0DB7CEB56C4" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "8510232D73D2853C79C68A25";
-		};
-		"0166DF2194BE184B8A3DD6E8" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text";
-			"path" = "services/omniparser/parser-runtime.json";
-			"sourceTree" = "<group>";
-		};
-		"1CBDC7E088711291CEF741EE" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "0166DF2194BE184B8A3DD6E8";
-		};
-		"2AC7AB26953A78AD46B49603" = {
-			"isa" = "PBXResourcesBuildPhase";
-			"buildActionMask" = 2147483647;
-			"files" = ("698EABFAA7572B4BC0080605", "88AB45472ADB433A7356367B", "298201CA082D2E2B8A3521DA", "33FAA64755E08172FFF27DBA", "CADB17560BAB2DACF54736D6", "7BC95057E795D0DB7CEB56C4", "1CBDC7E088711291CEF741EE");
-			"runOnlyForDeploymentPostprocessing" = 0;
-		};
-		"A8CF73E56896D07F63F6C514" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Debug";
-			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVM";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"SWIFT_VERSION" = "5.0";
-				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
-				"CODE_SIGN_IDENTITY" = "-";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-				"ENABLE_APP_SANDBOX" = "NO";
-				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
-				"ENABLE_TESTABILITY" = "YES";
-				"INFOPLIST_FILE" = "Resources/Info.plist";
-				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "1";
-				"INFOPLIST_KEY_CFBundleDisplayName" = "AsteroidKVM";
-				"INFOPLIST_KEY_CFBundleName" = "AsteroidKVM";
-				"INFOPLIST_KEY_NSMicrophoneUsageDescription" = "Forward your microphone to the computer connected to Comet when you enable microphone forwarding.";
-				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.utilities";
-				"INFOPLIST_KEY_NSPrincipalClass" = "NSApplication";
-				"INFOPLIST_KEY_NSHighResolutionCapable" = "YES";
-				"INFOPLIST_KEY_NSLocalNetworkUsageDescription" = "Connect to your GL.iNet Comet appliances on the local network.";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
-				"ONLY_ACTIVE_ARCH" = "YES";
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F6F4DA8D93E88A08220E03B7 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2660;
 			};
+			buildConfigurationList = 5D7731714D3E69D68AA8D7ED /* Build configuration list for PBXProject "AsteroidKVM" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 2EB2D8158FC6EF9EB19CB439;
+			packageReferences = (
+				F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */,
+			);
+			productRefGroup = FE0A091FDBFB3E9C31B7A1BD /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				541B876A855842F16006E328 /* AsteroidKVMiOS */,
+				4351745369D40590F4215D08 /* AsteroidKVMiOSTests */,
+				63F94586010B49AE1DFFA43D /* AsteroidKVMiOSUITests */,
+				370F2713D58F5AFBD8B4D2B2 /* AsteroidKVM */,
+				55DB8E8AD9C3E97E28F00328 /* AsteroidKVMCoreTests */,
+				AD3A50AF68E84DC2A4FA461C /* AsteroidKVMUITests */,
+			);
 		};
-		"01FBFDCC2CC551BDA7F25044" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Release";
-			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVM";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"SWIFT_VERSION" = "5.0";
-				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
-				"CODE_SIGN_IDENTITY" = "-";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-				"ENABLE_APP_SANDBOX" = "NO";
-				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
-				"ENABLE_TESTABILITY" = "YES";
-				"INFOPLIST_FILE" = "Resources/Info.plist";
-				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "1";
-				"INFOPLIST_KEY_CFBundleDisplayName" = "AsteroidKVM";
-				"INFOPLIST_KEY_CFBundleName" = "AsteroidKVM";
-				"INFOPLIST_KEY_NSMicrophoneUsageDescription" = "Forward your microphone to the computer connected to Comet when you enable microphone forwarding.";
-				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.utilities";
-				"INFOPLIST_KEY_NSPrincipalClass" = "NSApplication";
-				"INFOPLIST_KEY_NSHighResolutionCapable" = "YES";
-				"INFOPLIST_KEY_NSLocalNetworkUsageDescription" = "Connect to your GL.iNet Comet appliances on the local network.";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		2AC7AB26953A78AD46B49603 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				698EABFAA7572B4BC0080605 /* Resources/ThirdPartyNotices.txt in Resources */,
+				88AB45472ADB433A7356367B /* Resources/AppIcon.icns in Resources */,
+				298201CA082D2E2B8A3521DA /* services/omniparser/server.py in Resources */,
+				33FAA64755E08172FFF27DBA /* services/omniparser/backend.py in Resources */,
+				CADB17560BAB2DACF54736D6 /* services/omniparser/setup.py in Resources */,
+				7BC95057E795D0DB7CEB56C4 /* services/omniparser/requirements.lock in Resources */,
+				1CBDC7E088711291CEF741EE /* services/omniparser/parser-runtime.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7B1930F825F39E076F9C1E9A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C3FD477D4B2D9EEC908650AB /* ios/Assets.xcassets in Resources */,
+				2F0E9492174BB64964F7F9C0 /* Resources/ThirdPartyNotices.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1B67562B407140E4A17C01BA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				297C21BCAFDA9C4AEBC66276 /* ios/Tests/MobileContractTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C5673A1737C6961C781543E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				82B7C2B111C70F603E130B38 /* Tests/CometCoreTests/AgentHardwareE2ETests.swift in Sources */,
+				4C4D4C08E9918BBC9D0893EC /* Tests/CometCoreTests/AgentSecurityTests.swift in Sources */,
+				9E38EB77AF9A918F404BACF7 /* Tests/CometCoreTests/AgentTests.swift in Sources */,
+				1E0DDADF7FD41F7A0A708035 /* Tests/CometCoreTests/EDIDHardwareTests.swift in Sources */,
+				ED99C36C51A191D42CDD9506 /* Tests/CometCoreTests/EDIDTests.swift in Sources */,
+				4028C0F92CF432AB2121BC77 /* Tests/CometCoreTests/GeometryAndStorageTests.swift in Sources */,
+				4BAC53BF4287AF0D1BB8C43C /* Tests/CometCoreTests/HardwareE2ETests.swift in Sources */,
+				4D7A498D1236F3D70582247F /* Tests/CometCoreTests/InputTests.swift in Sources */,
+				314A5134BCF459B8103DE3A7 /* Tests/CometCoreTests/LocalWebRTCPeer.swift in Sources */,
+				E51869C682D4E5BEADD5ECB4 /* Tests/CometCoreTests/MCPTests.swift in Sources */,
+				F789935ADE445E72319A6D33 /* Tests/CometCoreTests/MediaTests.swift in Sources */,
+				68D964EE503F3BDD34814822 /* Tests/CometCoreTests/NativeCompositionTests.swift in Sources */,
+				58FB572A673398A0D271C19A /* Tests/CometCoreTests/ParserInstallerTests.swift in Sources */,
+				F7CA31C75E671B83EEA469BF /* Tests/CometCoreTests/PerceptionTests.swift in Sources */,
+				F79D541225961CBA56191D15 /* Tests/CometCoreTests/ProtocolE2ETests.swift in Sources */,
+				A38F9BB775E59AD6C92A087B /* Tests/CometCoreTests/RemoteSurfaceLifecycleTests.swift in Sources */,
+				CDE456D0B9663CA2EB4C11A9 /* Tests/CometCoreTests/SecurityTests.swift in Sources */,
+				4B1C20102842DED7C76065D5 /* Tests/CometCoreTests/TranscriptionTests.swift in Sources */,
+				884D5EA1CEDE8735723A19D4 /* Tests/CometCoreTests/TransportSecurityTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		899F60491CE57C552FA7B146 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				84FF13658A718F98E99F33D9 /* ios/UITests/MobileUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8BE8A2893A9801B0B057888F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A01C04F8F8B2CB036A97732 /* Tests/CometUITests/CometUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B648A590C0C640C271A7246E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F807B708C70B49B591EF19E7 /* ios/App/AsteroidKVMApp.swift in Sources */,
+				3D5E7B954904F47AA96A92D4 /* ios/App/GestureOnboardingView.swift in Sources */,
+				5FDECEB0AE4933A7C9BE0AB8 /* ios/App/JigglerSettingsView.swift in Sources */,
+				E99C2A36DCE9FB9167F6CC9E /* ios/App/MobileAppModel.swift in Sources */,
+				19AE3632AAEF56E7FFF15B62 /* ios/App/MobileRemoteSurface.swift in Sources */,
+				F26029F8D7AC60BB6DDB0ED8 /* ios/App/MobileSessionView.swift in Sources */,
+				A7E9509D55A3C7FBE1F1ED45 /* ios/App/MobileSettingsView.swift in Sources */,
+				008CD11DE98D06352ADCF198 /* ios/App/UITestFixture.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C99F1240DC33CA07A4BA3882 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F1325941676E229E72161C8E /* Sources/CometApp/AgentChatView.swift in Sources */,
+				67F0900C4F29BE1A6188D64F /* Sources/CometApp/AgentOptionsPopover.swift in Sources */,
+				897F07CE08F70BD488E13D02 /* Sources/CometApp/CometApp.swift in Sources */,
+				A7B43CBBBAC5F53514202149 /* Sources/CometApp/ConnectionManagerView.swift in Sources */,
+				CF0A3454A2DD16CA9FAFB585 /* Sources/CometApp/DisplaySettingsView.swift in Sources */,
+				7D9ED400E9441C3EE529B3C0 /* Sources/CometApp/JigglerSettingsView.swift in Sources */,
+				21AEF1F3559CA6C5E9E1EB40 /* Sources/CometApp/MCPSettingsView.swift in Sources */,
+				DD106D3A5D52DA8AA2F8FA50 /* Sources/CometApp/PerceptionSettingsView.swift in Sources */,
+				919806CC27BC4C006310E5B3 /* Sources/CometApp/RemoteDisplayView.swift in Sources */,
+				F63A5B69D599D239FF05EFD4 /* Sources/CometApp/SessionView.swift in Sources */,
+				742B2CA2A75CADA148ED1E87 /* Sources/CometApp/SettingsView.swift in Sources */,
+				63F901DDB1E31B8DF6CB9290 /* Sources/CometApp/TranscriptionViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6176B977F600F04EFDE7793A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 370F2713D58F5AFBD8B4D2B2 /* AsteroidKVM */;
+			targetProxy = 3DDD014B50A4CB7CB4B4C5A6 /* PBXContainerItemProxy */;
+		};
+		98CED2160F4B4D519EE35F0B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 541B876A855842F16006E328 /* AsteroidKVMiOS */;
+			targetProxy = 637750CEFFE9950A385BE8BC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		01FBFDCC2CC551BDA7F25044 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = KX39V37Y4G;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AsteroidKVM;
+				INFOPLIST_KEY_CFBundleName = AsteroidKVM;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHighResolutionCapable = YES;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your GL.iNet Comet appliances on the local network.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Forward your microphone to the computer connected to Comet when you enable microphone forwarding.";
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVM;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
 			};
+			name = Release;
 		};
-		"530F472BADFF1AB6EDEB721E" = {
-			"isa" = "XCConfigurationList";
-			"buildConfigurations" = ("A8CF73E56896D07F63F6C514", "01FBFDCC2CC551BDA7F25044");
-			"defaultConfigurationIsVisible" = 0;
-			"defaultConfigurationName" = "Release";
-		};
-		"370F2713D58F5AFBD8B4D2B2" = {
-			"isa" = "PBXNativeTarget";
-			"buildConfigurationList" = "530F472BADFF1AB6EDEB721E";
-			"buildPhases" = ("C99F1240DC33CA07A4BA3882", "F12EA19E5CD4069719411A8C", "2AC7AB26953A78AD46B49603");
-			"buildRules" = ();
-			"dependencies" = ();
-			"name" = "AsteroidKVM";
-			"packageProductDependencies" = ("6D572CEB9005447B9E9A5899", "B17B74358E870C538E96524D", "EC5E7778451F1C220783C935", "E9A98F0C6E713C98C405917C");
-			"productName" = "AsteroidKVM";
-			"productReference" = "AA31C1689ECDE197F9DFFC16";
-			"productType" = "com.apple.product-type.application";
-		};
-		"49C8D2E3742CEFE67BDCA174" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/AgentHardwareE2ETests.swift";
-			"sourceTree" = "<group>";
-		};
-		"82B7C2B111C70F603E130B38" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "49C8D2E3742CEFE67BDCA174";
-		};
-		"84180C1295ABED5C96121431" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/AgentSecurityTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"4C4D4C08E9918BBC9D0893EC" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "84180C1295ABED5C96121431";
-		};
-		"3D8779C4E7F8A1F2784CC3FE" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/AgentTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"9E38EB77AF9A918F404BACF7" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "3D8779C4E7F8A1F2784CC3FE";
-		};
-		"2BBAB64F5134911C965155A8" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/EDIDHardwareTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"1E0DDADF7FD41F7A0A708035" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "2BBAB64F5134911C965155A8";
-		};
-		"3FC7D434125C3E079435D4E4" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/EDIDTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"ED99C36C51A191D42CDD9506" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "3FC7D434125C3E079435D4E4";
-		};
-		"1605437A1DACB178CC2D93AC" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/GeometryAndStorageTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"4028C0F92CF432AB2121BC77" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "1605437A1DACB178CC2D93AC";
-		};
-		"011F0AD834BD13AC45DD47A0" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/HardwareE2ETests.swift";
-			"sourceTree" = "<group>";
-		};
-		"4BAC53BF4287AF0D1BB8C43C" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "011F0AD834BD13AC45DD47A0";
-		};
-		"0A7710DD58150DFD07D0D709" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/InputTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"4D7A498D1236F3D70582247F" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "0A7710DD58150DFD07D0D709";
-		};
-		"0EA6ACF9FA671A8EF8A12B4B" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/LocalWebRTCPeer.swift";
-			"sourceTree" = "<group>";
-		};
-		"314A5134BCF459B8103DE3A7" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "0EA6ACF9FA671A8EF8A12B4B";
-		};
-		"44E1BE1480953D055C1E896A" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/MCPTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"E51869C682D4E5BEADD5ECB4" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "44E1BE1480953D055C1E896A";
-		};
-		"F37FCBB48859E6A34A05BAA1" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/MediaTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"F789935ADE445E72319A6D33" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "F37FCBB48859E6A34A05BAA1";
-		};
-		"CE8BA413CD34F241C99E0B0B" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/NativeCompositionTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"68D964EE503F3BDD34814822" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "CE8BA413CD34F241C99E0B0B";
-		};
-		"7F4B77F3EA83E67740DD505A" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/ParserInstallerTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"58FB572A673398A0D271C19A" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "7F4B77F3EA83E67740DD505A";
-		};
-		"87448D1B4CD402474272562D" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/PerceptionTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"F7CA31C75E671B83EEA469BF" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "87448D1B4CD402474272562D";
-		};
-		"6A576CCD5BCC2125E70C835D" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/ProtocolE2ETests.swift";
-			"sourceTree" = "<group>";
-		};
-		"F79D541225961CBA56191D15" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "6A576CCD5BCC2125E70C835D";
-		};
-		"13BA354DB62D2E65AF146498" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/RemoteSurfaceLifecycleTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"A38F9BB775E59AD6C92A087B" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "13BA354DB62D2E65AF146498";
-		};
-		"E00FC5A6FC8217CF8A3573A0" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/SecurityTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"CDE456D0B9663CA2EB4C11A9" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "E00FC5A6FC8217CF8A3573A0";
-		};
-		"E68D5DB2202E375DD2FD6E99" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/TranscriptionTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"4B1C20102842DED7C76065D5" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "E68D5DB2202E375DD2FD6E99";
-		};
-		"FF52CE61DAACF416A92DFF8A" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometCoreTests/TransportSecurityTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"884D5EA1CEDE8735723A19D4" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "FF52CE61DAACF416A92DFF8A";
-		};
-		"FEDC1618AF439EA1057F85F5" = {
-			"isa" = "PBXGroup";
-			"children" = ("49C8D2E3742CEFE67BDCA174", "84180C1295ABED5C96121431", "3D8779C4E7F8A1F2784CC3FE", "2BBAB64F5134911C965155A8", "3FC7D434125C3E079435D4E4", "1605437A1DACB178CC2D93AC", "011F0AD834BD13AC45DD47A0", "0A7710DD58150DFD07D0D709", "0EA6ACF9FA671A8EF8A12B4B", "44E1BE1480953D055C1E896A", "F37FCBB48859E6A34A05BAA1", "CE8BA413CD34F241C99E0B0B", "7F4B77F3EA83E67740DD505A", "87448D1B4CD402474272562D", "6A576CCD5BCC2125E70C835D", "13BA354DB62D2E65AF146498", "E00FC5A6FC8217CF8A3573A0", "E68D5DB2202E375DD2FD6E99", "FF52CE61DAACF416A92DFF8A");
-			"name" = "AsteroidKVMCoreTests";
-			"sourceTree" = "<group>";
-		};
-		"BC52D3569E4E80A128F00396" = {
-			"isa" = "PBXFileReference";
-			"explicitFileType" = "wrapper.cfbundle";
-			"path" = "AsteroidKVMCoreTests.xctest";
-			"sourceTree" = "BUILT_PRODUCTS_DIR";
-		};
-		"70FAFED79596022939A5E66C" = {
-			"isa" = "XCSwiftPackageProductDependency";
-			"package" = "F58117D5A5E2E2F07B7A5553";
-			"productName" = "CometCore";
-		};
-		"8D17F4F1F8A3FD4C7EFE5D53" = {
-			"isa" = "XCSwiftPackageProductDependency";
-			"package" = "F58117D5A5E2E2F07B7A5553";
-			"productName" = "CometMedia";
-		};
-		"C459E4FB0C950C256C94F6A7" = {
-			"isa" = "XCSwiftPackageProductDependency";
-			"package" = "F58117D5A5E2E2F07B7A5553";
-			"productName" = "CometAgent";
-		};
-		"17D5F96374EAC85C3C318894" = {
-			"isa" = "XCSwiftPackageProductDependency";
-			"package" = "F58117D5A5E2E2F07B7A5553";
-			"productName" = "CometSession";
-		};
-		"D245E62E87862FD8CBA720F0" = {
-			"isa" = "PBXBuildFile";
-			"productRef" = "70FAFED79596022939A5E66C";
-		};
-		"FE1526FC5E59461C81241D7C" = {
-			"isa" = "PBXBuildFile";
-			"productRef" = "8D17F4F1F8A3FD4C7EFE5D53";
-		};
-		"644D7CD6277BCC9BFF406993" = {
-			"isa" = "PBXBuildFile";
-			"productRef" = "C459E4FB0C950C256C94F6A7";
-		};
-		"620CB6096580A260AFB23A54" = {
-			"isa" = "PBXBuildFile";
-			"productRef" = "17D5F96374EAC85C3C318894";
-		};
-		"3C5673A1737C6961C781543E" = {
-			"isa" = "PBXSourcesBuildPhase";
-			"buildActionMask" = 2147483647;
-			"files" = ("82B7C2B111C70F603E130B38", "4C4D4C08E9918BBC9D0893EC", "9E38EB77AF9A918F404BACF7", "1E0DDADF7FD41F7A0A708035", "ED99C36C51A191D42CDD9506", "4028C0F92CF432AB2121BC77", "4BAC53BF4287AF0D1BB8C43C", "4D7A498D1236F3D70582247F", "314A5134BCF459B8103DE3A7", "E51869C682D4E5BEADD5ECB4", "F789935ADE445E72319A6D33", "68D964EE503F3BDD34814822", "58FB572A673398A0D271C19A", "F7CA31C75E671B83EEA469BF", "F79D541225961CBA56191D15", "A38F9BB775E59AD6C92A087B", "CDE456D0B9663CA2EB4C11A9", "4B1C20102842DED7C76065D5", "884D5EA1CEDE8735723A19D4");
-			"runOnlyForDeploymentPostprocessing" = 0;
-		};
-		"04AEF97F998D1B2F0A82D0DE" = {
-			"isa" = "PBXFrameworksBuildPhase";
-			"buildActionMask" = 2147483647;
-			"files" = ("D245E62E87862FD8CBA720F0", "FE1526FC5E59461C81241D7C", "644D7CD6277BCC9BFF406993", "620CB6096580A260AFB23A54");
-			"runOnlyForDeploymentPostprocessing" = 0;
-		};
-		"61D9BBC9F7B57950C3F1B1B2" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Debug";
-			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVMCoreTests";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"SWIFT_VERSION" = "5.0";
-				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
-				"CODE_SIGN_IDENTITY" = "-";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-				"ENABLE_APP_SANDBOX" = "NO";
-				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
-				"ENABLE_TESTABILITY" = "YES";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
-				"ONLY_ACTIVE_ARCH" = "YES";
+		183B213A0F5A7C67EEBB4177 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVMUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = AsteroidKVM;
 			};
+			name = Debug;
 		};
-		"EB4C1D35B25E19380976AB36" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Release";
-			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVMCoreTests";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"SWIFT_VERSION" = "5.0";
-				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
-				"CODE_SIGN_IDENTITY" = "-";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-				"ENABLE_APP_SANDBOX" = "NO";
-				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
-				"ENABLE_TESTABILITY" = "YES";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+		1D8C0C6B1D22EA8C7669B263 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
 			};
+			name = Release;
 		};
-		"257174400596069F4E15DDF8" = {
-			"isa" = "XCConfigurationList";
-			"buildConfigurations" = ("61D9BBC9F7B57950C3F1B1B2", "EB4C1D35B25E19380976AB36");
-			"defaultConfigurationIsVisible" = 0;
-			"defaultConfigurationName" = "Release";
-		};
-		"55DB8E8AD9C3E97E28F00328" = {
-			"isa" = "PBXNativeTarget";
-			"buildConfigurationList" = "257174400596069F4E15DDF8";
-			"buildPhases" = ("3C5673A1737C6961C781543E", "04AEF97F998D1B2F0A82D0DE");
-			"buildRules" = ();
-			"dependencies" = ();
-			"name" = "AsteroidKVMCoreTests";
-			"packageProductDependencies" = ("70FAFED79596022939A5E66C", "8D17F4F1F8A3FD4C7EFE5D53", "C459E4FB0C950C256C94F6A7", "17D5F96374EAC85C3C318894");
-			"productName" = "AsteroidKVMCoreTests";
-			"productReference" = "BC52D3569E4E80A128F00396";
-			"productType" = "com.apple.product-type.bundle.unit-test";
-		};
-		"909A6CAA5D8AB54BA54C82E0" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "Tests/CometUITests/CometUITests.swift";
-			"sourceTree" = "<group>";
-		};
-		"4A01C04F8F8B2CB036A97732" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "909A6CAA5D8AB54BA54C82E0";
-		};
-		"D2CBD192FAB66F33707006B6" = {
-			"isa" = "PBXGroup";
-			"children" = ("909A6CAA5D8AB54BA54C82E0");
-			"name" = "AsteroidKVMUITests";
-			"sourceTree" = "<group>";
-		};
-		"2C7BA0A40AEFE8E6EB9D0D46" = {
-			"isa" = "PBXFileReference";
-			"explicitFileType" = "wrapper.cfbundle";
-			"path" = "AsteroidKVMUITests.xctest";
-			"sourceTree" = "BUILT_PRODUCTS_DIR";
-		};
-		"8BE8A2893A9801B0B057888F" = {
-			"isa" = "PBXSourcesBuildPhase";
-			"buildActionMask" = 2147483647;
-			"files" = ("4A01C04F8F8B2CB036A97732");
-			"runOnlyForDeploymentPostprocessing" = 0;
-		};
-		"7622F597942F16D0D58BCA41" = {
-			"isa" = "PBXFrameworksBuildPhase";
-			"buildActionMask" = 2147483647;
-			"files" = ();
-			"runOnlyForDeploymentPostprocessing" = 0;
-		};
-		"3DDD014B50A4CB7CB4B4C5A6" = {
-			"isa" = "PBXContainerItemProxy";
-			"containerPortal" = "F6F4DA8D93E88A08220E03B7";
-			"proxyType" = 1;
-			"remoteGlobalIDString" = "370F2713D58F5AFBD8B4D2B2";
-			"remoteInfo" = "AsteroidKVM";
-		};
-		"6176B977F600F04EFDE7793A" = {
-			"isa" = "PBXTargetDependency";
-			"target" = "370F2713D58F5AFBD8B4D2B2";
-			"targetProxy" = "3DDD014B50A4CB7CB4B4C5A6";
-		};
-		"183B213A0F5A7C67EEBB4177" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Debug";
-			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVMUITests";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"SWIFT_VERSION" = "5.0";
-				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
-				"CODE_SIGN_IDENTITY" = "-";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-				"ENABLE_APP_SANDBOX" = "NO";
-				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
-				"ENABLE_TESTABILITY" = "YES";
-				"TEST_TARGET_NAME" = "AsteroidKVM";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
-				"ONLY_ACTIVE_ARCH" = "YES";
+		389E9163C524AFB2B83AFB4A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = KX39V37Y4G;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ios/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AsteroidKVM;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your KVM appliances and stream their screens over your local network.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Forward your microphone to the remote computer when you enable microphone forwarding.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVMiOS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
+			name = Release;
 		};
-		"7EB5018CBE37044291FA78EA" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Release";
-			"buildSettings" = {
-				"PRODUCT_BUNDLE_IDENTIFIER" = "app.asteroidkvm.AsteroidKVMUITests";
-				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"SWIFT_VERSION" = "5.0";
-				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
-				"CODE_SIGN_IDENTITY" = "-";
-				"CODE_SIGN_STYLE" = "Automatic";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-				"ENABLE_APP_SANDBOX" = "NO";
-				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/../Frameworks", "@loader_path/../Frameworks");
-				"ENABLE_TESTABILITY" = "YES";
-				"TEST_TARGET_NAME" = "AsteroidKVM";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+		4A55759D83B32C6149A2409E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = KX39V37Y4G;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ios/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AsteroidKVM;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your KVM appliances and stream their screens over your local network.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Forward your microphone to the remote computer when you enable microphone forwarding.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVMiOS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
+			name = Debug;
 		};
-		"89372AC2BD03CB7BC51B19CC" = {
-			"isa" = "XCConfigurationList";
-			"buildConfigurations" = ("183B213A0F5A7C67EEBB4177", "7EB5018CBE37044291FA78EA");
-			"defaultConfigurationIsVisible" = 0;
-			"defaultConfigurationName" = "Release";
-		};
-		"AD3A50AF68E84DC2A4FA461C" = {
-			"isa" = "PBXNativeTarget";
-			"buildConfigurationList" = "89372AC2BD03CB7BC51B19CC";
-			"buildPhases" = ("8BE8A2893A9801B0B057888F", "7622F597942F16D0D58BCA41");
-			"buildRules" = ();
-			"dependencies" = ("6176B977F600F04EFDE7793A");
-			"name" = "AsteroidKVMUITests";
-			"packageProductDependencies" = ();
-			"productName" = "AsteroidKVMUITests";
-			"productReference" = "2C7BA0A40AEFE8E6EB9D0D46";
-			"productType" = "com.apple.product-type.bundle.ui-testing";
-		};
-		"FE0A091FDBFB3E9C31B7A1BD" = {
-			"isa" = "PBXGroup";
-			"children" = ("AA31C1689ECDE197F9DFFC16", "BC52D3569E4E80A128F00396", "2C7BA0A40AEFE8E6EB9D0D46");
-			"name" = "Products";
-			"sourceTree" = "<group>";
-		};
-		"2EB2D8158FC6EF9EB19CB439" = {
-			"isa" = "PBXGroup";
-			"children" = ("3A8052B8F051E374C46D23F0", "FEDC1618AF439EA1057F85F5", "D2CBD192FAB66F33707006B6", "FE0A091FDBFB3E9C31B7A1BD");
-			"sourceTree" = "<group>";
-		};
-		"BFD315016DE16320F7E2120C" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Debug";
-			"buildSettings" = {
-				"SDKROOT" = "macosx";
-				"CLANG_ENABLE_MODULES" = "YES";
-				"SWIFT_VERSION" = "5.0";
-				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
-				"ONLY_ACTIVE_ARCH" = "YES";
+		61D9BBC9F7B57950C3F1B1B2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVMCoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
 			};
+			name = Debug;
 		};
-		"1D8C0C6B1D22EA8C7669B263" = {
-			"isa" = "XCBuildConfiguration";
-			"name" = "Release";
-			"buildSettings" = {
-				"SDKROOT" = "macosx";
-				"CLANG_ENABLE_MODULES" = "YES";
-				"SWIFT_VERSION" = "5.0";
-				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+		75B1441BE71B3C5C81519DC1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVMiOSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
+			name = Release;
 		};
-		"5D7731714D3E69D68AA8D7ED" = {
-			"isa" = "XCConfigurationList";
-			"buildConfigurations" = ("BFD315016DE16320F7E2120C", "1D8C0C6B1D22EA8C7669B263");
-			"defaultConfigurationIsVisible" = 0;
-			"defaultConfigurationName" = "Release";
-		};
-		"F6F4DA8D93E88A08220E03B7" = {
-			"isa" = "PBXProject";
-			"attributes" = {
-				"LastUpgradeCheck" = "2660";
-				"BuildIndependentTargetsInParallel" = "YES";
+		7EB5018CBE37044291FA78EA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVMUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = AsteroidKVM;
 			};
-			"buildConfigurationList" = "5D7731714D3E69D68AA8D7ED";
-			"compatibilityVersion" = "Xcode 15.0";
-			"developmentRegion" = "en";
-			"hasScannedForEncodings" = 0;
-			"knownRegions" = ("en", "Base");
-			"mainGroup" = "2EB2D8158FC6EF9EB19CB439";
-			"packageReferences" = ("F58117D5A5E2E2F07B7A5553");
-			"productRefGroup" = "FE0A091FDBFB3E9C31B7A1BD";
-			"projectDirPath" = "";
-			"projectRoot" = "";
-			"targets" = ("370F2713D58F5AFBD8B4D2B2", "55DB8E8AD9C3E97E28F00328", "AD3A50AF68E84DC2A4FA461C");
+			name = Release;
 		};
+		A8CF73E56896D07F63F6C514 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = KX39V37Y4G;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AsteroidKVM;
+				INFOPLIST_KEY_CFBundleName = AsteroidKVM;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHighResolutionCapable = YES;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your GL.iNet Comet appliances on the local network.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Forward your microphone to the computer connected to Comet when you enable microphone forwarding.";
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVM;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		BFD315016DE16320F7E2120C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E7CA52CC6A49296E9BD592B1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVMiOSUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = AsteroidKVMiOS;
+			};
+			name = Release;
+		};
+		EB4C1D35B25E19380976AB36 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVMCoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		F33AD0D774A7EAA7008B7139 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVMiOSUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = AsteroidKVMiOS;
+			};
+			name = Debug;
+		};
+		F595CE8632DA8ED6D5E4A2EA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = app.asteroidkvm.AsteroidKVMiOSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		257174400596069F4E15DDF8 /* Build configuration list for PBXNativeTarget "AsteroidKVMCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				61D9BBC9F7B57950C3F1B1B2 /* Debug */,
+				EB4C1D35B25E19380976AB36 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		530F472BADFF1AB6EDEB721E /* Build configuration list for PBXNativeTarget "AsteroidKVM" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A8CF73E56896D07F63F6C514 /* Debug */,
+				01FBFDCC2CC551BDA7F25044 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5C3162CE58C79B1468EB5C94 /* Build configuration list for PBXNativeTarget "AsteroidKVMiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4A55759D83B32C6149A2409E /* Debug */,
+				389E9163C524AFB2B83AFB4A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5D7731714D3E69D68AA8D7ED /* Build configuration list for PBXProject "AsteroidKVM" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BFD315016DE16320F7E2120C /* Debug */,
+				1D8C0C6B1D22EA8C7669B263 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		89372AC2BD03CB7BC51B19CC /* Build configuration list for PBXNativeTarget "AsteroidKVMUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				183B213A0F5A7C67EEBB4177 /* Debug */,
+				7EB5018CBE37044291FA78EA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D41E8BEA716EB7FBF17EE74A /* Build configuration list for PBXNativeTarget "AsteroidKVMiOSUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F33AD0D774A7EAA7008B7139 /* Debug */,
+				E7CA52CC6A49296E9BD592B1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EDEF92E35CA1F47B9AA26D5C /* Build configuration list for PBXNativeTarget "AsteroidKVMiOSTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F595CE8632DA8ED6D5E4A2EA /* Debug */,
+				75B1441BE71B3C5C81519DC1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		02FED7680B1C4CCDA29D3661 /* CometCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometCore;
+		};
+		17D5F96374EAC85C3C318894 /* CometSession */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometSession;
+		};
+		32EA2BE4FA129D706408E33B /* CometSessionCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometSessionCore;
+		};
+		6D572CEB9005447B9E9A5899 /* CometCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometCore;
+		};
+		70FAFED79596022939A5E66C /* CometCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometCore;
+		};
+		8D17F4F1F8A3FD4C7EFE5D53 /* CometMedia */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometMedia;
+		};
+		B17B74358E870C538E96524D /* CometMedia */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometMedia;
+		};
+		BA7F54EF5782D5C82F4F722F /* CometCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometCore;
+		};
+		C459E4FB0C950C256C94F6A7 /* CometAgent */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometAgent;
+		};
+		D6E83CCD9E30E4D7367321C3 /* CometMedia */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometMedia;
+		};
+		E4330F61610B91B0CDC7F867 /* CometSessionCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometSessionCore;
+		};
+		E9A98F0C6E713C98C405917C /* CometSession */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometSession;
+		};
+		EC5E7778451F1C220783C935 /* CometAgent */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometAgent;
+		};
+		EF8378E750A850AFDE5A4018 /* CometMedia */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F58117D5A5E2E2F07B7A5553 /* XCLocalSwiftPackageReference "." */;
+			productName = CometMedia;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
-	"rootObject" = "F6F4DA8D93E88A08220E03B7";
+	rootObject = F6F4DA8D93E88A08220E03B7 /* Project object */;
 }

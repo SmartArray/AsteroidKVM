@@ -1,3 +1,4 @@
+#if os(macOS)
 // Copy only this application's playback through ScreenCaptureKit, leaving the audible output untouched.
 import AVFoundation
 import CometCore
@@ -127,3 +128,5 @@ final class PlaybackAudioSink: NSObject, SCStreamOutput, SCStreamDelegate {
     }
   }
 }
+
+#endif
