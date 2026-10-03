@@ -108,11 +108,11 @@ public struct ConnectionProfile: Codable, Identifiable, Equatable, Sendable {
   public var rotation = 0
   public var muted = false
   public var mouseSensitivity = 1.0
-  public var scrollSensitivity = 1.0
+  public var scrollSensitivity = 0.1
   public var keyboardEnabled = true
   public var mouseEnabled = true
   public var mousePollingMilliseconds = 10.0
-  public var reverseScrolling = false
+  public var reverseScrolling = true
 
   // Reject URL injection and credentials in hosts before constructing an endpoint.
   public init(
