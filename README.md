@@ -143,6 +143,8 @@ open build/DerivedData/Build/Products/Release/AsteroidKVM.app
 
 You can also open `AsteroidKVM.xcodeproj`, select **AsteroidKVM → My Mac**, and run. Xcode resolves the pinned WebRTC package automatically.
 
+The shared icon master is `Resources/AppIcon.png`. After replacing it with square, opaque artwork, run `python3 scripts/generate-icon.py` to regenerate the macOS `.icns` (rounded with transparent Dock padding) and the full-bleed 1024 × 1024 iOS icon.
+
 1. **Add your Comet** with its hostname, port, and account.
 2. **Connect and click the display** to capture input. The first click captures; subsequent clicks reach the remote machine.
 3. **Choose the target keymap** in Keyboard. Enable native-layout typing when supported.
