@@ -54,7 +54,7 @@ Parser **1.1.0-pr195** includes the Apple Silicon device detection and FP16 icon
 captioning changes from [OmniParser PR #195](https://github.com/microsoft/OmniParser/pull/195).
 Existing parser installations need **Update / Repair** in the updated app.
 
-Open **Settings → MCP**, select a device, enable its server, and click **Copy MCP Configuration**. Keep AsteroidKVM running and the KVM connected for screen and input tools. Clients need Streamable HTTP support and an Authorization header. Screenshots are requested from the live feed; continuous video streaming is not exposed through MCP. [Setup, tools, and recovery behavior →](docs/mcp.md)
+Open **Settings → MCP**, select a device, turn on **Start MCP server**, and click **Copy Configuration** once it shows **Ready for clients**. The switch starts the server immediately; no port setup or Apply step is needed. Choose **View only** or **Keyboard & mouse** under Client permissions. Keep AsteroidKVM running and the KVM connected for screen and input tools. Clients need Streamable HTTP support and an Authorization header. Screenshots are requested from the live feed; continuous video streaming is not exposed through MCP. [Setup, tools, and recovery behavior →](docs/mcp.md)
 
 <a id="agent-give-your-remote-machine-a-task"></a>
 

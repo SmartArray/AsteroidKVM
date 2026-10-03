@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "project": "AsteroidKVM",
+  "source_commit": "8e56ac187cdd98bde902684fe55220c66b156e7f",
+  "status": "Implementation plan and original assets; iOS app not implemented",
+  "assets": [
+    {
+      "path": "onboarding/one-finger-pointer.png",
+      "suggested_asset_name": "GesturePointer",
+      "role": "Onboarding: point and click",
+      "format": "PNG",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 903757,
+      "sha256": "1e18a62e9c32a121e522d7fb51cc2a54998d1bfd7daabc0641a14574d87f4423",
+      "generated_for_this_handoff": true
+    },
+    {
+      "path": "onboarding/two-finger-pan-zoom.png",
+      "suggested_asset_name": "GesturePanZoom",
+      "role": "Onboarding: pan and zoom",
+      "format": "PNG",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 950431,
+      "sha256": "7573cd70cfa0b8eb2ee4ed7ec2e15abadc3ed604286e315055c7ed38b16a34b0",
+      "generated_for_this_handoff": true
+    },
+    {
+      "path": "onboarding/three-finger-scroll.png",
+      "suggested_asset_name": "GestureScroll",
+      "role": "Onboarding: remote scrolling",
+      "format": "PNG",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 963150,
+      "sha256": "4c2f98c4845ab6c03be56680989f637f6e7efb5d3df9409cdffc15dd85c2f2d7",
+      "generated_for_this_handoff": true
+    },
+    {
+      "path": "branding/AppIcon.png",
+      "suggested_asset_name": "AppIcon",
+      "role": "Brand master; mobile catalog preparation required",
+      "format": "PNG",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1699045,
+      "sha256": "d067ad73605566e6b98afeef05483007321949418b511ed39554325bb3dfe6d1",
+      "generated_for_this_handoff": false
+    }
+  ],
+  "label_policy": "Onboarding labels must be localized native code above the images; no embedded typography.",
+  "provenance": "onboarding/README.md",
+  "notices": "branding/ThirdPartyNotices.txt"
+}

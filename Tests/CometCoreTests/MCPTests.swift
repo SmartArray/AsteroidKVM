@@ -439,6 +439,44 @@ final class MCPTests: XCTestCase {
         .bool, true)
   }
 
+  // Starting from saved, disabled preferences must listen immediately on enable, without applying a port.
+  @MainActor func testEnablingServerStartsListeningWithoutApplyingPort() async throws {
+    var profile = ConnectionProfile(name: "MCP Startup", host: "fixture.invalid")
+    var preferences = MCPPreferences()
+    preferences.port = Int.random(in: 20000...60000)
+    profile.mcp = preferences
+    let session = SessionController(profile: profile)
+    let token = UUID().uuidString
+    let server = DeviceMCPServer(session: session, testToken: token)
+    session.mcpServer = server
+    defer { server.disable() }
+    server.configure()
+    XCTAssertEqual(server.status, "Disabled")
+
+    session.updateProfile { $0.mcp?.enabled = true }
+    for _ in 0..<100 where server.status == "Starting…" {
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    XCTAssertEqual(server.status, "Listening")
+    XCTAssertEqual(session.phase, .disconnected, "MCP setup must not require a remote connection")
+    XCTAssertEqual(session.profile.mcp?.port, preferences.port)
+
+    var request = URLRequest(url: try XCTUnwrap(URL(string: server.endpoint)))
+    request.httpMethod = "POST"
+    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue("application/json, text/event-stream", forHTTPHeaderField: "Accept")
+    request.httpBody = Data(
+      #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","clientInfo":{"name":"Startup Test"}}}"#.utf8)
+    let (_, response) = try await URLSession.shared.data(for: request)
+    XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+    XCTAssertEqual(server.clients, ["Startup Test"])
+
+    session.updateProfile { $0.mcp?.enabled = false }
+    XCTAssertEqual(server.status, "Disabled")
+    XCTAssertTrue(server.clients.isEmpty)
+  }
+
   @MainActor func testRealHTTPInitializeAndDelete() async throws {
     let (session, server, token) = fixture()
     defer {
