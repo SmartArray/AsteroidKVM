@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import CometAgent
 import CometCore
 import CometMedia
@@ -214,6 +215,48 @@ final class ProtocolE2ETests: XCTestCase {
     XCTAssertTrue(state["pastes"].array.isEmpty)
     await api.close()
   }
+  @MainActor func testWakeReconnectsWithoutSyntheticErrorOrDuplicateConnections() async throws {
+    let media = FixtureMedia()
+    let session = SessionController(
+      profile: ConnectionProfile(name: "Resume", host: "127.0.0.1", port: port, scheme: "http"),
+      password: "test-password", mediaFactory: { _, _ in media })
+    session.connect()
+    try await waitUntil { session.active }
+    var messages: [String] = []
+    let observer = session.$message.compactMap { $0 }.sink { messages.append($0) }
+    defer { observer.cancel() }
+    session.suspend()
+    session.wake()
+    session.wake()
+    try await waitUntil { session.active }
+    XCTAssertTrue(messages.isEmpty, "A planned resume must not publish a fabricated network error")
+    XCTAssertEqual(media.starts, 2)
+    XCTAssertEqual(session.mediaConnectionsStarted, 2)
+    await session.disconnect()
+    session.wake()
+    XCTAssertEqual(session.phase, .disconnected)
+    XCTAssertEqual(media.starts, 2)
+  }
+
+  @MainActor func testWakeStillReportsActualConnectionFailure() async throws {
+    let media = FixtureMedia()
+    media.failOnStart = 2
+    let session = SessionController(
+      profile: ConnectionProfile(
+        name: "Resume failure", host: "127.0.0.1", port: port, scheme: "http"),
+      password: "test-password", mediaFactory: { _, _ in media })
+    session.connect()
+    try await waitUntil { session.active }
+    var messages: [String] = []
+    let observer = session.$message.compactMap { $0 }.sink { messages.append($0) }
+    defer { observer.cancel() }
+    session.suspend()
+    session.wake()
+    try await waitUntil { messages.contains("Fixture media connection failed") }
+    XCTAssertFalse(messages.contains(URLError(.networkConnectionLost).localizedDescription))
+    await session.disconnect()
+  }
+
   // Run two production session controllers against sockets and verify focus, sleep, and logout isolation.
   @MainActor func testSessionFocusSleepWakeAndLogoutLifecycle() async throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -590,8 +633,10 @@ final class ProtocolE2ETests: XCTestCase {
   var onConnected: (() -> Void)?
   var onFeatures: ((JSONValue) -> Void)?
   var starts = 0
+  var failOnStart: Int?
   func start(microphone: Bool, muted: Bool) async throws {
     starts += 1
+    if starts == failOnStart { throw CometError.unsupported("Fixture media connection failed") }
     onConnected?()
   }
   func setMuted(_ muted: Bool) {}

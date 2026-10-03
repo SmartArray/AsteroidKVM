@@ -353,7 +353,7 @@ import CometMedia
     }
   }
 
-  // Invalidate queued work and release input before the Mac sleeps.
+  // Invalidate queued work and release input when the app backgrounds or the machine sleeps.
   public func suspend() {
     stopDesktopActivity(reason: "Stopped for sleep · restart transcription when connected")
     interruptAutomation()
@@ -366,17 +366,23 @@ import CometMedia
     suspensionTask = Task { await cleanConnections() }
   }
 
-  // Resume eligible sessions through the normal bounded reconnection path.
+  // Waking is an expected lifecycle transition, not a network failure or a backoff attempt.
   public func wake() {
-    guard shouldReconnect else { return }
+    guard shouldReconnect, connectTask == nil, suspensionTask != nil else { return }
     let ticket = generation
-    Task { [weak self] in
+    message = nil
+    connectTask = Task { [weak self] in
       guard let self else { return }
       await suspensionTask?.value
-      guard ticket == generation, shouldReconnect else { return }
+      guard ticket == generation, shouldReconnect, !Task.isCancelled else { return }
       suspensionTask = nil
-      phase = .disconnected
-      connectionFailed(URLError(.networkConnectionLost))
+      reconnectAttempt = 0
+      await establish()
+      guard ticket == generation else { return }
+      connectTask = nil
+      if phase == .disconnected && shouldReconnect {
+        connectionFailed(URLError(.cannotConnectToHost))
+      }
     }
   }
 
