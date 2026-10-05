@@ -179,7 +179,7 @@ import MetalKit
 
   // Give the active display keyboard focus and use the session registry to release input on other connections.
   private func focusRemoteDisplay() {
-    guard !isTornDown, allowsAutomaticCapture, let window, window.isKeyWindow, NSApp.isActive,
+    guard !isTornDown, !session.mcpInputLocked, allowsAutomaticCapture, let window, window.isKeyWindow, NSApp.isActive,
       window.attachedSheet == nil, !window.isMiniaturized, session.active,
       session.pendingCertificate == nil, session.ocrText == nil,
       !session.ocrSelecting, !session.ocrBusy, !session.pasting
@@ -312,7 +312,7 @@ import MetalKit
     session.cancelOCR()
   }
   private var canSend: Bool {
-    !isTornDown && session.captured && window?.isKeyWindow == true
+    !isTornDown && !session.mcpInputLocked && session.captured && window?.isKeyWindow == true
       && window?.firstResponder === self && !session.pasting && !session.ocrSelecting
   }
 
@@ -321,6 +321,7 @@ import MetalKit
 
   // OCR drags clamp both selection geometry and the visible cursor, with no persistent pointer lock.
   public override func mouseDown(with event: NSEvent) {
+    guard !session.mcpInputLocked else { return }
     window?.makeFirstResponder(self)
     guard let geometry else { return }
     let p = point(event)

@@ -222,7 +222,7 @@ struct SessionView: View {
       HStack(spacing: 8) {
         Circle().fill(session.active ? Color.green : Color.secondary).frame(width: 6, height: 6)
         Text(session.phase.rawValue).accessibilityIdentifier("connection-status")
-        MCPResumeControlButton(session: session, server: session.mcpServer)
+        MCPStatusControls(session: session, server: session.mcpServer)
         Spacer()
         if let agent = model.agents[session.id] {
           AgentSessionControls(agent: agent)
@@ -230,7 +230,9 @@ struct SessionView: View {
         if session.microphone {
           Label("Microphone forwarding", systemImage: "mic.fill").foregroundStyle(.orange)
         }
-        if session.pasting {
+        if session.mcpInputLocked {
+          Text("Manual input disabled · MCP locked").accessibilityIdentifier("capture-status")
+        } else if session.pasting {
           ProgressView().controlSize(.mini)
           Text("Typing clipboard…")
         } else if session.ocrBusy {
@@ -277,26 +279,45 @@ struct SessionView: View {
 }
 
 // Observe the server directly so a pause/resume redraws independently of session updates.
-private struct MCPResumeControlButton: View {
+private struct MCPStatusControls: View {
   @ObservedObject var session: SessionController
   @ObservedObject var server: DeviceMCPServer
 
   var body: some View {
-    if session.active, session.profile.mcp?.enabled == true,
-      session.profile.mcp?.allowControl == true, server.pauseReason == .manualInput
-    {
+    if session.profile.mcp?.enabled == true {
       Button {
-        session.releaseCapture()
-        server.resumeControl()
+        session.setMCPInputLocked(!session.mcpInputLocked)
       } label: {
-        Label("Resume MCP", systemImage: "play.circle")
+        Label(session.mcpInputLocked ? "Unlock manual input" : "Lock for MCP",
+              systemImage: session.mcpInputLocked ? "lock.fill" : "lock.open")
       }
       .buttonStyle(.plain)
       .font(.caption)
-      .foregroundStyle(.secondary)
-      .help("Resume MCP control paused by manual input")
-      .accessibilityLabel("Resume MCP control")
-      .accessibilityIdentifier("mcp-resume-status")
+      .foregroundStyle(session.mcpInputLocked ? Color.orange : Color.secondary)
+      .disabled(!session.mcpInputLocked && !session.canLockMCPInput)
+      .help(session.mcpInputLocked
+        ? "Allow manual keyboard and mouse input again"
+        : "Block manual input while MCP controls this KVM. Requires an active connection and MCP keyboard & mouse access.")
+      .accessibilityValue(session.mcpInputLocked ? "Locked" : "Unlocked")
+      .accessibilityIdentifier("mcp-input-lock")
+
+      if session.active, session.profile.mcp?.allowControl == true,
+        server.pauseReason == .manualInput
+      {
+        Button {
+          session.releaseCapture()
+          server.resumeControl()
+        } label: {
+          Label("Resume MCP", systemImage: "play.circle")
+        }
+        .buttonStyle(.plain)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .disabled(server.status != "Listening")
+        .help("Resume MCP control paused by manual input; keep the current input lock")
+        .accessibilityLabel("Resume MCP control")
+        .accessibilityIdentifier("mcp-resume-status")
+      }
     }
   }
 }
@@ -336,7 +357,8 @@ struct KeyboardPopover: View {
           get: { session.profile.pasteEnabled },
           set: { value in session.updateProfile { $0.pasteEnabled = value } }))
       Button("Paste Clipboard Text") { session.paste() }.disabled(
-        !session.active || session.pasting)
+        !session.active || session.pasting || session.mcpInputLocked)
+        .help(session.mcpInputLocked ? "Unlock manual input to paste" : "Paste clipboard text")
       Text("Paste is sent once. Input already queued on the Comet may finish after disconnecting.")
         .font(.caption).foregroundStyle(.secondary)
       Divider()
@@ -362,7 +384,8 @@ struct KeyboardPopover: View {
           .vertical, 3
         ).background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
       }
-    }.buttonStyle(.plain).disabled(!session.active)
+    }.buttonStyle(.plain).disabled(!session.active || session.mcpInputLocked)
+      .help(session.mcpInputLocked ? "Unlock manual input to send shortcuts" : title)
   }
 }
 
