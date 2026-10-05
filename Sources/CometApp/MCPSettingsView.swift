@@ -135,7 +135,7 @@ struct MCPSettingsView: View {
         Text("Keyboard & mouse").tag(true)
       }.pickerStyle(.segmented).labelsHidden().accessibilityIdentifier("mcp-access")
       Text(allowsControl
-        ? "Clients can inspect the screen, type, click, and scroll. Your input pauses MCP control."
+        ? "Clients can inspect the screen, type, click, and scroll. Your input pauses MCP control unless you select Lock for MCP in the remote window’s status bar."
         : "Clients can inspect the screen and read text. Keyboard and mouse actions are blocked.")
         .font(.callout).foregroundStyle(.secondary)
       if allowsControl {
@@ -163,7 +163,7 @@ struct MCPSettingsView: View {
             }.disabled(!listening).accessibilityIdentifier("mcp-stop")
           }
         }
-        Text("Emergency stop: ⌃⌥⌘Esc while AsteroidKVM is active.")
+        Text("Emergency stop: ⌃⌥⌘Esc while AsteroidKVM is active, including when manual input is locked.")
           .font(.caption).foregroundStyle(.secondary)
       }
     }

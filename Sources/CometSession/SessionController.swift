@@ -15,6 +15,7 @@ import CometMedia
     didSet {
       // Invalidate context on every identity mutation; endpoint sanitization happens before publishing the value.
       if profile.agentIdentity != oldValue.agentIdentity {
+        setMCPInputLocked(false)
         mcpServer.revokeAccess()
         transcription.clear()
         pendingCertificate = nil
@@ -47,7 +48,21 @@ import CometMedia
   var automationLease: UUID?
   public lazy var mcpServer = DeviceMCPServer(session: self)
 
+  // Local input protection is session state, independent of MCP pause/resume and ownership.
+  @Published public private(set) var mcpInputLocked = false
+  public var canLockMCPInput: Bool {
+    active && profile.mcp?.enabled == true && profile.mcp?.allowControl == true
+      && mcpServer.status == "Listening" && !pasting
+  }
+
+  public func setMCPInputLocked(_ locked: Bool) {
+    guard locked != mcpInputLocked, !locked || canLockMCPInput else { return }
+    mcpInputLocked = locked
+    if locked { releaseCapture() }
+  }
+
   public func interruptAutomation(manualInput: Bool = false) {
+    guard !manualInput || !mcpInputLocked else { return }
     mcpServer.stopAutomation(manualInput: manualInput)
     onAgentInterruption?()
   }
@@ -362,6 +377,7 @@ import CometMedia
 
   // Grant input only to an active session after the registry releases its other sessions.
   public func capture() {
+    guard !mcpInputLocked else { return }
     interruptAutomation(manualInput: true)
     guard active, !pasting, !ocrSelecting, !ocrBusy else { return }
     onCapture?(id)
@@ -371,6 +387,7 @@ import CometMedia
 
   // Flush key releases before closing a socket; server disconnect cleanup is the final backstop.
   public func disconnect(logout: Bool = false) async {
+    setMCPInputLocked(false)
     transcription.stop(reason: "Stopped on disconnect")
     interruptAutomation()
     shouldReconnect = false
@@ -433,6 +450,7 @@ import CometMedia
 
   // Native paste locks live input for the operation and never retains clipboard text after completion.
   public func paste() {
+    guard !mcpInputLocked else { return }
     interruptAutomation(manualInput: true)
     guard active, !pasting, let text = NSPasteboard.general.string(forType: .string) else { return }
     _ = input.releaseAll()
@@ -441,6 +459,7 @@ import CometMedia
 
   // Send balanced remote shortcut transitions through the session’s ordered input queue.
   public func shortcut(_ codes: [String]) {
+    guard !mcpInputLocked else { return }
     interruptAutomation(manualInput: true)
     guard active, !pasting else { return }
     releaseCapture()

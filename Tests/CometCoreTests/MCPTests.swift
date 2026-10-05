@@ -507,4 +507,162 @@ final class MCPTests: XCTestCase {
     XCTAssertEqual((deleted as? HTTPURLResponse)?.statusCode, 200)
     XCTAssertTrue(server.clients.isEmpty)
   }
+  @MainActor private func waitForListener(_ server: DeviceMCPServer) async throws {
+    for _ in 0..<100 where server.status == "Starting…" {
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    XCTAssertEqual(server.status, "Listening")
+  }
+
+  @MainActor func testInputLockPreservesMCPLeaseAndSeparatesResume() async throws {
+    let (session, server, token) = fixture()
+    defer { server.disable() }
+    try await waitForListener(server)
+    let events = EventRecorder()
+    session.output = HIDOutput(send: { await events.add($0.type) }, paste: { _, _ in
+      await events.add("paste")
+    })
+    let client = try await initialize(server, token)
+    let id = try await screen(server, token, client)
+    _ = try await call(server, token, client, "click", [
+      "frameId": .string(id), "actionId": .string("before-lock"), "x": .number(10), "y": .number(10),
+    ])
+    let lease = try XCTUnwrap(session.automationLease)
+    await session.output?.flush()
+    let before = await events.values
+    session.setMCPInputLocked(true)
+    XCTAssertTrue(session.mcpInputLocked)
+    session.capture()
+    session.paste()
+    session.shortcut(["KeyA"])
+    session.interruptAutomation(manualInput: true)
+    session.releaseCapture() // Focus loss also preserves automation ownership.
+    await session.output?.flush()
+    let after = await events.values
+    XCTAssertEqual(before, after)
+    XCTAssertEqual(session.automationLease, lease)
+    XCTAssertTrue(session.agentOwnsInput)
+    XCTAssertFalse(server.paused)
+    XCTAssertFalse(session.captured)
+
+    // Unlock is not a takeover; an actual manual capture still pauses as before.
+    session.setMCPInputLocked(false)
+    XCTAssertEqual(session.automationLease, lease)
+    session.capture()
+    XCTAssertEqual(server.pauseReason, .manualInput)
+    session.setMCPInputLocked(true)
+    XCTAssertEqual(server.pauseReason, .manualInput)
+    XCTAssertFalse(session.captured)
+    server.resumeControl()
+    XCTAssertTrue(session.mcpInputLocked)
+    XCTAssertFalse(server.paused)
+    let fresh = try await screen(server, token, client)
+    let result = try await call(server, token, client, "click", [
+      "frameId": .string(fresh), "actionId": .string("while-locked"), "x": .number(10), "y": .number(10),
+    ])
+    XCTAssertNotEqual(result["isError"].bool, true)
+    server.pauseControl()
+    session.interruptAutomation()
+    session.releaseCapture()
+    XCTAssertEqual(server.pauseReason, .stopRequested)
+    XCTAssertTrue(session.mcpInputLocked)
+    XCTAssertFalse(session.agentOwnsInput)
+  }
+
+  @MainActor func testLockDuringMCPDragDoesNotCancelHeldButtonOrPendingMotion() async throws {
+    let (session, server, token) = fixture()
+    defer { server.disable() }
+    try await waitForListener(server)
+    let events = EventRecorder()
+    session.output = HIDOutput(send: {
+      await events.add($0.type + ":" + String($0.payload["state"].bool ?? false))
+    }, paste: { _, _ in })
+    let client = try await initialize(server, token)
+    let id = try await screen(server, token, client)
+    let task = Task {
+      try await self.call(server, token, client, "drag", [
+        "frameId": .string(id), "actionId": .string("locked-drag"),
+        "x": .number(10), "y": .number(10), "toX": .number(200), "toY": .number(100),
+        "durationMs": .number(500),
+      ])
+    }
+    for _ in 0..<100 {
+      if await events.values.contains("mouse_button:true") { break }
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    let started = await events.values
+    XCTAssertTrue(started.contains("mouse_button:true"))
+    session.setMCPInputLocked(true)
+    session.capture()
+    let result = try await task.value
+    await session.output?.flush()
+    XCTAssertNotEqual(result["isError"].bool, true)
+    XCTAssertTrue(session.agentOwnsInput)
+    XCTAssertFalse(server.paused)
+    let sent = await events.values
+    XCTAssertEqual(sent.filter { $0 == "mouse_button:false" }.count, 1)
+    XCTAssertEqual(sent.last, "mouse_button:false")
+  }
+
+  @MainActor func testInputLockBalancesManualKeysAndRejectsPasteInProgress() async throws {
+    let (session, server, _) = fixture()
+    defer { server.disable() }
+    try await waitForListener(server)
+    let events = EventRecorder()
+    session.output = HIDOutput(send: {
+      await events.add($0.type + ":" + String($0.payload["state"].bool ?? false))
+    }, paste: { _, _ in })
+    session.pasting = true
+    session.setMCPInputLocked(true)
+    XCTAssertFalse(session.mcpInputLocked)
+    session.pasting = false
+    session.capture()
+    session.output?.enqueue([.key("KeyA", true), .button("left", true)])
+    await session.output?.flush()
+    session.ocrSelecting = true
+    session.setMCPInputLocked(true)
+    await session.output?.flush()
+    XCTAssertFalse(session.captured)
+    XCTAssertFalse(session.ocrSelecting)
+    let sent = await events.values
+    XCTAssertEqual(sent, ["key:true", "mouse_button:true", "key:false", "mouse_button:false"])
+  }
+
+  @MainActor func testInputLockLifecycleEligibilityAndSessionIsolation() async throws {
+    let (session, server, _) = fixture()
+    let (other, otherServer, _) = fixture(control: false)
+    defer { server.disable(); otherServer.disable() }
+    try await waitForListener(server)
+    try await waitForListener(otherServer)
+    other.setMCPInputLocked(true)
+    XCTAssertFalse(other.mcpInputLocked, "View-only MCP cannot lock input")
+    session.setMCPInputLocked(true)
+    XCTAssertTrue(session.mcpInputLocked)
+    XCTAssertFalse(other.mcpInputLocked)
+    session.phase = .reconnecting
+    session.suspend()
+    XCTAssertTrue(session.mcpInputLocked)
+    session.phase = .connected
+    session.updateProfile { $0.mcp?.allowControl = false; $0.mcp?.port = Int.random(in: 20000...60000) }
+    XCTAssertFalse(session.mcpInputLocked)
+    session.setMCPInputLocked(true)
+    XCTAssertFalse(session.mcpInputLocked)
+    session.updateProfile { $0.mcp?.allowControl = true; $0.mcp?.port = Int.random(in: 20000...60000) }
+    try await waitForListener(server)
+    session.setMCPInputLocked(true)
+    await session.disconnect()
+    XCTAssertFalse(session.mcpInputLocked)
+    session.setMCPInputLocked(true)
+    XCTAssertFalse(session.mcpInputLocked, "Disconnected sessions cannot lock")
+    session.phase = .connected
+    session.setMCPInputLocked(true)
+    session.updateProfile { $0.mcp?.enabled = false }
+    XCTAssertFalse(session.mcpInputLocked)
+    session.updateProfile { $0.mcp?.enabled = true; $0.mcp?.port = Int.random(in: 20000...60000) }
+    try await waitForListener(server)
+    session.setMCPInputLocked(true)
+    session.updateProfile { $0.host = "replacement.invalid" }
+    XCTAssertFalse(session.mcpInputLocked)
+    XCTAssertTrue(server.status.contains("revoked"))
+  }
 }

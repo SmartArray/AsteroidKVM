@@ -25,6 +25,8 @@ final class CometUITests: XCTestCase {
     app.buttons["Save"].click()
     app.buttons["connect-Settings UI Fixture"].click()
     let session = app.windows["Settings UI Fixture"]
+    XCTAssertFalse(session.buttons["mcp-input-lock"].exists)
+    XCTAssertFalse(session.buttons["mcp-resume-status"].exists)
     let password = session.secureTextFields["session-password"]
     XCTAssertTrue(password.waitForExistence(timeout: 10))
     // Do not click the field: authentication should focus it automatically, and Return must submit.
@@ -62,6 +64,9 @@ final class CometUITests: XCTestCase {
     let listening = XCTNSPredicateExpectation(
       predicate: NSPredicate { _, _ in copy.isEnabled }, object: copy)
     XCTAssertEqual(XCTWaiter.wait(for: [listening], timeout: 10), .completed)
+    XCTAssertTrue(session.buttons["mcp-input-lock"].waitForExistence(timeout: 5))
+    XCTAssertFalse(session.buttons["mcp-input-lock"].isEnabled, "A disconnected KVM cannot lock input")
+    XCTAssertEqual(session.buttons["mcp-input-lock"].label, "Lock for MCP")
     XCTAssertEqual(app.staticTexts["mcp-server-status"].value as? String, "Ready for clients")
     XCTAssertTrue(app.staticTexts["mcp-clients-empty"].exists)
     copy.click()
@@ -84,6 +89,8 @@ final class CometUITests: XCTestCase {
     XCTAssertTrue(pause.waitForExistence(timeout: 5))
     start.click()
     XCTAssertFalse(app.buttons["mcp-copy-configuration"].exists)
+    XCTAssertFalse(session.buttons["mcp-input-lock"].exists)
+    XCTAssertFalse(session.buttons["mcp-resume-status"].exists)
   }
 
   // Open Display settings from the live toolbar and prove editing remains local until Apply is pressed.

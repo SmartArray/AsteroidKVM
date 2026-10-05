@@ -102,6 +102,7 @@ import os
       return
     }
     let settings = session.profile.mcp ?? MCPPreferences()
+    if !settings.enabled || !settings.allowControl { session.setMCPInputLocked(false) }
     guard settings.enabled else {
       disable()
       revoked = false
@@ -111,7 +112,7 @@ import os
     if preferences == settings, transport != nil, boundIdentity == session.profile.agentIdentity {
       return
     }
-    disable()
+    disable(preservingInputLock: true)
     guard (1024...65535).contains(settings.port) else {
       status = "Choose a port from 1024 to 65535."
       return
@@ -139,7 +140,8 @@ import os
       status = "MCP could not start: \(error.localizedDescription)"
     }
   }
-  public func disable() {
+  public func disable(preservingInputLock: Bool = false) {
+    if !preservingInputLock { session?.setMCPInputLocked(false) }
     stopAutomation()
     transport?.stop()
     transport = nil
