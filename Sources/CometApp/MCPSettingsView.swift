@@ -135,10 +135,18 @@ struct MCPSettingsView: View {
         Text("Keyboard & mouse").tag(true)
       }.pickerStyle(.segmented).labelsHidden().accessibilityIdentifier("mcp-access")
       Text(allowsControl
-        ? "Clients can inspect the screen, type, click, and scroll. Your input pauses MCP control unless you select Lock for MCP in the remote window’s status bar."
+        ? "Clients can inspect the screen, type, click, and scroll. Manual input pauses MCP control when input is unlocked."
         : "Clients can inspect the screen and read text. Keyboard and mouse actions are blocked.")
         .font(.callout).foregroundStyle(.secondary)
       if allowsControl {
+        Toggle("Allow MCP to lock manual input", isOn: Binding(
+          get: { session.profile.mcp?.allowInputLock ?? true },
+          set: { value in update { $0.allowInputLock = value } }
+        ))
+        .toggleStyle(.checkbox)
+        .accessibilityIdentifier("mcp-allow-input-lock")
+        Text("Automatically lock manual input when MCP takes control. You can always unlock using the yellow button; ongoing actions will not lock it again until MCP acquires a new control session.")
+          .font(.caption).foregroundStyle(.secondary)
         Divider()
         HStack(alignment: .center, spacing: 12) {
           VStack(alignment: .leading, spacing: 5) {
