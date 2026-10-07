@@ -132,6 +132,9 @@ import CometMedia
     releaseCapture()
     var updated = profile
     change(&updated)
+    if profile.mcp?.allowInputLock != false, updated.mcp?.allowInputLock == false {
+      setMCPInputLocked(false)
+    }
     profile = updated.securingReplacement(of: profile)
     // Playback capture cannot transcribe a muted track; do not leave a silent API session running.
     if profile.muted, transcription.active { transcription.stop(reason: "Stopped because remote playback was muted") }

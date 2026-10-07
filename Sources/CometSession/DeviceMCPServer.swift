@@ -196,6 +196,18 @@ import os
     stopAutomation()
   }
   public func resumeControl() { pauseReason = nil }
+
+  // Lock only on a new ownership lease: a user's unlock wins for the current lease.
+  private func acquireControl(_ client: String) throws {
+    guard owner == nil || owner == client else {
+      throw AgentError("Another MCP client owns this device.")
+    }
+    if owner == nil {
+      try computer.acquire()
+      owner = client
+      if preferences?.allowInputLock == true { session?.setMCPInputLocked(true) }
+    }
+  }
   private func release(_ client: String) {
     peers[client]?.task?.cancel()
     if owner == client {
@@ -445,6 +457,8 @@ import os
             "id": .string(session.id.uuidString), "name": .string(session.profile.name),
             "status": .string(session.phase.rawValue),
             "readOnly": .bool(preferences?.allowControl != true), "controlPaused": .bool(paused),
+            "manualInputLocked": .bool(session.mcpInputLocked),
+            "inputLockAllowed": .bool(preferences?.allowControl == true && preferences?.allowInputLock == true),
             "mappedText": .bool(session.state.mappedText),
             "typingIntervalMs": .number(Double(session.profile.nativeTypingIntervalMilliseconds)),
           ]))
@@ -558,13 +572,7 @@ import os
             "Typing into elements requires a detected textfield or textarea. Inspect the raw image for ambiguous controls."
           )
         }
-        guard owner == nil || owner == client else {
-          throw AgentError("Another MCP client owns this device.")
-        }
-        if owner == nil {
-          try computer.acquire()
-          owner = client
-        }
+        try acquireControl(client)
         computer.prepare(screen: observation.screen, source: observation.frame.size)
         inputStarted = true
         let point = element.clickPoint
@@ -622,13 +630,7 @@ import os
         } else {
           action = try AgentTool.parse(.object(payload), screen: observation.screen)
         }
-        guard owner == nil || owner == client else {
-          throw AgentError("Another MCP client owns this device.")
-        }
-        if owner == nil {
-          try computer.acquire()
-          owner = client
-        }
+        try acquireControl(client)
         computer.prepare(screen: observation.screen, source: observation.frame.size)
         let beforeActionFrame = session.mailbox.snapshot()?.id
         inputStarted = true

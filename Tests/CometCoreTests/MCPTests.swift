@@ -10,13 +10,15 @@ import XCTest
 
 final class MCPTests: XCTestCase {
   @MainActor private func fixture(
-    control: Bool = true, port: Int = Int.random(in: 20000...60000),
+    control: Bool = true, automaticLock: Bool = false, port: Int = Int.random(in: 20000...60000),
     token: String = UUID().uuidString, parser: (any UIParser)? = nil
   ) -> (SessionController, DeviceMCPServer, String) {
     var profile = ConnectionProfile(name: "MCP Fixture", host: "fixture.invalid")
     var preferences = MCPPreferences()
     preferences.enabled = true
     preferences.allowControl = control
+    // Existing takeover tests explicitly exercise the unlocked interaction mode.
+    preferences.allowInputLock = automaticLock
     preferences.port = port
     profile.mcp = preferences
     let session = SessionController(profile: profile)
@@ -126,8 +128,9 @@ final class MCPTests: XCTestCase {
 
   @MainActor func testStructuredElementsAndStaleActionsNeverReturnImages() async throws {
     let parser = FixtureUIParser()
-    let (session, server, token) = fixture(parser: parser)
+    let (session, server, token) = fixture(automaticLock: true, parser: parser)
     defer { server.disable() }
+    try await waitForListener(server)
     let events = EventRecorder()
     session.output = HIDOutput(send: { await events.add($0.type) }, paste: { _, _ in })
     let client = try await initialize(server, token)
@@ -139,6 +142,7 @@ final class MCPTests: XCTestCase {
     ]
     let clicked = try await call(server, token, client, "screen.click_element", args)
     XCTAssertEqual(try text(clicked)["success"].bool, true)
+    XCTAssertTrue(session.mcpInputLocked, "Element-based actions also acquire the input lock")
     let duplicate = try await call(server, token, client, "screen.click_element", args)
     XCTAssertEqual(try text(duplicate)["duplicate"].bool, true)
     let next = try text(await call(server, token, client, "screen.elements"))
@@ -507,6 +511,81 @@ final class MCPTests: XCTestCase {
     XCTAssertEqual((deleted as? HTTPURLResponse)?.statusCode, 200)
     XCTAssertTrue(server.clients.isEmpty)
   }
+  @MainActor func testMCPAutomaticLockAndManualUnlockWinsUntilNewLease() async throws {
+    let (session, server, token) = fixture(automaticLock: true)
+    defer { server.disable() }
+    try await waitForListener(server)
+    session.output = HIDOutput(send: { _ in }, paste: { _, _ in })
+    let client = try await initialize(server, token)
+    let id = try await screen(server, token, client)
+    XCTAssertFalse(session.mcpInputLocked, "Observation alone does not lock input")
+    func click(_ action: String) async throws {
+      frame(session)
+      let id = try await screen(server, token, client)
+      let result = try await call(server, token, client, "click", [
+        "frameId": .string(id), "actionId": .string(action), "x": .number(10), "y": .number(10),
+      ])
+      XCTAssertNotEqual(result["isError"].bool, true, String(describing: result))
+    }
+    try await click("acquire")
+    XCTAssertTrue(session.mcpInputLocked)
+    session.capture()
+    XCTAssertFalse(server.paused)
+    let device = try text(try await call(server, token, client, "get_device"))
+    XCTAssertEqual(device["manualInputLocked"].bool, true)
+    XCTAssertEqual(device["inputLockAllowed"].bool, true)
+    session.setMCPInputLocked(false)
+    try await click("continue-after-unlock")
+    XCTAssertFalse(session.mcpInputLocked, "The user's unlock must win for this lease")
+    _ = try await call(server, token, client, "stop")
+    // stop invalidates observation, so obtain a new one before reacquiring ownership.
+    let fresh = try await screen(server, token, client)
+    let reacquired = try await call(server, token, client, "click", [
+      "frameId": .string(fresh), "actionId": .string("reacquire"), "x": .number(10), "y": .number(10),
+    ])
+    XCTAssertNotEqual(reacquired["isError"].bool, true)
+    XCTAssertTrue(session.mcpInputLocked)
+    session.setMCPInputLocked(false)
+    session.capture()
+    XCTAssertEqual(server.pauseReason, .manualInput)
+    XCTAssertFalse(session.agentOwnsInput)
+    let denied = try await call(server, token, client, "click", [
+      "frameId": .string(id), "actionId": .string("after-takeover"), "x": .number(10), "y": .number(10),
+    ])
+    XCTAssertEqual(denied["isError"].bool, true)
+    XCTAssertFalse(session.mcpInputLocked, "A paused MCP cannot re-lock after user takeover")
+    session.releaseCapture()
+    server.resumeControl()
+    try await click("after-explicit-resume")
+    XCTAssertTrue(session.mcpInputLocked)
+    server.pauseControl()
+    session.interruptAutomation()
+    XCTAssertEqual(server.pauseReason, .stopRequested)
+    XCTAssertFalse(session.agentOwnsInput)
+    XCTAssertTrue(session.mcpInputLocked, "Emergency stop works without needing to unlock first")
+    session.updateProfile { $0.mcp?.allowInputLock = false; $0.mcp?.port = Int.random(in: 20000...60000) }
+    XCTAssertFalse(session.mcpInputLocked, "Revoking lock permission restores manual input")
+    try await waitForListener(server)
+    session.setMCPInputLocked(true)
+    XCTAssertTrue(session.mcpInputLocked, "Opting out does not remove the user's manual lock control")
+  }
+
+  @MainActor func testMCPAutomaticLockOptOutKeepsManualTakeover() async throws {
+    let (session, server, token) = fixture(automaticLock: false)
+    defer { server.disable() }
+    try await waitForListener(server)
+    session.output = HIDOutput(send: { _ in }, paste: { _, _ in })
+    let client = try await initialize(server, token)
+    let id = try await screen(server, token, client)
+    _ = try await call(server, token, client, "click", [
+      "frameId": .string(id), "actionId": .string("opt-out"), "x": .number(10), "y": .number(10),
+    ])
+    XCTAssertTrue(session.agentOwnsInput)
+    XCTAssertFalse(session.mcpInputLocked)
+    session.capture()
+    XCTAssertEqual(server.pauseReason, .manualInput)
+  }
+
   @MainActor private func waitForListener(_ server: DeviceMCPServer) async throws {
     for _ in 0..<100 where server.status == "Starting…" {
       try await Task.sleep(for: .milliseconds(20))

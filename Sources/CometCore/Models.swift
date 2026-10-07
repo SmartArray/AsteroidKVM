@@ -230,5 +230,19 @@ public struct MCPPreferences: Codable, Equatable, Sendable {
   public var enabled = false
   public var port = 9101
   public var allowControl = false
+  public var allowInputLock = true
   public init() {}
+
+  private enum CodingKeys: String, CodingKey {
+    case enabled, port, allowControl, allowInputLock
+  }
+
+  // Existing saved MCP configurations inherit the new permission without losing their settings.
+  public init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    enabled = try values.decode(Bool.self, forKey: .enabled)
+    port = try values.decode(Int.self, forKey: .port)
+    allowControl = try values.decode(Bool.self, forKey: .allowControl)
+    allowInputLock = try values.decodeIfPresent(Bool.self, forKey: .allowInputLock) ?? true
+  }
 }

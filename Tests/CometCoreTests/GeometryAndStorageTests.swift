@@ -72,6 +72,20 @@ final class GeometryAndStorageTests: XCTestCase {
     XCTAssertEqual(retina.hidPoint(CGPoint(x: 960, y: 540)).0, 32767)
   }
 
+  func testMCPLockPermissionDefaultsAndLegacyDecoding() throws {
+    XCTAssertTrue(MCPPreferences().allowInputLock)
+    let legacy = Data(#"{"enabled":true,"port":9123,"allowControl":true}"#.utf8)
+    var preferences = try JSONDecoder().decode(MCPPreferences.self, from: legacy)
+    XCTAssertTrue(preferences.allowInputLock)
+    XCTAssertTrue(preferences.enabled)
+    XCTAssertTrue(preferences.allowControl)
+    XCTAssertEqual(preferences.port, 9123)
+    preferences.allowInputLock = false
+    let restored = try JSONDecoder().decode(MCPPreferences.self, from: JSONEncoder().encode(preferences))
+    XCTAssertEqual(restored, preferences)
+    XCTAssertFalse(restored.allowInputLock)
+  }
+
   func testProfileRoundTripCannotPersistPasswordOrToken() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }
