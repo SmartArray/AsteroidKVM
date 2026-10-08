@@ -302,7 +302,7 @@ private struct MCPStatusControls: View {
       .accessibilityIdentifier("mcp-input-lock")
 
       if session.active, session.profile.mcp?.allowControl == true,
-        server.pauseReason == .manualInput
+        server.paused
       {
         Button {
           session.releaseCapture()
@@ -314,7 +314,7 @@ private struct MCPStatusControls: View {
         .font(.caption)
         .foregroundStyle(.secondary)
         .disabled(server.status != "Listening")
-        .help("Resume MCP control paused by manual input; keep the current input lock")
+        .help("Resume paused MCP control; keep the current input lock")
         .accessibilityLabel("Resume MCP control")
         .accessibilityIdentifier("mcp-resume-status")
       }
