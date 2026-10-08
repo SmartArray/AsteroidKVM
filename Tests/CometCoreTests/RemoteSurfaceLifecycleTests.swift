@@ -6,6 +6,54 @@ import CometCore
 import XCTest
 
 @MainActor final class RemoteSurfaceLifecycleTests: XCTestCase {
+  func testHitTestingUsesParentCoordinatesAcrossToolbarInsets() {
+    let session = SessionController(
+      profile: ConnectionProfile(name: "Hit test", host: "fixture.invalid"))
+    let surface = RemoteSurface(session: session)
+    defer { surface.teardown() }
+    for parent in [NSView(frame: NSRect(x: 0, y: 0, width: 800, height: 600)),
+                   FlippedHitTestParent(frame: NSRect(x: 0, y: 0, width: 800, height: 600))] {
+      let root = NSView(frame: parent.frame)
+      root.addSubview(parent)
+      parent.addSubview(surface)
+      // Toolbar and status-bar layout can offset the surface within its parent.
+      for origin in [NSPoint.zero, NSPoint(x: 24, y: 48)] {
+        surface.frame = NSRect(origin: origin, size: NSSize(width: 640, height: 400))
+        for local in [NSPoint(x: 1, y: 1), NSPoint(x: 639, y: 1),
+                      NSPoint(x: 1, y: 399), NSPoint(x: 639, y: 399)] {
+          let point = surface.convert(local, to: parent)
+          XCTAssertTrue(surface.hitTest(point) === surface,
+                        "Visible edge must accept hits: local=\(local), origin=\(origin), flipped=\(parent.isFlipped)")
+          XCTAssertTrue(parent.hitTest(parent.convert(point, to: root)) === surface)
+        }
+        for local in [NSPoint(x: -1, y: 200), NSPoint(x: 641, y: 200),
+                      NSPoint(x: 320, y: -1), NSPoint(x: 320, y: 401)] {
+          XCTAssertNil(surface.hitTest(surface.convert(local, to: parent)),
+                       "Outside points must not steal toolbar/status-bar clicks")
+        }
+      }
+      surface.removeFromSuperview()
+    }
+  }
+
+  func testHitTestingRespectsHiddenSurfaceAndRoutesPassiveChildren() {
+    let session = SessionController(
+      profile: ConnectionProfile(name: "Hit test", host: "fixture.invalid"))
+    let surface = RemoteSurface(session: session)
+    defer { surface.teardown() }
+    let parent = NSView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+    surface.frame = NSRect(x: 24, y: 48, width: 640, height: 400)
+    parent.addSubview(surface)
+    surface.addSubview(NSView(frame: surface.bounds))
+    let point = surface.convert(NSPoint(x: 100, y: 100), to: parent)
+    XCTAssertTrue(surface.hitTest(point) === surface, "Passive rendering children must not receive input")
+    surface.isHidden = true
+    XCTAssertNil(surface.hitTest(point))
+    surface.isHidden = false
+    surface.teardown()
+    XCTAssertNil(surface.hitTest(point))
+  }
+
   // Observe real session publications while dismantling the surface, including repeated AppKit cleanup.
   func testTeardownDefersSessionPublicationAndReleasesCapture() async throws {
     let session = SessionController(
@@ -122,4 +170,8 @@ import XCTest
 
 @MainActor private final class LockedSurfaceWindow: NSWindow {
   override var isKeyWindow: Bool { true }
+}
+
+@MainActor private final class FlippedHitTestParent: NSView {
+  override var isFlipped: Bool { true }
 }
