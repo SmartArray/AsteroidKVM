@@ -37,8 +37,12 @@ import MetalKit
   public override var isFlipped: Bool { true }
   public override var acceptsFirstResponder: Bool { true }
 
-  // Route pointer events to the capture adapter instead of the passive Metal child view.
-  public override func hitTest(_ point: NSPoint) -> NSView? { bounds.contains(point) ? self : nil }
+  // AppKit supplies parent coordinates, which differ from local bounds when toolbar layout
+  // offsets the surface. Let AppKit convert/clip the hit, then route passive child hits here.
+  public override func hitTest(_ point: NSPoint) -> NSView? {
+    guard !isTornDown, super.hitTest(point) != nil else { return nil }
+    return self
+  }
 
   // Keep the MTKView instance and decoder sink intact across fullscreen and SwiftUI updates.
   public init(session: SessionController) {
