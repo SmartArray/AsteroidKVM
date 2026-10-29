@@ -11,6 +11,7 @@ struct SessionView: View {
   @Environment(\.openSettings) private var openSettings
   @State private var keyboardOpen = false
   @State private var displayOpen = false
+  @State private var audioOpen = false
   @State private var transcriptionOpen = false
   @State private var transcriptionStartTask: Task<Void, Never>?
   @State private var diagnosticsOpen = false
@@ -24,7 +25,7 @@ struct SessionView: View {
       // Local controls keep focus while open; activating an unobstructed display grants remote input automatically.
       RemoteDisplayView(
         session: session,
-        allowsAutomaticCapture: !keyboardOpen && !displayOpen && !transcriptionOpen && !diagnosticsOpen && !rebootConfirm)
+        allowsAutomaticCapture: !keyboardOpen && !displayOpen && !audioOpen && !transcriptionOpen && !diagnosticsOpen && !rebootConfirm)
       if !session.active && !session.ocrSelecting {
         VStack(spacing: 16) {
           Image(systemName: "desktopcomputer").font(.system(size: 42)).foregroundStyle(.secondary)
@@ -107,6 +108,23 @@ struct SessionView: View {
           }
         }
         .accessibilityIdentifier("display-toolbar")
+        Button {
+          session.releaseCapture()
+          audioOpen.toggle()
+        } label: { Label("Audio", systemImage: "speaker.wave.2") }
+        .help("Audio output and playback")
+        .popover(isPresented: $audioOpen) {
+          VStack(alignment: .leading, spacing: 16) {
+            Label("Audio", systemImage: "speaker.wave.2").font(.headline)
+            AudioSettingsView(session: session)
+            Divider()
+            HStack {
+              Button("Audio Settings…") { showAudioSettings("Audio") }
+              Button("Notifications…") { showAudioSettings("Notifications") }
+            }
+          }.padding(20).frame(width: 380)
+        }.accessibilityIdentifier("audio-toolbar")
+        AudioRecordingButton(session: session, controller: session.audioRecording)
         // Audio controls release remote input before showing local settings or transcript history.
         Button {
           session.releaseCapture()
@@ -138,12 +156,7 @@ struct SessionView: View {
         .accessibilityValue(session.ocrSelecting ? "On" : "Off")
         .disabled(!session.active || session.ocrBusy).help("Select text in the remote display")
         .accessibilityIdentifier("ocr-toolbar")
-        Button {
-          session.releaseCapture()
-          openWindow(id: "agent", value: session.id)
-        } label: {
-          Label("Agent", systemImage: "bubble.left.and.text.bubble.right")
-        }.help("Experimental Codex agent").accessibilityIdentifier("agent-toolbar")
+        // Obsolete: the Experimental Coding Agent is hidden; the per-device MCP server is sufficient.
         Menu {
           Button("Reboot Comet…") {
             session.releaseCapture()
@@ -193,6 +206,15 @@ struct SessionView: View {
     }
   }
 
+  // Open settings for this window's connection after returning focus to local controls.
+  private func showAudioSettings(_ section: String) {
+    session.releaseCapture()
+    model.selectedDevice = session.id
+    model.settingsSection = section
+    audioOpen = false
+    openSettings()
+  }
+
   // Return and the default button share one guarded action; keep secrets out of view state after submitting.
   private func signIn() {
     guard session.phase == .authenticating, !loginPassword.isEmpty else { return }
@@ -223,10 +245,9 @@ struct SessionView: View {
         Circle().fill(session.active ? Color.green : Color.secondary).frame(width: 6, height: 6)
         Text(session.phase.rawValue).accessibilityIdentifier("connection-status")
         MCPStatusControls(session: session, server: session.mcpServer)
+        AudioWebhookStatusControl(session: session, controller: session.audioNotifications)
+        AudioRecordingStatus(session: session, controller: session.audioRecording)
         Spacer()
-        if let agent = model.agents[session.id] {
-          AgentSessionControls(agent: agent)
-        }
         if session.microphone {
           Label("Microphone forwarding", systemImage: "mic.fill").foregroundStyle(.orange)
         }
@@ -274,6 +295,33 @@ struct SessionView: View {
       guard !Task.isCancelled else { return }
       model.setTranscription(true, for: session)
       transcriptionStartTask = nil
+    }
+  }
+}
+
+// Observe delivery state directly so this control reflects pauses without changing saved settings.
+private struct AudioWebhookStatusControl: View {
+  @ObservedObject var session: SessionController
+  @ObservedObject var controller: AudioNotificationController
+
+  var body: some View {
+    if session.profile.audioNotifications?.enabled == true {
+      Button {
+        session.releaseCapture()
+        controller.setPaused(!controller.isPaused)
+      } label: {
+        Label(controller.isPaused ? "Audio Notification Webhook paused" : "Audio Notification Webhook",
+          systemImage: controller.isPaused ? "bell.slash" : "bell.fill")
+      }
+      .buttonStyle(.plain)
+      .font(.caption)
+      .foregroundStyle(controller.isArmed ? Color.blue : Color.secondary)
+      .disabled(session.profile.audioNotifications?.endpointURL == nil)
+      .help(controller.isPaused
+        ? "Resume audio notifications to the configured webhook"
+        : "Pause audio notifications to the configured webhook")
+      .accessibilityValue(controller.isArmed ? "Active" : controller.isPaused ? "Paused" : "Unavailable")
+      .accessibilityIdentifier("audio-webhook-toggle")
     }
   }
 }
@@ -608,7 +656,7 @@ struct OCRResultView: View {
 
 }
 
-// Keep Pause reachable beside the remote image even when the chat is behind another window.
+// Obsolete built-in agent UI, retained for reference. MCP provides the supported automation controls.
 private struct AgentSessionControls: View {
   @ObservedObject var agent: AgentController
   var body: some View {

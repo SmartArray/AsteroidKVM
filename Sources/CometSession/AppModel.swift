@@ -111,7 +111,10 @@ import CometMedia
     profile: ConnectionProfile, password: String? = nil, token: String? = nil
   ) -> SessionController {
     let session = SessionController(
-      profile: profile, password: password, token: token, mediaFactory: mediaFactory)
+      profile: profile, password: password, token: token,
+      recordingsDirectory: testing ? FileManager.default.temporaryDirectory
+        .appendingPathComponent("AsteroidKVM-UITests/Recordings", isDirectory: true) : nil,
+      mediaFactory: mediaFactory)
     // App-audio capture cannot separate two WebRTC playbacks; close transcription before any new media starts.
     session.onMediaStarting = { [weak self] in
       self?.sessions.values.forEach {

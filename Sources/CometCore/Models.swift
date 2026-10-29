@@ -83,7 +83,7 @@ public enum JSONValue: Codable, Equatable, Sendable {
   public func data() throws -> Data { try JSONEncoder().encode(self) }
 }
 
-// Persist connection identity and preferences only; secrets live in memory or Keychain.
+// Persist connection identity and preferences; KVM authentication secrets live in memory or Keychain.
 public struct ConnectionProfile: Codable, Identifiable, Equatable, Sendable {
   public var id = UUID()
   public var name: String
@@ -107,6 +107,9 @@ public struct ConnectionProfile: Codable, Identifiable, Equatable, Sendable {
   public var scaleMode = ScaleMode.fit
   public var rotation = 0
   public var muted = false
+  // Stable Core Audio UIDs survive restarts; nil follows the Mac's default output.
+  public var audioOutputDeviceUID: String?
+  public var audioNotifications: AudioNotificationPreferences?
   public var mouseSensitivity = 1.0
   public var scrollSensitivity = 0.1
   public var keyboardEnabled = true

@@ -1,13 +1,16 @@
 import CometCore
+import Combine
 // Implement the uStreamer Janus exchange exposed by the inspected GLKVM firmware.
 import Foundation
-import WebRTC
+@preconcurrency import WebRTC
 
 @MainActor public final class JanusClient: NSObject {
   public let mailbox: FrameMailbox
   public var onError: ((Error) -> Void)?
   public var onConnected: (() -> Void)?
   public var onFeatures: ((JSONValue) -> Void)?
+  public var onAudioLevel: ((Double) -> Void)?
+  public var onAudioOutputMessage: ((String?) -> Void)?
   private let api: CometAPI
   private var socket: URLSessionWebSocketTask?
   private var receiver: Task<Void, Never>?
@@ -23,6 +26,13 @@ import WebRTC
   private var candidates: [RTCIceCandidate] = []
   private var wantsMicrophone = false
   private var muted = false
+  private var audioOutputDeviceUID: String?
+  private var appliedOutputDeviceID: String?
+  private var audioRouteGeneration = UUID()
+  private var audioRouteTask: Task<Void, Never>?
+  private let audioRouter = AudioOutputRouter()
+  private var audioDevicesSubscription: AnyCancellable?
+  private var audioMonitor = AudioActivityMonitor()
   private var lastBytes = 0.0
   private var lastStats = Date()
   private var generation = UUID()
@@ -31,6 +41,10 @@ import WebRTC
     self.api = api
     self.mailbox = mailbox
     super.init()
+    let devices = AudioOutputDevices.shared
+    audioDevicesSubscription = devices.$devices.combineLatest(devices.$defaultDeviceUID)
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] _ in self?.applyAudioOutput() }
   }
 
   // Fullscreen and resizing never call start; the media lifetime belongs to the session.
@@ -163,8 +177,9 @@ import WebRTC
       )
     }
     let factory = RTCPeerConnectionFactory(
+      audioDeviceModuleType: .audioEngine, bypassVoiceProcessing: true,
       encoderFactory: RTCDefaultVideoEncoderFactory(),
-      decoderFactory: ReportingDecoderFactory(mailbox: mailbox))
+      decoderFactory: ReportingDecoderFactory(mailbox: mailbox), audioProcessingModule: nil)
     self.factory = factory
     let config = RTCConfiguration()
     config.sdpSemantics = .unifiedPlan
@@ -176,6 +191,12 @@ import WebRTC
         delegate: self)
     else { throw CometError.invalidResponse }
     self.peer = peer
+    // Peer creation initializes the native device list. Select before SDP starts audio.
+    appliedOutputDeviceID = nil
+    applyAudioOutput()
+    while let route = audioRouteTask { await route.value }
+    guard self.factory === factory, !Task.isCancelled else { throw CancellationError() }
+    guard appliedOutputDeviceID != nil else { throw CometError.unsupported("Audio output could not be initialized.") }
     if wantsMicrophone {
       let track = factory.audioTrack(withTrackId: "comet-microphone")
       microphoneTrack = track
@@ -191,24 +212,90 @@ import WebRTC
       "start", jsep: .object(["type": .string("answer"), "sdp": .string(answer.sdp)]))
   }
 
-  // Playback muting only changes the local incoming track; microphone capture has a separate lifecycle.
+  // Keep incoming audio decoded for activity detection even when local playback is silent.
   public func setMuted(_ muted: Bool) {
+    guard self.muted != muted else { return }
     self.muted = muted
-    audioTrack?.isEnabled = !muted
+    if let factory, let audioTrack {
+      audioRouter.perform(factory: factory) { audioTrack.source.volume = muted ? 0 : 1 }
+    }
+  }
+
+  public func setAudioOutputDevice(_ uid: String?) {
+    audioOutputDeviceUID = uid
+    applyAudioOutput()
+  }
+
+  // Each factory owns its output route. Never change the system-wide default device.
+  private func applyAudioOutput() {
+    guard let factory else { return }
+    let devices = AudioOutputDevices.shared
+    let selected = audioOutputDeviceUID.flatMap { uid in devices.devices.first { $0.id == uid } }
+    let effectiveID = selected?.id ?? "default:\(devices.defaultDeviceUID ?? "")"
+    let unavailable = audioOutputDeviceUID != nil && selected == nil
+    // Keep only the latest desired selection while the current operation finishes.
+    // Cancelling a Swift task cannot cancel a synchronous Core Audio driver call.
+    guard audioRouteTask == nil else { return }
+    audioRouteGeneration = UUID()
+    guard effectiveID != appliedOutputDeviceID else {
+      onAudioOutputMessage?(unavailable ? "Saved output unavailable · using System Default" : nil)
+      return
+    }
+    let ticket = audioRouteGeneration
+    onAudioOutputMessage?("Switching audio output…")
+    audioRouteTask = Task { [weak self, audioRouter] in
+      guard !Task.isCancelled else { return }
+      let result = await audioRouter.select(selected?.id, factory: factory)
+      guard let self, ticket == audioRouteGeneration, self.factory === factory, !Task.isCancelled else { return }
+      audioRouteTask = nil
+      if result == .success {
+        appliedOutputDeviceID = effectiveID
+        let unavailable = audioOutputDeviceUID.map { uid in
+          !AudioOutputDevices.shared.devices.contains { $0.id == uid }
+        } ?? false
+        onAudioOutputMessage?(unavailable ? "Saved output unavailable · using System Default" : nil)
+      } else {
+        appliedOutputDeviceID = nil
+        switch result {
+        case .timedOut, .busy:
+          onAudioOutputMessage?("Audio output did not respond. Wait a moment, then try again or reconnect.")
+        case .failed:
+          onAudioOutputMessage?("Could not switch audio output. Try another device.")
+        case .cancelled, .success: break
+        }
+      }
+      // A later selection wins, without queueing every intermediate picker value.
+      let currentDevices = AudioOutputDevices.shared
+      let currentUID = audioOutputDeviceUID.flatMap { uid in currentDevices.devices.first { $0.id == uid }?.id }
+      let currentID = currentUID ?? "default:\(currentDevices.defaultDeviceUID ?? "")"
+      if currentID != effectiveID { applyAudioOutput() }
+    }
+  }
+
+  public func setAudioRecordingSink(_ sink: AudioRecordingSink?) {
+    audioMonitor.setRecordingSink(sink)
   }
 
   // Cancel owned asynchronous work and release resources without affecting another session.
   public func stop() {
+    audioMonitor.setRecordingSink(nil)
     generation = UUID()
     receiver?.cancel()
     heartbeat?.cancel()
     statsTask?.cancel()
-    microphoneTrack?.isEnabled = false
+    statsTask = nil
+    appliedOutputDeviceID = nil
+    audioRouteGeneration = UUID()
+    audioRouteTask?.cancel()
+    audioRouteTask = nil
+    lastBytes = 0
+    lastStats = Date()
+    audioRouter.close(peer: peer, factory: factory, audio: audioTrack,
+      microphone: microphoneTrack, monitor: audioMonitor, video: videoTrack, mailbox: mailbox)
     microphoneTrack = nil
-    if let videoTrack { videoTrack.remove(mailbox) }
     videoTrack = nil
     audioTrack = nil
-    peer?.close()
+    audioMonitor = AudioActivityMonitor()
     peer = nil
     factory = nil
     socket?.cancel(with: .goingAway, reason: nil)
@@ -223,11 +310,18 @@ import WebRTC
   // Sample low-frequency diagnostics without pushing individual frames through observable UI state.
   private func startStatistics() {
     guard statsTask == nil else { return }
+    let ticket = generation
     statsTask = Task { [weak self] in
       while !Task.isCancelled {
         do { try await Task.sleep(for: .seconds(1)) } catch { return }
         guard let self, let peer else { return }
-        let report = await peer.statistics()
+        guard let factory else { return }
+        let report: RTCStatisticsReport = await withCheckedContinuation { continuation in
+          self.audioRouter.perform(factory: factory) {
+            peer.statistics { continuation.resume(returning: $0) }
+          }
+        }
+        guard !Task.isCancelled, ticket == generation, self.peer === peer else { return }
         var bytes = lastBytes
         var rtt = 0.0
         var decoder: String?
@@ -242,6 +336,7 @@ import WebRTC
             rtt = ((stat.values["currentRoundTripTime"] as? NSNumber)?.doubleValue ?? 0) * 1000
           }
         }
+        onAudioLevel?(audioMonitor.takeLevel())
         let now = Date()
         let bitrate = max(0, bytes - lastBytes) * 8 / max(now.timeIntervalSince(lastStats), 0.001)
         mailbox.updateNetwork(bitrate: bitrate, rtt: rtt, decoder: decoder)
@@ -278,7 +373,10 @@ extension JanusClient: RTCPeerConnectionDelegate {
     _ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState
   ) {
     if newState == .failed {
-      Task { @MainActor [weak self] in self?.onError?(URLError(.networkConnectionLost)) }
+      Task { @MainActor [weak self] in
+        guard let self, peer === peerConnection else { return }
+        onError?(URLError(.networkConnectionLost))
+      }
     }
   }
 
@@ -292,8 +390,9 @@ extension JanusClient: RTCPeerConnectionDelegate {
     _ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate
   ) {
     Task { @MainActor [weak self] in
+      guard let self, peer === peerConnection else { return }
       do {
-        try await self?.send(
+        try await send(
           "trickle",
           fields: [
             "candidate": .object([
@@ -301,7 +400,7 @@ extension JanusClient: RTCPeerConnectionDelegate {
               "sdpMLineIndex": .number(Double(candidate.sdpMLineIndex)),
             ])
           ])
-      } catch { self?.onError?(error) }
+      } catch { if peer === peerConnection { onError?(error) } }
     }
   }
 
@@ -320,15 +419,25 @@ extension JanusClient: RTCPeerConnectionDelegate {
     _ peerConnection: RTCPeerConnection, didAdd rtpReceiver: RTCRtpReceiver,
     streams: [RTCMediaStream]
   ) {
+    let track = rtpReceiver.track
     Task { @MainActor [weak self] in
-      guard let self, self.peer === peerConnection else { return }
-      if let video = rtpReceiver.track as? RTCVideoTrack {
+      guard let self, self.peer === peerConnection, let factory else { return }
+      if let video = track as? RTCVideoTrack {
         videoTrack = video
-        video.add(mailbox)
+        let mailbox = mailbox
+        audioRouter.perform(factory: factory) { video.add(mailbox) }
       }
-      if let audio = rtpReceiver.track as? RTCAudioTrack {
+      if let audio = track as? RTCAudioTrack {
+        let previous = audioTrack
+        let monitor = audioMonitor
+        let muted = muted
+        _ = monitor.takeLevel()
         audioTrack = audio
-        audio.isEnabled = !muted
+        audioRouter.perform(factory: factory) {
+          previous?.remove(monitor)
+          audio.source.volume = muted ? 0 : 1
+          audio.add(monitor)
+        }
       }
     }
   }

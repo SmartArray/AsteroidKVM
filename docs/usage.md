@@ -1,6 +1,6 @@
 # AsteroidKVM usage guide
 
-A native macOS client for GL.iNet Comet / GLKVM, built with SwiftUI, AppKit, native WebRTC, Metal, and Apple Vision. Requires macOS 14 or later. The WebRTC dependency is pinned to **153.0.0** and includes Apple Silicon and Intel binaries.
+A native macOS client for GL.iNet Comet / GLKVM, built with SwiftUI, AppKit, native WebRTC, Metal, and Apple Vision. Requires macOS 14 or later. The WebRTC dependency is pinned to **WebRTC-SDK 150.7871.01** and includes Apple Silicon and Intel binaries.
 
 ## Build and run
 
@@ -36,10 +36,62 @@ Native-layout typing needs the optional daemon patch. Follow the [SSH patch guid
 - **⌘Q**, **⌘W**, and **⌘,** remain local. Other captured Command shortcuts go to the remote computer, except enabled **⌘V** paste.
 - Use **Keyboard** to choose the target OS keymap, paste, send shortcuts, or enable native-layout typing when the daemon advertises it.
 - Use **Display** for advertised encoder controls and local Fit, Fill, Actual Size, and rotation.
+- Use **Audio** (speaker symbol) or **Settings → Audio** to choose this connection's output device, mute playback, or forward the microphone.
 - Use **Settings → Devices** for the selected Comet's USB functions, audio, mouse, and keyboard settings.
 - **Text Recognition** freezes a received frame and runs OCR on the Mac. Drag within the image; Escape cancels. In the result dialog, **Cancel** dismisses without changing the clipboard; **Copy & Close** copies the recognized text and dismisses.
 
+## Audio output and notifications
+
+Choose **Audio → Output device** in the remote window, or select the connection in **Settings → Audio**. The picker includes hardware and virtual outputs, including aggregate and Multi-Output devices created in Audio MIDI Setup. **System Default** follows the Mac's selected sound output. Each connection remembers its own device by UID. Unplugging a saved device falls back to System Default; reconnecting it restores the saved selection. Switching outputs keeps the video connection open and does not change the Mac's system-wide output setting.
+
+In **Settings → Notifications**, select a connection, enter a webhook URL, optionally assign a KVM alias, enable **Notify when audio is detected**, and save. Notifications are off by default. The default cooldown is **30 seconds**, configurable from 1 to 86,400 seconds. Continuous audio sends at most one notification per cooldown. Failed attempts also consume the cooldown, and reconnecting does not reset it. Raise the detection threshold to ignore quiet background noise; the default is −40 dBFS.
+
+Paste the complete receiver URL, including its secret (`?token=…`), then click **Send Test Notification** to check delivery and authentication. The test uses the URL and alias currently entered, even before saving, and sends a clearly labeled notification with a sample JPEG. It works while disconnected or notifications are disabled, without affecting the audio cooldown. Settings reports receiver acceptance or an error; HTTP 401/403 means the receiver rejected authentication. Check the receiving Mac for the test notification to verify its notification permissions too.
+
+Enabling notifications adds an **Audio Notification Webhook** button to the bottom-left status bar, beside the MCP controls when present. **Blue** means delivery is active; click it to pause, shown as a gray **Audio Notification Webhook paused** button, or click again to resume. Pausing cancels pending delivery without changing the saved endpoint or resetting the cooldown. The pause lasts for this session and survives normal reconnects; restarting the app or explicitly disabling and re-enabling notifications activates delivery again. Disabling notifications in Settings hides the button.
+
+Building a receiver? See the [webhook API specification](webhook-api.md) for authentication options, the complete field contract, delivery semantics, an OpenAPI definition, a JSON Schema, and an executable example request.
+
+Activity is measured from this connection's decoded audio before local mute, so alerts work while playback is muted and remain separate across multiple KVMs. Webhook detection does not retain or send audio samples. The sender requires a remote video frame received within the last three seconds and captures only that KVM's image. Disconnecting, sleeping, disabling notifications, or changing webhook settings cancels pending delivery. Settings shows delivery status, the last successful delivery, and errors.
+
+The endpoint receives an HTTP POST with `Content-Type: application/json`. It must accept the following payload; service-specific webhook formats may need an adapter:
+
+```json
+{
+  "version": 1,
+  "event": "audio_detected",
+  "timestamp": "2026-10-21T12:00:00Z",
+  "message": "Audio detected on Build Mac",
+  "kvm": {
+    "id": "D7A9132D-C2DF-4688-B026-186DA77D973D",
+    "name": "Office KVM",
+    "alias": "Build Mac"
+  },
+  "audioLevel": 0.12,
+  "screenshot": {
+    "mimeType": "image/jpeg",
+    "base64": "<base64-encoded JPEG>",
+    "width": 1600,
+    "height": 900
+  }
+}
+```
+
+`kvm.id` is the saved connection's UUID; `name` is its connection name and `alias` is empty when unset. `audioLevel` is the highest decoded-buffer RMS level since the previous one-second poll, normalized to 0–1. Screenshots preserve the full received image, scaled down to at most 1,600 pixels on the longest side. Screenshots are held in memory only for delivery. Webhook URLs and preferences are stored with the saved connection in an owner-readable file; no KVM authentication headers or cookies are sent. HTTPS uses normal system certificate validation, and redirects are rejected.
+
+## Audio recording
+
+Click **Record Audio** in the remote window's toolbar to start recording that connection's received audio. The button turns red and becomes **Stop Recording**; the bottom status bar also shows a red stop control and elapsed time. Click either stop control to finish and save. The same recording button is available under **Audio** and in **Settings → Audio**.
+
+Files are saved automatically in **Downloads/AsteroidKVM Recordings** as `<connection name>-<timestamp>.wav`, for example `Office KVM-2026-10-21_15-30-00-123.wav`. The name and local timestamp are captured when recording starts; the final three digits are milliseconds. Unsafe filename characters are replaced with hyphens and very long names are shortened. Existing recordings are never replaced: a collision adds `-2`, `-3`, and so on before `.wav`.
+
+Open **Audio → Show Recording in Finder** after stopping to reveal the saved file. WAV output is uncompressed 16-bit PCM, 48 kHz stereo. Mono input is duplicated to both channels, and other input rates are converted. All received audio is recorded, including silence and sounds below the webhook threshold. Local playback mute does not mute the recording. Recording is independent of webhooks and does not capture the Mac's microphone or other applications.
+
+Disconnecting, closing the remote window, sleeping, changing the KVM identity, or quitting stops recording and finalizes the file. Normal microphone-forwarding renegotiation retains the recording. A reconnect does not automatically start another recording. File writing is streamed to disk with bounded memory; disk errors or the standard WAV size limit (just under 4 GiB, about six hours at this format) stop recording visibly. Any completed portion is kept when possible. A recording stopped before any audio arrives produces a valid empty WAV.
+
 ## Experimental Codex agent
+
+> **Obsolete and hidden:** the MCP server is already sufficient. Use [MCP access](mcp.md) for automation. The instructions below are retained as historical reference.
 
 Open **⋯ beneath the prompt** for agent options. The single-line summary shows the model, thinking level, remote permission, and click-preview state. Use the popover’s **Model** selector to choose an image-capable model reported by your installed Codex, including **GPT-5.6-Luna** when available. **Codex default** follows your Codex configuration. The app remembers your choice without editing Codex's configuration. Changing models stops active work and starts a fresh Codex conversation on the next prompt; visible chat history remains. Use **⋯ → Refresh Models** to reload the catalog after changing your Codex installation or account.
 
@@ -71,7 +123,7 @@ Open **Settings → Transcription** to save an OpenAI API key in Keychain and op
 
 In a remote window, open the **Transcription** toolbar button (caption bubble), then enable **Transcribe remote audio**. The popover also links to the full settings and session transcript. Playback continues normally. The bottom caption strip scrolls toward the newest text; click it to open the complete session history. **Clear** stops transcription and wipes the local history, including pending events. Enable transcription again to begin a fresh provider session.
 
-This version copies AsteroidKVM playback through macOS ScreenCaptureKit because the bundled macOS WebRTC library does not expose an audio-sample callback. Allow macOS screen/system-audio recording permission when prompted. Only AsteroidKVM’s process audio is included; no microphone or other applications are captured, and no screen frames are sent. Keep **Mute remote playback** off and only one remote session connected. Starting another connection, disconnecting, sleeping, muting playback, or changing transcription settings stops transcription and requires an explicit restart.
+Transcription continues to copy AsteroidKVM playback through macOS ScreenCaptureKit. Allow macOS screen/system-audio recording permission when prompted. Only AsteroidKVM’s process audio is included; no microphone or other applications are captured, and no screen frames are sent. Keep **Mute remote playback** off and only one remote session connected. Starting another connection, disconnecting, sleeping, muting playback, or changing transcription settings stops transcription and requires an explicit restart.
 
 Audio is transmitted only while enabled and is not saved to disk. Transcript history stays in session memory, with a 4 MiB / 10,000-segment limit; reaching a limit stops transcription rather than silently deleting older text. Network backlog is limited to two seconds of audio and stops on overflow. Changing the target identity clears the transcript.
 

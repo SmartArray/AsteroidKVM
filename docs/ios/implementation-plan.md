@@ -73,7 +73,7 @@ Full unattended/background operation, multi-window remote sessions, cloud sync, 
 | `Tests/CometCoreTests/InputTests.swift`, `GeometryAndStorageTests.swift`, `SecurityTests.swift`, `TransportSecurityTests.swift`, `EDIDTests.swift` | Existing regression coverage; retain and extend meaningful shared tests. |
 | `.github/workflows/macos.yml`, `.github/workflows/release.yml` | Preserve macOS validation and release behavior; add mobile build/test coverage separately. |
 
-WebRTC is pinned to `153.0.0`. The locally installed XCFramework includes iOS arm64 and simulator slices. Confirm the pin and build compatibility in the implementor's checkout before changing dependencies.
+WebRTC-SDK is pinned to binary artifact `150.7871.01` with a SHA-256 checksum in `Package.swift`. The locally installed XCFramework includes iOS arm64 and simulator slices. Confirm the pin and build compatibility in the implementor's checkout before changing dependencies.
 
 Current text submission accepts at most **16,384 Unicode scalars**, uses `slow=true`, and has a size-dependent request timeout. The default **50 ms mapped-key interval** is a separate setting and does not control the firmware HTTP print rate. Preserve this distinction in UI copy and tests.
 

@@ -2,26 +2,34 @@
 
 # AsteroidKVM
 
-**🤖 Agent automation · 🔌 Per-device MCP · ⌨️ Native keys · ⚡ Fast rendering**
+**🔌 Per-device MCP · ⌨️ Native keys · ⚡ Fast rendering**
 
 A native macOS client for GL.iNet Comet / GLKVM.<br>
-Control a remote computer yourself, or give Codex a task and watch it work.
+Control a remote computer yourself, or connect an automation client through MCP.
 
 **macOS 14+** · **Apple Silicon & Intel builds** · **SwiftUI + AppKit** · **WebRTC + Metal**
 
-[Get started](#get-started) · [🔌 MCP](#mcp-access) · [🤖 Agent](#agent-give-your-remote-machine-a-task) · [⌨️ Native keys](#native-keys-type-with-your-macs-layout) · [⚡ Fast rendering](#fast-rendering-keep-the-remote-screen-moving) · [🎙️ Live transcription](#live-transcription-follow-the-remote-audio) · [Verification](docs/verification.md)
+[Get started](#get-started) · [🔌 MCP](#mcp-access) · [⌨️ Native keys](#native-keys-type-with-your-macs-layout) · [⚡ Fast rendering](#fast-rendering-keep-the-remote-screen-moving) · [🎙️ Live transcription](#live-transcription-follow-the-remote-audio) · [Verification](docs/verification.md)
 
 </div>
 
 ![AsteroidKVM displaying a remote Windows desktop with a browser and PowerShell, native toolbar controls, and connection status](docs/screenshots/remote-display.png)
 
-*The real client connected to a Windows desktop. Keyboard, display, text recognition, and Agent controls stay within reach.*
+*The real client connected to a Windows desktop. Keyboard, display, and text recognition controls stay within reach.*
 
-| 🤖 Agent | ⌨️ Native keys | ⚡ Fast rendering |
+| 🔌 MCP automation | ⌨️ Native keys | ⚡ Fast rendering |
 | :--- | :--- | :--- |
-| Describe a task. Codex reads the screen, clicks, types, and checks the result. Pause or take over whenever you need. | Use the characters resolved by your Mac’s keyboard layout, including umlauts and symbols, with supported Comet firmware. | Native WebRTC, VideoToolbox H.264 decoding, and Metal presentation keep the video path short and frame queues bounded. |
+| Connect an MCP client to read the screen and control keyboard and mouse input, with per-device permissions. | Use the characters resolved by your Mac’s keyboard layout, including umlauts and symbols, with supported Comet firmware. | Native WebRTC, VideoToolbox H.264 decoding, and Metal presentation keep the video path short and frame queues bounded. |
 
-**🌙 Dark mode:** follow your Mac’s appearance or choose Light or Dark in **Settings → Appearance**. Native windows, controls, and Agent chat adapt to your preference.
+**🌙 Dark mode:** follow your Mac’s appearance or choose Light or Dark in **Settings → Appearance**. Native windows and controls adapt to your preference.
+
+## 🔊 Audio output, recording, and webhook alerts
+
+Use the **Audio** toolbar button to select a Mac output device for each KVM. **Settings → Notifications** can send audio alerts with a KVM screenshot, connection ID/name, and optional alias to a webhook, with a 30-second default cooldown. The blue **Audio Notification Webhook** status-bar button pauses or resumes delivery and stays hidden when notifications are disabled. [Audio and webhook setup →](docs/usage.md#audio-output-and-notifications)
+
+Building your own notification service? Use the [receiver API specification](docs/webhook-api.md), with OpenAPI, JSON Schema, and a sample request containing a valid JPEG.
+
+**Record Audio** in the toolbar saves the connection's incoming audio, even while muted. Stop to save `<connection name>-<start timestamp>.wav` in **Downloads/AsteroidKVM Recordings**. [Recording controls and file format →](docs/usage.md#audio-recording)
 
 <a id="live-transcription-follow-the-remote-audio"></a>
 
@@ -58,29 +66,7 @@ Open **Settings → MCP**, select a device, turn on **Start MCP server**, and cl
 
 <a id="agent-give-your-remote-machine-a-task"></a>
 
-## 🤖 Agent: give your remote machine a task
-
-> Create a new text document and write a poem about apples.
-
-Open **Agent**, enter a prompt, and follow the work in a native chat window. Codex sees screenshots from the connected Comet and operates the remote machine through its keyboard and mouse input. Each action returns a fresh screenshot so the next step can respond to what actually happened.
-
-- **See the work:** streamed Markdown replies, code blocks, and a visible action history.
-- **Choose permission:** approve each action by default, use observation-only mode, or explicitly grant full control for autonomous work.
-- **Stay in control:** Pause/Resume and Stop remain in the chat header. Pause/Resume also appears beside the remote video while the agent is active.
-- **Take over naturally:** click the remote display to pause the agent and capture manual input.
-- **Resume with context:** Codex reads the current screen before continuing. Closing chat, disconnecting, or sleeping interrupts automation.
-
-**Verified on real hardware:** Codex created a new unsaved Windows Notepad document, wrote a four-line apple poem, and inspected the result. Independent OCR confirmed the test marker in the returned video. [Read the acceptance results →](docs/verification.md#experimental-agent-verification)
-
-<p align="center">
-  <img src="docs/screenshots/agent-chat.png" width="560" alt="Comet KVM agent chat showing screen observations, a pause and resume, and a completed response, with Pause and Stop controls always visible">
-</p>
-
-*Actual app capture from the live-screen UI test. This repeatable pause/resume test uses a deterministic agent fixture; real Codex inference is verified separately on the remote computer.*
-
-> **Experimental:** requires an installed, signed-in [Codex CLI](https://developers.openai.com/codex/cli), tested with **0.154.0**. Screenshots and chat go to your configured Codex provider using your existing account and usage limits. Device credentials stay in the KVM client. Enable screen sharing and remote control before the first request.
-
-Full control permits unreviewed actions with the remote user’s privileges, including destructive operations; use approval mode when each step needs review. Agent input supports clicks, double-clicks, key chords, text, scrolling, and waits. Typing is sent character by character, so pausing stops further text; a character already sent may finish. A turn pauses after 150 actions or 15 minutes. [Setup and behavior →](docs/usage.md#experimental-codex-agent)
+The built-in Experimental Coding Agent is obsolete and hidden. The [per-device MCP server](docs/mcp.md) provides the supported automation interface.
 
 <a id="native-keys-type-with-your-macs-layout"></a>
 

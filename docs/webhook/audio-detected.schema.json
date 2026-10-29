@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AsteroidKVM audio_detected event, version 1",
+  "description": "The JSON body sent by AsteroidKVM for audio detections and manual test notifications. All documented fields are required; additional properties are allowed for compatible extensions. Validate the decoded JPEG separately.",
+  "type": "object",
+  "required": ["version", "event", "timestamp", "message", "kvm", "audioLevel", "screenshot"],
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Payload version, independent of the AsteroidKVM app version."
+    },
+    "event": {
+      "type": "string",
+      "const": "audio_detected"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Sender wall-clock time when the attempt was admitted, before screenshot encoding. Currently emitted in UTC with whole seconds; this is not a unique event identifier.",
+      "examples": ["2026-10-21T12:00:00Z"]
+    },
+    "message": {
+      "type": "string",
+      "description": "Plain display text: Audio detected on (or Test notification from for manual tests) followed by a space and the nonempty alias, otherwise the connection name.",
+      "examples": ["Audio detected on Build Mac"]
+    },
+    "kvm": {
+      "type": "object",
+      "required": ["id", "name", "alias"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Saved connection profile UUID, not an appliance serial number or event ID. Scope it to the authenticated integration. UUID letter case is not significant.",
+          "examples": ["D7A9132D-C2DF-4688-B026-186DA77D973D"]
+        },
+        "name": {
+          "type": "string",
+          "description": "User-assigned connection name; mutable and not necessarily unique.",
+          "examples": ["Office KVM"]
+        },
+        "alias": {
+          "type": "string",
+          "description": "Notification alias with surrounding whitespace trimmed. Always present, and empty when unset.",
+          "examples": ["Build Mac", ""]
+        }
+      }
+    },
+    "audioLevel": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Highest normalized decoded-buffer RMS level since the previous approximately one-second poll, before local playback gain. Actual triggered events have a positive level; manual tests use 0. Not a sound pressure measurement.",
+      "examples": [0.12]
+    },
+    "screenshot": {
+      "type": "object",
+      "required": ["mimeType", "base64", "width", "height"],
+      "additionalProperties": true,
+      "properties": {
+        "mimeType": {
+          "type": "string",
+          "const": "image/jpeg"
+        },
+        "base64": {
+          "type": "string",
+          "minLength": 4,
+          "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+          "contentEncoding": "base64",
+          "contentMediaType": "image/jpeg",
+          "description": "Standard padded base64 of valid JPEG bytes, with no data URL prefix or line breaks. Decode and verify the JPEG separately; schema annotations do not validate image contents."
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Actual encoded JPEG width in pixels. Must match decoded image dimensions. The current encoder downsizes toward a 1600-pixel longest side with integer image bounds.",
+          "examples": [1600]
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Actual encoded JPEG height in pixels. Must match decoded image dimensions. Enforce an independent receiver pixel limit before full image decoding.",
+          "examples": [900]
+        }
+      }
+    }
+  }
+}

@@ -7,17 +7,30 @@ import SwiftUI
 struct SettingsView: View {
   @EnvironmentObject var model: AppModel
   @AppStorage("appearance") private var appearance = "System"
-  private let sections = [
-    "General", "Connections", "Display", "Devices", "Transcription", "Keyboard & Clipboard", "MCP", "Local UI Parsing", "UI Parsing Debug", "Appearance", "System",
-    "Advanced",
+  private let sections: [(name: String, icon: String)] = [
+    ("General", "gearshape"),
+    ("Connections", "network"),
+    ("Display", "display"),
+    ("Audio", "speaker.wave.2"),
+    ("Notifications", "bell"),
+    ("Devices", "cable.connector"),
+    ("Transcription", "text.bubble"),
+    ("Keyboard & Clipboard", "keyboard"),
+    ("MCP", "server.rack"),
+    ("Local UI Parsing", "viewfinder"),
+    ("UI Parsing Debug", "ladybug"),
+    ("Appearance", "paintpalette"),
+    ("System", "cpu"),
+    ("Advanced", "wrench.and.screwdriver"),
   ]
 
   // Present native settings sections while keeping device selection explicit.
   var body: some View {
     NavigationSplitView {
-      List(sections, id: \.self, selection: $model.settingsSection) { Text($0) }
-        .navigationSplitViewColumnWidth(
-          170)
+      List(sections, id: \.name, selection: $model.settingsSection) { section in
+        Label(section.name, systemImage: section.icon).tag(section.name)
+      }
+        .navigationSplitViewColumnWidth(210)
     } detail: {
       ScrollView {
         VStack(alignment: .leading, spacing: 20) {
@@ -34,6 +47,22 @@ struct SettingsView: View {
             ).foregroundStyle(.secondary)
           case "Connections": connectionSettings
           case "Transcription": TranscriptionSettingsView()
+          case "Audio", "Notifications":
+            devicePicker
+            Group {
+              if let id = model.selectedDevice, let session = model.sessions[id] {
+                if model.settingsSection == "Audio" {
+                  AudioSettingsView(session: session).id(id)
+                } else {
+                  AudioNotificationSettingsView(session: session).id(id)
+                }
+              } else {
+                Text("Select a saved connection above to configure its audio and notifications.")
+                  .foregroundStyle(.secondary)
+              }
+            }.task(id: model.selectedDevice) {
+              if let id = model.selectedDevice { _ = model.session(for: id) }
+            }
           case "Display":
             devicePicker
             if let id = model.selectedDevice, let session = model.sessions[id] {
@@ -122,7 +151,8 @@ struct SettingsView: View {
       }
     }.frame(
       width: model.settingsSection == "UI Parsing Debug" ? 1040 : model.settingsSection == "MCP" ? 860 : 760,
-      height: model.settingsSection == "UI Parsing Debug" ? 800 : model.settingsSection == "MCP" ? 740 : 540)
+      height: model.settingsSection == "UI Parsing Debug" ? 800 : model.settingsSection == "MCP" ? 740
+        : model.settingsSection == "Notifications" ? 700 : 540)
   }
 
   // Identify the exact saved or ephemeral Comet whose settings will be changed.
@@ -196,22 +226,7 @@ struct DeviceSettings: View {
         Text("Connect this Comet to configure its devices.").foregroundStyle(.secondary)
       }
       GroupBox("Audio on This Mac") {
-        VStack(alignment: .leading, spacing: 12) {
-          Toggle(
-            "Mute remote playback",
-            isOn: Binding(
-              get: { session.profile.muted },
-              set: { value in session.updateProfile { $0.muted = value } }))
-          Toggle(
-            "Forward this Mac’s microphone",
-            isOn: Binding(get: { session.microphone }, set: { session.setMicrophone($0) })
-          )
-          .disabled(!session.active || session.mediaFeatures["mic"].bool != true)
-          if session.mediaFeatures["mic"].bool != true {
-            Text("Microphone forwarding is not advertised by the media service.").font(.caption)
-              .foregroundStyle(.secondary)
-          }
-        }.padding(8)
+        AudioSettingsView(session: session).padding(8)
       }
       GroupBox("Comet USB Devices") {
         VStack(alignment: .leading, spacing: 12) {
