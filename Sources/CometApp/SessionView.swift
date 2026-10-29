@@ -13,7 +13,6 @@ struct SessionView: View {
   @State private var displayOpen = false
   @State private var audioOpen = false
   @State private var transcriptionOpen = false
-  @State private var transcriptionStartTask: Task<Void, Never>?
   @State private var diagnosticsOpen = false
   @State private var rebootConfirm = false
   @State private var loginPassword = ""
@@ -200,10 +199,6 @@ struct SessionView: View {
         get: { session.ocrText != nil }, set: { if !$0 { session.ocrText = nil } })
     ) { OCRResultView(session: session) }
     .onAppear { model.selectedDevice = session.id }
-    .onDisappear {
-      transcriptionStartTask?.cancel()
-      transcriptionStartTask = nil
-    }
   }
 
   // Open settings for this window's connection after returning focus to local controls.
@@ -280,22 +275,9 @@ struct SessionView: View {
     openWindow(id: "transcript", value: session.id)
   }
 
-  // Close the popover before macOS presents capture permission so AppKit never resizes it behind a modal dialog.
+  // Keep the fixed-size popover open so startup state and validation failures remain visible.
   private func setTranscription(_ enabled: Bool) {
-    transcriptionStartTask?.cancel()
-    transcriptionStartTask = nil
-    guard enabled else {
-      model.setTranscription(false, for: session)
-      return
-    }
-    transcriptionOpen = false
-    transcriptionStartTask = Task { @MainActor in
-      do { try await Task.sleep(for: .milliseconds(300)) }
-      catch { return }
-      guard !Task.isCancelled else { return }
-      model.setTranscription(true, for: session)
-      transcriptionStartTask = nil
-    }
+    model.setTranscription(enabled, for: session)
   }
 }
 

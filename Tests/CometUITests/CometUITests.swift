@@ -801,6 +801,8 @@ final class CometUITests: XCTestCase {
     XCTAssertTrue(transcription.waitForExistence(timeout: 5))
     transcription.click()
     XCTAssertTrue(app.staticTexts["Connect the remote display before transcribing"].waitForExistence(timeout: 5))
+    XCTAssertTrue(transcription.exists, "Startup feedback must stay visible in the popover")
+    XCTAssertTrue(transcription.isHittable, "The checkbox must remain interactive after a failed start")
     app.buttons["transcription-history-link"].firstMatch.click()
     XCTAssertTrue(app.staticTexts["transcript-empty"].waitForExistence(timeout: 5))
     app.buttons["transcript-clear"].firstMatch.click()
