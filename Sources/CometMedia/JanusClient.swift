@@ -196,7 +196,8 @@ import Foundation
     applyAudioOutput()
     while let route = audioRouteTask { await route.value }
     guard self.factory === factory, !Task.isCancelled else { throw CancellationError() }
-    guard appliedOutputDeviceID != nil else { throw CometError.unsupported("Audio output could not be initialized.") }
+    // Routing failure is reported through onAudioOutputMessage. Continue negotiating
+    // video so unavailable local playback does not disable access to the remote machine.
     if wantsMicrophone {
       let track = factory.audioTrack(withTrackId: "comet-microphone")
       microphoneTrack = track

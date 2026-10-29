@@ -164,10 +164,10 @@ import MetalKit
       NotificationCenter.default.addObserver(
         forName: NSWindow.willCloseNotification, object: window, queue: .main
       ) { [weak self] _ in
-        Task { @MainActor in
-          guard let self else { return }
-          self.cancelSelection()
-          await self.session.disconnect()
+        guard let session = self?.session else { return }
+        Task { @MainActor [weak self, session] in
+          self?.cancelSelection()
+          await session.disconnect()
         }
       })
     observers.append(
