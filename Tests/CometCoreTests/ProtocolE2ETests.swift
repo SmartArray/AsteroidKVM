@@ -402,6 +402,60 @@ final class ProtocolE2ETests: XCTestCase {
     XCTAssertTrue(state["pastes"].array.isEmpty)
     await api.close()
   }
+  // A transient startup failure must recover without reopening the viewer or restarting the app.
+  @MainActor func testInitialNetworkFailureAutomaticallyRetries() async throws {
+    var attempts = 0
+    let session = SessionController(
+      profile: ConnectionProfile(name: "Retry", host: "127.0.0.1", port: port, scheme: "http"),
+      password: "test-password", mediaFactory: { _, _ in
+        attempts += 1
+        let media = FixtureMedia()
+        if attempts == 1 { media.startAction = { _ in throw URLError(.networkConnectionLost) } }
+        return media
+      })
+    session.connect()
+    do {
+      try await waitUntil { attempts == 2 && session.active }
+      XCTAssertEqual(attempts, 2)
+      await session.disconnect()
+    } catch { await session.disconnect(); throw error }
+  }
+
+  // Simulate Wi-Fi loss, another failure during reconnect, then network recovery.
+  @MainActor func testFailureDuringReconnectRetriesAndRejectsOldMediaCallbacks() async throws {
+    var connections: [FixtureMedia] = []
+    let session = SessionController(
+      profile: ConnectionProfile(name: "Retry", host: "127.0.0.1", port: port, scheme: "http"),
+      password: "test-password", mediaFactory: { _, _ in
+        let media = FixtureMedia()
+        connections.append(media)
+        if connections.count == 2 {
+          media.startAction = { $0.onError?(URLError(.networkConnectionLost)) }
+        }
+        return media
+      })
+    session.connect()
+    do {
+      try await waitUntil { session.active }
+      connections[0].onError?(URLError(.networkConnectionLost))
+      for _ in 0..<160 {
+        if connections.count >= 3 && session.active { break }
+        try await Task.sleep(for: .milliseconds(100))
+      }
+      XCTAssertEqual(connections.count, 3)
+      XCTAssertTrue(session.active)
+      // Native callbacks already in flight from the old connection must not tear down the new one.
+      connections[0].onError?(URLError(.networkConnectionLost))
+      XCTAssertTrue(session.active)
+      // Explicit disconnect cancels the next retry even after another network failure.
+      connections.last?.onError?(URLError(.networkConnectionLost))
+      await session.disconnect()
+      try await Task.sleep(for: .milliseconds(2200))
+      XCTAssertEqual(connections.count, 3)
+      XCTAssertEqual(session.phase, .disconnected)
+    } catch { await session.disconnect(); throw error }
+  }
+
   // Run two production session controllers against sockets and verify focus, sleep, and logout isolation.
   @MainActor func testSessionFocusSleepWakeAndLogoutLifecycle() async throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -780,12 +834,15 @@ final class ProtocolE2ETests: XCTestCase {
   var onAudioLevel: ((Double) -> Void)?
   var onAudioOutputMessage: ((String?) -> Void)?
   var starts = 0
+  var startAction: ((FixtureMedia) throws -> Void)?
   func start(microphone: Bool, muted: Bool) async throws {
     starts += 1
+    if let startAction { try startAction(self); return }
     onConnected?()
   }
   func setMuted(_ muted: Bool) {}
   func setAudioOutputDevice(_ uid: String?) {}
+  func setTranscriptionSink(_ sink: ConnectionTranscriptionSink?) {}
   func setAudioRecordingSink(_ sink: AudioRecordingSink?) {}
   func stop() {}
 }

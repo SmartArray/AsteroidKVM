@@ -63,7 +63,7 @@ Full unattended/background operation, multi-window remote sessions, cloud sync, 
 | `Sources/CometMedia/JanusClient.swift`, `MediaConnection.swift`, `FrameMailbox.swift` | Shared streaming, decoder ownership, and latest-frame delivery. |
 | `Sources/CometMedia/MetalVideoRenderer.swift` | Currently imports AppKit and reads `backingScaleFactor`; adapt screen scale, color-space configuration, and view integration for UIKit. |
 | `Sources/CometMedia/TextRecognition.swift` | Reuse local Vision OCR. |
-| `Sources/CometMedia/PlaybackAudioCapture.swift` | macOS ScreenCaptureKit transcription capture; keep outside the mobile build. |
+| `Sources/CometMedia/ConnectionAudioCapture.swift` | Per-connection transcription audio; keep outside the initial mobile build. |
 | `Sources/CometSession/SessionController.swift` | Extract connection/media/HID/OCR lifecycle from desktop automation, transcription, and AppKit dependencies. |
 | `Sources/CometSession/RemoteSurface.swift` | Desktop input adapter and useful event-shape reference; implement a UIKit counterpart. |
 | `Sources/CometSession/DisplaySettingsController.swift` | Retain shared display-setting behavior and connection identity guards. |
@@ -96,7 +96,7 @@ Existing macOS app/session adapters
 
 Introduce a shared session module, provisionally `CometSessionCore`, as the extraction boundary. Existing `CometSession` becomes the desktop adapter/composition layer. If an equivalent smaller separation works better, preserve the same dependency direction and document it. Do not duplicate the session state machine for iOS.
 
-The mobile dependency graph must not compile `CometAgent`, Python process management, MCP listeners, or ScreenCaptureKit transcription. Pure shared data definitions may remain if harmless; excluded features must not initialize at runtime. Place platform checks at file/module or adapter boundaries, not throughout UI code.
+The mobile dependency graph must not compile `CometAgent`, Python process management, MCP listeners, or transcription. Pure shared data definitions may remain if harmless; excluded features must not initialize at runtime. Place platform checks at file/module or adapter boundaries, not throughout UI code.
 
 Suggested mobile components (names are proposals):
 

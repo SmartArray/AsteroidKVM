@@ -6,6 +6,7 @@ import SwiftUI
 
 struct SettingsView: View {
   @EnvironmentObject var model: AppModel
+  @AppStorage("enableWindowTabs") private var enableWindowTabs = false
   @AppStorage("appearance") private var appearance = "System"
   private let sections: [(name: String, icon: String)] = [
     ("General", "gearshape"),
@@ -40,6 +41,13 @@ struct SettingsView: View {
             Text(
               "Open a saved Comet from Connections. Each remote window keeps its own video, authentication, and input state."
             )
+            Toggle("Enable window tabs", isOn: $enableWindowTabs)
+              .accessibilityIdentifier("enable-window-tabs")
+              .onChange(of: enableWindowTabs) { _, _ in WindowTabbing.applyToOpenWindows() }
+            Label(
+              "When window tabs are enabled, Tab and Shift+Tab stay in the app and are not forwarded to the KVM.",
+              systemImage: "exclamationmark.triangle")
+              .font(.callout).foregroundStyle(.secondary)
             LabeledContent("Release remote input", value: "⌃⌥⌘Esc")
             LabeledContent("Toggle fullscreen", value: "⌃⌘F")
             Text(

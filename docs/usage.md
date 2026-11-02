@@ -123,7 +123,7 @@ Open **Settings → Transcription** to save an OpenAI API key in Keychain and op
 
 In a remote window, open the **Transcription** toolbar button (caption bubble), then enable **Transcribe remote audio**. The popover also links to the full settings and session transcript. Playback continues normally. The bottom caption strip scrolls toward the newest text; click it to open the complete session history. **Clear** stops transcription and wipes the local history, including pending events. Enable transcription again to begin a fresh provider session.
 
-Transcription continues to copy AsteroidKVM playback through macOS ScreenCaptureKit. Allow macOS screen/system-audio recording permission when prompted. Only AsteroidKVM’s process audio is included; no microphone or other applications are captured, and no screen frames are sent. Keep **Mute remote playback** off and only one remote session connected. Starting another connection, disconnecting, sleeping, muting playback, or changing transcription settings stops transcription and requires an explicit restart.
+Transcription uses the selected connection’s decoded remote audio directly. Multiple connections can transcribe independently, including with **Mute remote playback** enabled. No macOS screen/system-audio recording permission is needed. Local microphone input, other connections, and screen frames are excluded. Disconnecting, sleeping, restarting remote audio (such as changing microphone forwarding), or changing transcription settings stops transcription and requires an explicit restart.
 
 Audio is transmitted only while enabled and is not saved to disk. Transcript history stays in session memory, with a 4 MiB / 10,000-segment limit; reaching a limit stops transcription rather than silently deleting older text. Network backlog is limited to two seconds of audio and stops on overflow. Changing the target identity clears the transcript.
 
@@ -168,3 +168,7 @@ Manufacturer ID, hexadecimal product code and numeric serial, manufacture week, 
 Edits remain local until **Apply**. **Discard Changes / Reload** reads the device again. Apply checks for concurrent changes, saves the previous known EDID locally, uploads once, and verifies the stored bytes. **Restore Previous EDID** restores that exact backup, including after reopening the app. Backups are scoped to the connection, endpoint, and certificate pin. If firmware exposes only an empty factory default, its exact bytes cannot be backed up or restored.
 
 Applying EDID can briefly interrupt HDMI video. EDID advertises a preferred mode; the target OS decides whether to adopt it, especially with cloned laptop displays. Asteroid shows received video dimensions independently and never automatically restarts the target. After an interrupted or failed upload, reload before retrying; the upload may already have taken effect.
+
+### Window tabs and Tab keys
+
+Window tabs are disabled by default. While the remote display has captured input, **Tab** and **Shift+Tab** are forwarded to the KVM. Enable **Settings → General → Enable window tabs** to use native window tabs; in this mode, Tab and Shift+Tab remain local and are not forwarded. Turning the option off separates existing tabs into individual windows. Local settings fields keep normal Tab navigation.

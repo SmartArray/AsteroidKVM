@@ -273,12 +273,17 @@ import Foundation
     }
   }
 
+  public func setTranscriptionSink(_ sink: ConnectionTranscriptionSink?) {
+    audioMonitor.setTranscriptionSink(sink)
+  }
+
   public func setAudioRecordingSink(_ sink: AudioRecordingSink?) {
     audioMonitor.setRecordingSink(sink)
   }
 
   // Cancel owned asynchronous work and release resources without affecting another session.
   public func stop() {
+    audioMonitor.setTranscriptionSink(nil)
     audioMonitor.setRecordingSink(nil)
     generation = UUID()
     receiver?.cancel()

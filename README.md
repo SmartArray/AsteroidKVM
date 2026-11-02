@@ -38,11 +38,11 @@ Building your own notification service? Use the [receiver API specification](doc
 Turn remote sound into rolling captions while it continues playing normally. The fixed two-line strip follows partial speech as it arrives; each new utterance pushes the oldest line away. Click the strip for the complete session transcript, selectable text, and a **Clear** action that also stops transmission.
 
 - **Opt in per session:** transcription starts only from the caption-bubble control in the remote toolbar.
-- **Keep playback audible:** macOS copies AsteroidKVM’s playback for transcription without muting or rerouting the speakers.
+- **Keep playback audible:** transcription reads the connection’s decoded audio without changing speaker playback, and also works when playback is muted.
 - **Know which key is active:** the OpenAI API key stays in Keychain, appears only as a masked fingerprint, and can be validated without capturing or sending audio.
-- **Keep capture scoped:** ScreenCaptureKit includes only AsteroidKVM’s process audio—never the microphone, other applications, or screen frames.
+- **Keep capture scoped:** each transcript receives only its own connection’s incoming audio—never other connections, local microphone input, or screen frames.
 
-This experimental feature uses OpenAI `gpt-live-transcribe`; API usage is billed separately from ChatGPT and Codex. macOS asks for Screen & System Audio Recording permission on first use. Keep one remote session connected and playback unmuted. [Transcription setup and limits →](docs/usage.md#live-audio-transcription)
+This experimental feature uses OpenAI `gpt-live-transcribe`; API usage is billed separately from ChatGPT and Codex. Multiple connections can transcribe independently. No macOS screen recording permission is required. [Transcription setup and limits →](docs/usage.md#live-audio-transcription)
 
 <a id="mcp-access"></a>
 

@@ -82,6 +82,10 @@ import SwiftUI
     openConnections?()
   }
 
+  func applicationWillFinishLaunching(_ notification: Notification) {
+    WindowTabbing.applyToOpenWindows()
+  }
+
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard !ProcessInfo.processInfo.arguments.contains("--ui-testing") else { return }
     LocalPerception.shared.startManagedIfRequested()

@@ -6,6 +6,14 @@ import WebRTC
 public final class AudioActivityMonitor: NSObject, RTCAudioRenderer, @unchecked Sendable {
   private let lock = NSLock()
   private var peak = 0.0
+  private var transcriptionSink: ConnectionTranscriptionSink?
+
+  public func setTranscriptionSink(_ sink: ConnectionTranscriptionSink?) {
+    lock.lock()
+    transcriptionSink = sink
+    lock.unlock()
+  }
+
   private var recordingSink: AudioRecordingSink?
 
   public func setRecordingSink(_ sink: AudioRecordingSink?) {
@@ -17,7 +25,9 @@ public final class AudioActivityMonitor: NSObject, RTCAudioRenderer, @unchecked 
   public func render(pcmBuffer: AVAudioPCMBuffer) {
     lock.lock()
     let recording = recordingSink
+    let transcription = transcriptionSink
     lock.unlock()
+    transcription?.render(pcmBuffer: pcmBuffer)
     recording?.render(pcmBuffer: pcmBuffer)
     let frames = Int(pcmBuffer.frameLength)
     let channels = Int(pcmBuffer.format.channelCount)

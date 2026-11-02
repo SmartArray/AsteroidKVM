@@ -15,6 +15,7 @@ import Foundation
   // Change local playback without altering the appliance’s remote USB audio function.
   func setMuted(_ muted: Bool)
   func setAudioOutputDevice(_ uid: String?)
+  func setTranscriptionSink(_ sink: ConnectionTranscriptionSink?)
   func setAudioRecordingSink(_ sink: AudioRecordingSink?)
 
   // Cancel owned asynchronous work and release resources without affecting another session.

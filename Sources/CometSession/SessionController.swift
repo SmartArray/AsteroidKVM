@@ -9,11 +9,12 @@ import CometMedia
 @MainActor public final class SessionController: ObservableObject, Identifiable {
   public let id: UUID
   // Keep transcript history with the connection rather than the transient popover or transcript window.
-  public let transcription = TranscriptionController()
+  public lazy var transcription = TranscriptionController(audioFactory: { [weak self] in
+    ConnectionAudioCapture { [weak self] sink in self?.media?.setTranscriptionSink(sink) }
+  })
   public let audioNotifications = AudioNotificationController()
   public let audioRecording: AudioRecordingController
   @Published public private(set) var audioOutputMessage: String?
-  public var onMediaStarting: (() -> Void)?
   @Published public private(set) var profile: ConnectionProfile {
     didSet {
       // Invalidate context on every identity mutation; endpoint sanitization happens before publishing the value.
@@ -104,6 +105,7 @@ import CometMedia
   private var suppliedToken: String?
   private var reconnectAttempt = 0
   private var shouldReconnect = false
+  private var reconnectWaiting = false
   public var active: Bool { [.connected, .noSignal].contains(phase) }
 
   // Credentials passed to a session remain memory-only unless the profile editor explicitly saves them.
@@ -158,8 +160,6 @@ import CometMedia
       setMCPInputLocked(false)
     }
     profile = updated.securingReplacement(of: profile)
-    // Playback capture cannot transcribe a muted track; do not leave a silent API session running.
-    if profile.muted, transcription.active { transcription.stop(reason: "Stopped because remote playback was muted") }
     configureInput()
     mcpServer.configure()
     onProfileChanged?(profile)
@@ -189,14 +189,18 @@ import CometMedia
     let ticket = generation
     connectTask = Task { [weak self] in
       guard let self else { return }
+      reconnectWaiting = false
       await establish()
-      if ticket == generation { connectTask = nil }
+      guard ticket == generation else { return }
+      connectTask = nil
+      if phase == .disconnected && shouldReconnect {
+        connectionFailed(URLError(.cannotConnectToHost))
+      }
     }
   }
 
   // Connect in stages, with capability discovery preceding any optional input or device controls.
   private func establish() async {
-    onMediaStarting?()
     let ticket = generation
     phase = reconnectAttempt == 0 ? .connecting : .reconnecting
     message = nil
@@ -245,9 +249,18 @@ import CometMedia
       let media = mediaFactory(api, mailbox)
       self.media = media
       mediaConnectionsStarted += 1
-      media.onFeatures = { [weak self] features in self?.mediaFeatures = features }
-      media.onConnected = { [weak self] in self?.reconnectAttempt = 0 }
-      media.onError = { [weak self] error in self?.connectionFailed(error) }
+      media.onFeatures = { [weak self] features in
+        guard let self, ticket == generation else { return }
+        mediaFeatures = features
+      }
+      media.onConnected = { [weak self] in
+        guard let self, ticket == generation else { return }
+        reconnectAttempt = 0
+      }
+      media.onError = { [weak self] error in
+        guard let self, ticket == generation else { return }
+        connectionFailed(error)
+      }
       media.onAudioLevel = { [weak self] level in
         guard let self, ticket == generation, active else { return }
         audioNotifications.receive(level: level, mailbox: mailbox)
@@ -294,7 +307,7 @@ import CometMedia
               }
             }
           } catch {
-            if !Task.isCancelled { self?.connectionFailed(error) }
+            if !Task.isCancelled, let self, ticket == generation { connectionFailed(error) }
             return
           }
         }
@@ -324,6 +337,7 @@ import CometMedia
       do {
         while !Task.isCancelled, ticket == generation {
           let message = try await ws.receive()
+          guard ticket == generation, !Task.isCancelled else { return }
           let data: Data
           switch message {
           case .string(let text): data = Data(text.utf8)
@@ -358,11 +372,14 @@ import CometMedia
 
   // Reconnection invalidates pending input and uses a cancellable bounded backoff, including wake recovery.
   private func connectionFailed(_ error: Error) {
+    // The UI phase also covers an in-flight reconnect. Only coalesce failures while
+    // cleanup/backoff is pending; a failed reconnect attempt must schedule another.
+    guard shouldReconnect, !reconnectWaiting else { return }
+    reconnectWaiting = true
     stopAudioRecording()
     audioNotifications.stop()
     transcription.stop(reason: "Stopped because the remote connection was lost")
     interruptAutomation()
-    guard shouldReconnect, phase != .reconnecting else { return }
     releaseCapture()
     phase = .reconnecting
     message = error.localizedDescription
@@ -381,6 +398,7 @@ import CometMedia
         if ticket == generation { connectTask = nil }
         return
       }
+      reconnectWaiting = false
       await establish()
       guard ticket == generation else { return }
       connectTask = nil
@@ -397,6 +415,7 @@ import CometMedia
     transcription.stop(reason: "Stopped for sleep · restart transcription when connected")
     interruptAutomation()
     guard shouldReconnect else { return }
+    reconnectWaiting = false
     releaseCapture()
     generation = UUID()
     connectTask?.cancel()
@@ -442,6 +461,7 @@ import CometMedia
     transcription.stop(reason: "Stopped on disconnect")
     interruptAutomation()
     shouldReconnect = false
+    reconnectWaiting = false
     generation = UUID()
     heartbeatTask?.cancel()
     connectTask?.cancel()
@@ -613,6 +633,7 @@ import CometMedia
       }
       guard ticket == generation, !Task.isCancelled, let media else { return }
       releaseCapture()
+      transcription.stop(reason: "Stopped because remote audio was restarted")
       media.stop()
       media.setAudioRecordingSink(audioRecording.activeSink)
       microphone = enabled

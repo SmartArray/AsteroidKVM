@@ -43,7 +43,7 @@ final class TranscriptionTests: XCTestCase {
     controller.start(key: "fixture-key", language: "en")
     try await waitUntil { source.started }
     let pair = AsyncThrowingStream<Data, Error>.makeStream(bufferingPolicy: .bufferingOldest(20))
-    let sink = PlaybackAudioSink(continuation: pair.continuation)
+    let sink = TranscriptionPCMConverter(continuation: pair.continuation)
     for _ in 0..<4 { sink.process(try pcmSample()) }
     sink.finish()
     var chunks = 0
@@ -92,7 +92,7 @@ final class TranscriptionTests: XCTestCase {
   // A slow consumer gets an explicit failure instead of silently dropped audio or unbounded memory growth.
   func testCaptureBackpressureFailsAndTranscriptRejectsOversizedText() async throws {
     let pair = AsyncThrowingStream<Data, Error>.makeStream(bufferingPolicy: .bufferingOldest(1))
-    let sink = PlaybackAudioSink(continuation: pair.continuation)
+    let sink = TranscriptionPCMConverter(continuation: pair.continuation)
     for _ in 0..<4 { sink.process(try pcmSample()) }
     var failed = false
     do { for try await _ in pair.stream {} } catch { failed = true }
