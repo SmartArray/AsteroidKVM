@@ -1,0 +1,100 @@
+openapi: 3.1.1
+info:
+  title: AsteroidKVM Audio Notification Receiver
+  version: 1.0.0
+  summary: Receive audio activity notifications with KVM identity and a JPEG screenshot.
+  description: |
+    The request schema matches payload version 1 emitted by AsteroidKVM.
+    The path and token query parameter in this definition are proposed receiver
+    conventions: the app posts to the complete URL configured by its user.
+    The app does not append this path or supply the token automatically.
+
+    Any 2xx response is successful and response bodies are ignored. Redirects
+    are rejected. The sender configures a 10-second request timeout and has no
+    application-level retry or replay queue. The default per-connection cooldown
+    is 30 seconds and failed attempts consume it. Users can pause delivery from
+    the remote window's Audio Notification Webhook status button without resetting the cooldown.
+    Manual test notifications use the same schema and authentication, with
+    audioLevel 0, a Test notification from message, and a 640x360 JPEG test card.
+    Manual tests bypass and do not change the automatic audio cooldown.
+    Accept and durably queue events
+    promptly, then process downstream notifications asynchronously.
+
+    No Authorization header, signature, or event ID is sent. kvm.id identifies
+    a saved connection profile and must not be used as an event deduplication key.
+    Body and image size limits are receiver policy; the sender does not enforce
+    a fixed request-byte limit. Validate JPEG bytes and dimensions separately
+    from JSON Schema validation. Keep this file beside the referenced schema
+    and example files when importing it into tooling.
+servers:
+  - url: https://notifications.example.com
+    description: Replace with your receiver's HTTPS origin.
+  - url: http://127.0.0.1:8080
+    description: Local development example.
+tags:
+  - name: Audio notifications
+    description: Notifications emitted by connected AsteroidKVM sessions.
+security:
+  - webhookToken: []
+paths:
+  /webhooks/asteroidkvm:
+    post:
+      operationId: receiveAudioNotification
+      tags:
+        - Audio notifications
+      summary: Accept an audio detection event and screenshot.
+      description: |
+        Authenticate the configured URL token, validate the event and image,
+        and durably store or queue the event before returning 202. Return an
+        empty body if desired. The sender does not require a verification GET,
+        CORS support, or a particular response JSON format.
+
+        The token authenticates the integration; kvm.id, kvm.name, and kvm.alias
+        are sender-supplied data. Unknown additional JSON fields are allowed.
+        The current sender always includes kvm.alias, using an empty string
+        when unset, and always includes a screenshot.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './audio-detected.schema.json'
+            examples:
+              audioDetected:
+                summary: Complete event with a valid 1-by-1 JPEG.
+                description: The fixed timestamp is illustrative; refresh it if testing a receiver age policy.
+                externalValue: './audio-detected.example.json'
+      responses:
+        '202':
+          description: Event durably accepted for asynchronous processing. No response body is required.
+        '204':
+          description: Event accepted and handled synchronously. No response body.
+        '200':
+          description: Event accepted and handled synchronously. Any response body is ignored by AsteroidKVM.
+        '400':
+          description: Invalid JSON, invalid or missing fields, unsupported version/event, invalid base64 or JPEG, or mismatched dimensions. The sender will not retry this event.
+        '401':
+          description: Webhook token missing or invalid. The sender will not retry this event.
+        '413':
+          description: Request exceeds the receiver's configured body limit. The sender will not retry this event.
+        '415':
+          description: Content type is not application/json. The sender will not retry this event.
+        '429':
+          description: Receiver rate limit exceeded. The sender will not retry this event or adjust its cooldown from Retry-After.
+        '503':
+          description: Receiver cannot accept the event. The sender will not retry this event.
+        default:
+          description: Other 2xx codes are successful. All other statuses fail delivery, and redirects are never followed. Response bodies are ignored.
+components:
+  securitySchemes:
+    webhookToken:
+      type: apiKey
+      in: query
+      name: token
+      description: |
+        Proposed receiver authentication scheme. Generate a separate secret for
+        each integration and include it in the complete webhook URL entered in
+        AsteroidKVM. This query parameter is not added by the app. Redact it from
+        request logs, use HTTPS outside local development, and never reuse KVM
+        credentials. Header-based or HMAC authentication would require a sender
+        change or an intermediary.

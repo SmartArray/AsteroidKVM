@@ -4,6 +4,146 @@ import Carbon
 import XCTest
 
 final class CometUITests: XCTestCase {
+  @MainActor func testAudioRecordingStartStopAndSavedFilename() async throws {
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent()
+    let server = Process()
+    server.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    server.arguments = ["python3", root.appendingPathComponent("scripts/mock-comet.py").path]
+    let pipe = Pipe()
+    server.standardOutput = pipe
+    server.standardError = FileHandle.nullDevice
+    try server.run()
+    defer { server.terminate(); server.waitUntilExit() }
+    let port = try XCTUnwrap(Int(String(decoding: pipe.fileHandleForReading.availableData, as: UTF8.self)
+      .trimmingCharacters(in: .whitespacesAndNewlines)))
+    var login = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/api/auth/login")!)
+    login.httpMethod = "POST"
+    login.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+    login.httpBody = Data("user=admin&passwd=test-password".utf8)
+    let (data, _) = try await URLSession.shared.data(for: login)
+    let response = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let token = try XCTUnwrap((response["result"] as? [String: Any])?["token"] as? String)
+    let credentials = FileManager.default.temporaryDirectory.appendingPathComponent("recording-ui-\(UUID()).json")
+    try JSONSerialization.data(withJSONObject: ["host": "http://127.0.0.1:\(port)", "username": "admin", "token": token])
+      .write(to: credentials)
+    defer { try? FileManager.default.removeItem(at: credentials) }
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-testing", "--session-file", credentials.path, "-ApplePersistenceIgnoreState", "YES"]
+    app.launch()
+    defer { app.terminate() }
+    let window = app.windows["Comet Test Session"]
+    let record = window.buttons["audio-recording-toggle"].firstMatch
+    XCTAssertTrue(record.waitForExistence(timeout: 10))
+    let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in record.isEnabled }, object: record)
+    XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+    XCTAssertEqual(record.value as? String, "Stopped")
+    record.click()
+    XCTAssertEqual(record.value as? String, "Recording")
+    XCTAssertEqual(record.label, "Stop Recording")
+    XCTAssertTrue(window.buttons["audio-recording-status"].waitForExistence(timeout: 5))
+    let attachment = XCTAttachment(screenshot: window.screenshot())
+    attachment.name = "Audio recording toolbar and elapsed-time status"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    record.click()
+    XCTAssertTrue(window.buttons["audio-recording-status"].waitForNonExistence(timeout: 5))
+    window.buttons["audio-toolbar"].firstMatch.click()
+    let filename = app.staticTexts["audio-recording-filename"].firstMatch
+    XCTAssertTrue(filename.waitForExistence(timeout: 5))
+    let name = filename.value as? String ?? filename.label
+    XCTAssertTrue(name.hasPrefix("Comet Test Session-"))
+    XCTAssertTrue(name.hasSuffix(".wav"))
+    XCTAssertTrue(app.buttons["audio-recording-reveal"].firstMatch.exists)
+    XCTAssertFalse(app.staticTexts["audio-recording-error"].exists)
+    // This fixture receives no PCM; native audio content is covered by the generated-tone protocol test.
+    let saved = FileManager.default.temporaryDirectory.appendingPathComponent("AsteroidKVM-UITests/Recordings")
+      .appendingPathComponent(name)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: saved.path))
+    try FileManager.default.removeItem(at: saved)
+  }
+
+  @MainActor func testAudioToolbarAndNotificationSettings() throws {
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-testing", "-ApplePersistenceIgnoreState", "YES"]
+    app.launch()
+    defer { app.terminate() }
+    app.menuBars.menuBarItems["File"].click()
+    app.menuItems["Connections…"].click()
+    XCTAssertTrue(app.buttons["add-connection"].waitForExistence(timeout: 10))
+    app.buttons["add-connection"].click()
+    app.textFields["profile-name"].click()
+    app.textFields["profile-name"].typeText("Audio UI Fixture")
+    app.textFields["profile-host"].click()
+    app.textFields["profile-host"].typeText("127.0.0.1")
+    app.buttons["Save"].click()
+    app.buttons["connect-Audio UI Fixture"].click()
+    let session = app.windows["Audio UI Fixture"]
+    let webhook = session.buttons["audio-webhook-toggle"]
+    let audio = app.buttons["audio-toolbar"].firstMatch
+    XCTAssertTrue(audio.waitForExistence(timeout: 10))
+    XCTAssertFalse(webhook.exists, "Webhook controls stay hidden until notifications are enabled")
+    audio.click()
+    let picker = app.popUpButtons["audio-output-device"].firstMatch
+    XCTAssertTrue(picker.waitForExistence(timeout: 5))
+    XCTAssertEqual(picker.value as? String, "System Default")
+    app.buttons["Notifications…"].click()
+    let cooldown = app.textFields["audio-webhook-cooldown"]
+    XCTAssertTrue(cooldown.waitForExistence(timeout: 5))
+    XCTAssertEqual(cooldown.value as? String, "30")
+    app.checkBoxes["audio-notifications-enabled"].click()
+    let save = app.buttons["audio-notifications-save"]
+    XCTAssertFalse(save.isEnabled)
+    let url = app.textFields["audio-webhook-url"]
+    url.click()
+    url.typeText("https://example.invalid/webhook")
+    let alias = app.textFields["audio-webhook-alias"]
+    alias.click()
+    alias.typeText("Build Mac")
+    cooldown.click()
+    cooldown.typeKey("a", modifierFlags: .command)
+    cooldown.typeText("45")
+    alias.click()
+    XCTAssertTrue(save.isEnabled)
+    save.click()
+    XCTAssertTrue(app.staticTexts["Waiting for connection"].waitForExistence(timeout: 5))
+    XCTAssertTrue(webhook.waitForExistence(timeout: 5))
+    XCTAssertEqual(webhook.value as? String, "Active")
+    let attachment = XCTAttachment(screenshot: app.windows["AsteroidKVM Settings"].screenshot())
+    attachment.name = "Audio webhook notification settings"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    app.staticTexts["Audio"].firstMatch.click()
+    XCTAssertTrue(picker.waitForExistence(timeout: 5))
+    app.staticTexts["Notifications"].firstMatch.click()
+    XCTAssertTrue(cooldown.waitForExistence(timeout: 5))
+    XCTAssertEqual(cooldown.value as? String, "45")
+    XCTAssertEqual(alias.value as? String, "Build Mac")
+    XCTAssertEqual(url.value as? String, "https://example.invalid/webhook")
+
+    app.typeKey("w", modifierFlags: .command)
+    webhook.click()
+    XCTAssertEqual(webhook.value as? String, "Paused")
+    XCTAssertEqual(webhook.label, "Audio Notification Webhook paused")
+    webhook.click()
+    XCTAssertEqual(webhook.value as? String, "Active")
+    let statusAttachment = XCTAttachment(screenshot: session.screenshot())
+    statusAttachment.name = "Blue webhook control in the bottom status bar"
+    statusAttachment.lifetime = .keepAlways
+    add(statusAttachment)
+    webhook.click()
+    app.typeKey(",", modifierFlags: .command)
+    XCTAssertTrue(app.staticTexts["Paused from status bar"].waitForExistence(timeout: 5))
+    XCTAssertEqual(url.value as? String, "https://example.invalid/webhook")
+    app.checkBoxes["audio-notifications-enabled"].click()
+    save.click()
+    XCTAssertTrue(webhook.waitForNonExistence(timeout: 5))
+    app.checkBoxes["audio-notifications-enabled"].click()
+    save.click()
+    XCTAssertTrue(webhook.waitForExistence(timeout: 5))
+    XCTAssertEqual(webhook.value as? String, "Active")
+  }
+
   // Verify local authentication submission and the complete MCP setup flow without a real KVM.
   @MainActor func testPasswordReturnAndMCPSettingsFlow() throws {
     let app = XCUIApplication()
@@ -456,8 +596,9 @@ final class CometUITests: XCTestCase {
     XCTAssertFalse(preview.exists, "Losing display focus must discard the unfinished accent")
   }
 
-  // Drive the shipped chat against live Comet video and a deterministic read-only Codex protocol fixture.
+  // Historical coverage of the obsolete built-in agent; MCP is the supported automation interface.
   @MainActor func testAgentChatPauseResumeWithLiveScreen() throws {
+    try XCTSkipIf(true, "The Experimental Coding Agent is obsolete and hidden; use the MCP server.")
     guard let path = ProcessInfo.processInfo.environment["COMET_UI_SESSION_FILE"] else {
       throw XCTSkip(
         "Enable the hardware UI suite to verify agent screen observation and native controls.")
@@ -660,6 +801,8 @@ final class CometUITests: XCTestCase {
     XCTAssertTrue(transcription.waitForExistence(timeout: 5))
     transcription.click()
     XCTAssertTrue(app.staticTexts["Connect the remote display before transcribing"].waitForExistence(timeout: 5))
+    XCTAssertTrue(transcription.exists, "Startup feedback must stay visible in the popover")
+    XCTAssertTrue(transcription.isHittable, "The checkbox must remain interactive after a failed start")
     app.buttons["transcription-history-link"].firstMatch.click()
     XCTAssertTrue(app.staticTexts["transcript-empty"].waitForExistence(timeout: 5))
     app.buttons["transcript-clear"].firstMatch.click()

@@ -20,6 +20,8 @@ state = {
     "pastes": [],
     "edid": "",
     "edid_writes": 0,
+    "webhooks": [],
+    "delayed_requests": 0,
     "params": {
         "desired_fps": 60,
         "h264_bitrate": 5000,
@@ -69,6 +71,26 @@ class Handler(BaseHTTPRequestHandler):
         path = urllib.parse.urlsplit(self.path).path
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        if path == "/test/delayed":
+            with lock:
+                state["delayed_requests"] += 1
+            time.sleep(2)
+            return self.reply({})
+        if path.startswith("/test/webhook"):
+            if path == "/test/webhook/redirect":
+                self.send_response(307)
+                self.send_header("Location", "/test/webhook")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if path == "/test/webhook/fail":
+                return self.reply({}, 503)
+            if path == "/test/webhook/forbidden":
+                return self.reply({}, 403)
+            if path == "/test/webhook/authenticated" and query.get("token") != ["fixture-secret"]:
+                return self.reply({}, 401)
+            state["webhooks"].append({"payload": json.loads(body), "headers": dict(self.headers), "method": self.command})
+            return self.reply({}, 202)
         if path == "/api/auth/login":
             fields = urllib.parse.parse_qs(body.decode())
             if fields.get("passwd") != ["test-password"]:
@@ -280,13 +302,14 @@ class Handler(BaseHTTPRequestHandler):
                     }
                 )
             elif request == "watch":
-                send(
-                    {
-                        "janus": "event",
-                        "plugindata": {"data": {"result": {"status": "starting"}}},
-                        "jsep": state["offer"],
-                    }
-                )
+                event = {
+                    "janus": "event",
+                    "plugindata": {"data": {"result": {"status": "starting"}}},
+                }
+                # A connected UI fixture may intentionally have no media source yet.
+                if "offer" in state:
+                    event["jsep"] = state["offer"]
+                send(event)
             elif request == "start":
                 state["answer"] = event["jsep"]
                 send({"janus": "webrtcup"})

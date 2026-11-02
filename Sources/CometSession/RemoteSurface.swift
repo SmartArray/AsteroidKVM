@@ -23,6 +23,7 @@ import MetalKit
   private var selectionStart: CGPoint?
   private var selectionGeometry: DisplayGeometry?
   private var observers: [NSObjectProtocol] = []
+  private var tabEventMonitor: Any?
 
   // Native popovers and sheets retain local focus; automatic capture occurs only on activation or connection.
   public var allowsAutomaticCapture = true
@@ -121,8 +122,16 @@ import MetalKit
     super.viewDidMoveToWindow()
     observers.forEach(NotificationCenter.default.removeObserver)
     observers.removeAll()
+    if let tabEventMonitor { NSEvent.removeMonitor(tabEventMonitor) }
+    tabEventMonitor = nil
     cancelComposition()
     guard let window else { return }
+    WindowTabbing.configure(window)
+    // Capture Tab before AppKit/SwiftUI key-view navigation can consume it.
+    tabEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
+      guard let self else { return event }
+      return routeTabEvent(event)
+    }
     window.acceptsMouseMovedEvents = true
     window.collectionBehavior.insert(.fullScreenPrimary)
     window.title = session.profile.name
@@ -164,10 +173,10 @@ import MetalKit
       NotificationCenter.default.addObserver(
         forName: NSWindow.willCloseNotification, object: window, queue: .main
       ) { [weak self] _ in
-        Task { @MainActor in
-          guard let self else { return }
-          self.cancelSelection()
-          await self.session.disconnect()
+        guard let session = self?.session else { return }
+        Task { @MainActor [weak self, session] in
+          self?.cancelSelection()
+          await session.disconnect()
         }
       })
     observers.append(
@@ -247,6 +256,8 @@ import MetalKit
     metalView?.delegate = nil
     observers.forEach(NotificationCenter.default.removeObserver)
     observers.removeAll()
+    if let tabEventMonitor { NSEvent.removeMonitor(tabEventMonitor) }
+    tabEventMonitor = nil
 
     // Retain the session, not the disappearing view, until capture and OCR can publish outside graph destruction.
     Task { @MainActor [session] in
@@ -436,7 +447,8 @@ import MetalKit
   public override func scrollWheel(with event: NSEvent) {
     guard canSend, session.profile.mouseEnabled else { return }
     delta(
-      "mouse_wheel", x: event.scrollingDeltaX * session.profile.scrollSensitivity,
+      "mouse_wheel", x: (session.profile.reverseScrolling ? -1 : 1) * event.scrollingDeltaX
+        * session.profile.scrollSensitivity,
       y: (session.profile.reverseScrolling ? 1 : -1) * event.scrollingDeltaY
         * session.profile.scrollSensitivity)
   }
@@ -449,6 +461,16 @@ import MetalKit
       HIDEvent(
         type, ["delta": .object(["x": .number(dx), "y": .number(dy)]), "squash": .bool(false)])
     ])
+  }
+
+  // Return nil only after forwarding a captured Tab; all other windows and local editors keep their events.
+  func routeTabEvent(_ event: NSEvent) -> NSEvent? {
+    guard event.keyCode == 48, !WindowTabbing.enabled,
+      event.window === window, canSend, session.profile.keyboardEnabled else { return event }
+    if event.type == .keyDown { keyDown(with: event) }
+    else if event.type == .keyUp { keyUp(with: event) }
+    else { return event }
+    return nil
   }
 
   // Local escape routes precede remote shortcuts; menus and local text fields retain normal editing behavior.
@@ -492,6 +514,12 @@ import MetalKit
     guard canSend, session.profile.keyboardEnabled, let code = PhysicalKey.codes[event.keyCode]
     else { return }
     let flags = modifiers(event)
+    if code == "Tab", WindowTabbing.enabled, flags.subtracting(.shift).isEmpty {
+      session.releaseCapture()
+      if flags.contains(.shift) { window?.selectPreviousKeyView(self) }
+      else { window?.selectNextKeyView(self) }
+      return
+    }
     let composing =
       hasMarkedText() && session.input.nativeLayout && session.input.mappedTextSupported
       && flags.intersection([.control, .command]).isEmpty

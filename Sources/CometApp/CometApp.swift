@@ -13,6 +13,7 @@ import SwiftUI
     Window("Connections", id: "connections") {
       ConnectionManagerView().environmentObject(model).onAppear {
         appDelegate.model = model
+        appDelegate.openConnections = { openWindow(id: "connections") }
         let appearance = UserDefaults.standard.string(forKey: "appearance") ?? "System"
         NSApp.appearance =
           appearance == "System"
@@ -49,14 +50,8 @@ import SwiftUI
       }
     }
     .defaultSize(width: 1200, height: 760)
-    // Give each connection its own chat window while retaining conversation state in the app registry.
-    WindowGroup("Agent", id: "agent", for: UUID.self) { $id in
-      if let id, let session = model.session(for: id) {
-        AgentChatView(agent: model.agent(for: session), session: session)
-      } else {
-        Text("Open a Comet connection to use the agent.").padding()
-      }
-    }.defaultSize(width: 640, height: 760)
+    // The Experimental Coding Agent scene is obsolete and intentionally unregistered,
+    // including window restoration: the per-device MCP server is already sufficient.
     // One transcript window per remote session shares its live history with the rolling status strip.
     WindowGroup("Transcript", id: "transcript", for: UUID.self) { $id in
       if let id, let session = model.sessions[id] {
@@ -70,6 +65,26 @@ import SwiftUI
 // Hold termination until each session has released input and closed its own media and network resources.
 @MainActor final class CometApplicationDelegate: NSObject, NSApplicationDelegate {
   weak var model: AppModel?
+  // Retain the SwiftUI scene action so the Dock can reopen a closed connection manager.
+  var openConnections: (() -> Void)?
+
+  func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+    let menu = NSMenu()
+    let connections = NSMenuItem(
+      title: "Connections…", action: #selector(showConnections(_:)), keyEquivalent: "")
+    connections.target = self
+    menu.addItem(connections)
+    return menu
+  }
+
+  @objc private func showConnections(_ sender: NSMenuItem) {
+    NSApp.activate()
+    openConnections?()
+  }
+
+  func applicationWillFinishLaunching(_ notification: Notification) {
+    WindowTabbing.applyToOpenWindows()
+  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard !ProcessInfo.processInfo.arguments.contains("--ui-testing") else { return }

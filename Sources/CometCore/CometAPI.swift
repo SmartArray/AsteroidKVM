@@ -35,7 +35,7 @@ public final class DeviceTransport: NSObject, URLSessionDelegate, URLSessionTask
   public let profile: ConnectionProfile
   private let lock = NSLock()
   private var candidate: String?
-  public lazy var session: URLSession = {
+  fileprivate lazy var session: URLSession = {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.httpCookieStorage = nil
     configuration.urlCredentialStorage = nil
@@ -109,6 +109,7 @@ public final class DeviceTransport: NSObject, URLSessionDelegate, URLSessionTask
 public actor CometAPI {
   public nonisolated let transport: DeviceTransport
   private var token: String?
+  private var closed = false
   public init(profile: ConnectionProfile, token: String? = nil) {
     transport = DeviceTransport(profile: profile)
     self.token = token
@@ -119,6 +120,8 @@ public actor CometAPI {
     _ path: String, method: String = "GET", query: [String: String] = [:], body: Data? = nil,
     contentType: String? = nil, timeout: TimeInterval = 20
   ) throws -> URLRequest {
+    try Task.checkCancellation()
+    guard !closed else { throw CancellationError() }
     guard let base = transport.profile.baseURL,
       var components = URLComponents(url: base, resolvingAgainstBaseURL: false)
     else { throw CometError.invalidAddress }
@@ -148,7 +151,12 @@ public actor CometAPI {
       path, method: method, query: query, body: body, contentType: contentType, timeout: timeout)
     let data: Data
     let response: URLResponse
-    do { (data, response) = try await transport.session.data(for: request) } catch {
+    do {
+      (data, response) = try await receiveData(for: request)
+      try Task.checkCancellation()
+      guard !closed else { throw CancellationError() }
+    } catch {
+      if closed || Task.isCancelled { throw CancellationError() }
       if let fingerprint = transport.untrustedFingerprint {
         throw CometError.certificate(fingerprint)
       }
@@ -162,6 +170,28 @@ public actor CometAPI {
     let envelope = try JSONValue.decode(data)
     guard envelope["ok"].bool != false else { throw CometError.invalidResponse }
     return envelope.object["result"] ?? envelope
+  }
+
+  // URLSession.data(for:) may suspend before creating its native task. Create the task
+  // synchronously on this actor instead, so close() cannot invalidate the session first.
+  private func receiveData(for request: URLRequest) async throws -> (Data, URLResponse) {
+    let cancellation = HTTPTaskCancellation()
+    return try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { continuation in
+        guard !closed, !Task.isCancelled else {
+          continuation.resume(throwing: CancellationError())
+          return
+        }
+        let task = transport.session.dataTask(with: request) { data, response, error in
+          if let error { continuation.resume(throwing: error) }
+          else if let data, let response { continuation.resume(returning: (data, response)) }
+          else { continuation.resume(throwing: CometError.invalidResponse) }
+        }
+        cancellation.start(task)
+      }
+    } onCancel: {
+      cancellation.cancel()
+    }
   }
 
   // Store login tokens in this actor only; URLSession has no shared cookie or credential store.
@@ -209,7 +239,12 @@ public actor CometAPI {
   }
 
   // Invalidate this API’s private URLSession and its outstanding requests.
-  public func close() { transport.session.invalidateAndCancel() }
+  public func close() {
+    guard !closed else { return }
+    closed = true
+    token = nil
+    transport.session.invalidateAndCancel()
+  }
 
   // Use the same scoped transport for live state/HID and signaling, including certificate policy.
   public func socket(_ path: String, protocols: [String] = [], query: [String: String] = [:]) throws
@@ -270,5 +305,28 @@ public actor CometAPI {
       // Budget for modifier transitions at the daemon's 30 ms slow rate, without timing out valid long text.
       body: Data(text.utf8), contentType: "text/plain; charset=utf-8",
       timeout: max(60, Double(count) * 0.3 + 30))
+  }
+}
+
+// Cancellation can arrive before native task creation or while it is running.
+// Serialize installation/resume with cancellation so neither ordering loses it.
+private final class HTTPTaskCancellation: @unchecked Sendable {
+  private let lock = NSLock()
+  private var task: URLSessionDataTask?
+  private var cancelled = false
+
+  func start(_ task: URLSessionDataTask) {
+    lock.lock()
+    defer { lock.unlock() }
+    self.task = task
+    if cancelled { task.cancel() }
+    task.resume()
+  }
+
+  func cancel() {
+    lock.lock()
+    defer { lock.unlock() }
+    cancelled = true
+    task?.cancel()
   }
 }

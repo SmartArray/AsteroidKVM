@@ -9,7 +9,7 @@ struct TranscriptionPopover: View {
   let openHistory: () -> Void
   let openSettings: () -> Void
 
-  // Disclose where audio goes at the control that starts transmission, including its playback-capture scope.
+  // Disclose where audio goes at the control that starts transmission, including its connection scope.
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       Label("Live Transcription", systemImage: "captions.bubble").font(.headline)
@@ -17,7 +17,7 @@ struct TranscriptionPopover: View {
         .accessibilityIdentifier("transcription-toggle")
       Text(controller.status).font(.caption).foregroundStyle(.secondary)
         .lineLimit(3).frame(minHeight: 42, alignment: .topLeading)
-      Text("Sends AsteroidKVM playback audio to OpenAI. API billing applies. Keep only one remote session connected and playback unmuted.")
+      Text("Sends this connection’s remote audio to OpenAI. API billing applies. Works while playback is muted and other connections are open.")
         .font(.caption).foregroundStyle(.secondary)
       Divider()
       Button("Show Session Transcript…", action: openHistory)
@@ -222,8 +222,8 @@ struct TranscriptionSettingsView: View {
         }
       }.onChange(of: language) { _, _ in stopAll() }
       Divider()
-      Text("Allow AsteroidKVM in macOS Screen & System Audio Recording when prompted. Only this app’s playback is captured; your microphone and other apps are excluded. Audio continues playing normally.")
-      Text("Keep one remote session connected and Mute remote playback off. Connecting another session, disconnecting, sleeping, or changing these settings stops transcription. Click the caption strip to read or clear the full session history.")
+      Text("Only this connection’s incoming audio is sent; local microphone input and other connections are excluded. No macOS screen recording permission is needed.")
+      Text("Each connection transcribes its own remote audio, including when playback is muted. Other connections can stay open. Disconnecting, sleeping, restarting remote audio, or changing these settings stops transcription. Click the caption strip to read or clear the full session history.")
         .foregroundStyle(.secondary)
     }.onAppear {
       do {
@@ -239,7 +239,7 @@ struct TranscriptionSettingsView: View {
     }
   }
 
-  // Validate the exact production session without starting ScreenCaptureKit or transmitting any audio.
+  // Validate the exact production session without attaching to remote audio or transmitting any audio.
   private func testSavedKey() {
     cancelKeyTest()
     testing = true

@@ -1,8 +1,10 @@
 import AppKit
+import AVFoundation
 import CometAgent
 import CometCore
 import CometMedia
 import CometSession
+import ImageIO
 import MetalKit
 import WebRTC
 // Run the production transport against a real local HTTP/WebSocket server, not stubbed API methods.
@@ -32,6 +34,248 @@ final class ProtocolE2ETests: XCTestCase {
   private func api() -> CometAPI {
     CometAPI(
       profile: ConnectionProfile(name: "Fixture", host: "127.0.0.1", port: port, scheme: "http"))
+  }
+
+  func testClosedAPIRejectsLateHTTPAndWebSocketRequests() async throws {
+    let closed = api()
+    _ = try await closed.call("/test/state")
+    await closed.close()
+    await closed.close() // Window teardown may be requested more than once.
+    do {
+      _ = try await closed.call("/test/state")
+      XCTFail("A closed API must reject late status polls")
+    } catch { XCTAssertTrue(error is CancellationError, "\(error)") }
+    do {
+      _ = try await closed.socket("/api/ws")
+      XCTFail("A closed API must reject late socket creation")
+    } catch { XCTAssertTrue(error is CancellationError, "\(error)") }
+    let other = api()
+    _ = try await other.call("/test/state")
+    await other.close()
+  }
+
+  @MainActor func testAPICloseAndTaskCancellationCancelInFlightRequests() async throws {
+    let observer = api()
+    for closeTransport in [false, true] {
+      let client = api()
+      let initialState = try await observer.call("/test/state")
+      let baseline = try XCTUnwrap(initialState["delayed_requests"].integer())
+      let pending = Task { try await client.call("/test/delayed") }
+      // Wait for server receipt so this tests cancellation of a running native task.
+      var started = false
+      for _ in 0..<100 {
+        let state = try await observer.call("/test/state")
+        let count = try XCTUnwrap(state["delayed_requests"].integer())
+        if count > baseline { started = true; break }
+        try await Task.sleep(for: .milliseconds(10))
+      }
+      XCTAssertTrue(started)
+      let start = Date()
+      if closeTransport { await client.close() } else { pending.cancel() }
+      do {
+        _ = try await pending.value
+        XCTFail("Canceled request returned a successful response")
+      } catch { XCTAssertTrue(error is CancellationError, "\(error)") }
+      XCTAssertLessThan(Date().timeIntervalSince(start), 1)
+      await client.close()
+    }
+    await observer.close()
+  }
+
+  func testAPIRequestCreationRacingCloseDoesNotCrash() async throws {
+    for _ in 0..<20 {
+      let client = api()
+      await withTaskGroup(of: Void.self) { group in
+        for index in 0..<20 {
+          group.addTask {
+            if index % 2 == 0 { await Task.yield() }
+            do { _ = try await client.call("/test/state") }
+            catch { XCTAssertTrue(error is CancellationError, "\(error)") }
+          }
+        }
+        group.addTask { await client.close() }
+      }
+      await client.close()
+    }
+  }
+
+  // A real HTTP endpoint must receive only the webhook payload, never appliance credentials or redirects.
+  func testWebhookHTTPPayloadFailuresAndRedirects() async throws {
+    let profile = ConnectionProfile(name: "HTTP fixture", host: "private-kvm.local")
+    let payload = AudioWebhookPayload(profile: profile, level: 0.2,
+      screenshot: .init(jpeg: Data([0xff, 0xd8, 0xff, 0xd9]), width: 1, height: 1))
+    let client = AudioWebhookClient()
+    try await client.send(to: URL(string: "http://127.0.0.1:\(port)/test/webhook")!, payload: payload)
+    for (suffix, status) in [("fail", 503), ("redirect", 307)] {
+      do {
+        try await client.send(to: URL(string: "http://127.0.0.1:\(port)/test/webhook/\(suffix)")!, payload: payload)
+        XCTFail("Expected failure for HTTP \(status)")
+      } catch {
+        XCTAssertTrue(error.localizedDescription.contains(String(status)))
+      }
+    }
+    let service = api()
+    let requests = try await service.call("/test/state")["webhooks"].array
+    XCTAssertEqual(requests.count, 1)
+    let request = try XCTUnwrap(requests.first)
+    XCTAssertEqual(request["method"].string, "POST")
+    XCTAssertEqual(request["headers"]["Content-Type"].string, "application/json")
+    XCTAssertEqual(request["headers"]["Cookie"], .null)
+    XCTAssertEqual(request["headers"]["Token"], .null)
+    XCTAssertEqual(request["headers"]["Authorization"], .null)
+    XCTAssertEqual(request["payload"]["kvm"]["id"].string, profile.id.uuidString)
+    XCTAssertEqual(request["payload"]["screenshot"]["base64"].string, payload.screenshot.base64)
+    await service.close()
+  }
+
+  @MainActor func testManualWebhookNotificationChecksSecretAndSendsValidImageWithoutKVM() async throws {
+    let controller = AudioNotificationTestController()
+    var profile = ConnectionProfile(name: "Offline KVM", host: "not-connected.invalid")
+    profile.audioNotifications = AudioNotificationPreferences()
+    profile.audioNotifications?.alias = "  Test alias  "
+    // A missing, wrong, or duplicated token must fail; a forbidden response is also an authentication failure.
+    for (path, status) in [
+      ("authenticated", 401), ("authenticated?token=wrong-secret", 401),
+      ("authenticated?token=fixture-secret&token=fixture-secret", 401), ("forbidden", 403)
+    ] {
+      profile.audioNotifications?.endpoint = "http://127.0.0.1:\(port)/test/webhook/\(path)"
+      controller.sendTest(profile: profile)
+      try await waitUntil { !controller.sending }
+      XCTAssertTrue(controller.failed)
+      let result = try XCTUnwrap(controller.result)
+      XCTAssertTrue(result.contains("authentication rejected (HTTP \(status))"), result)
+      XCTAssertFalse(result.contains("wrong-secret"))
+      XCTAssertFalse(result.contains("fixture-secret"))
+    }
+    profile.audioNotifications?.endpoint = "http://127.0.0.1:\(port)/test/webhook/authenticated?token=fixture-secret"
+    controller.sendTest(profile: profile)
+    controller.sendTest(profile: profile) // Ignore double clicks while a request is pending.
+    try await waitUntil { !controller.sending }
+    XCTAssertFalse(controller.failed)
+    XCTAssertEqual(controller.result, "Test notification accepted by the receiver.")
+    let service = api()
+    let requests = try await service.call("/test/state")["webhooks"].array
+    XCTAssertEqual(requests.count, 1)
+    let payload = try XCTUnwrap(requests.first?["payload"])
+    XCTAssertEqual(payload["event"].string, "audio_detected")
+    XCTAssertEqual(payload["audioLevel"], .number(0))
+    XCTAssertEqual(payload["message"].string, "Test notification from Test alias")
+    XCTAssertEqual(payload["kvm"]["id"].string, profile.id.uuidString)
+    XCTAssertEqual(payload["kvm"]["name"].string, "Offline KVM")
+    let jpeg = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(payload["screenshot"]["base64"].string)))
+    let source = try XCTUnwrap(CGImageSourceCreateWithData(jpeg as CFData, nil))
+    XCTAssertEqual(CGImageSourceGetType(source) as String?, "public.jpeg")
+    let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+    XCTAssertEqual(image.width, 640)
+    XCTAssertEqual(image.height, 360)
+    XCTAssertEqual(payload["screenshot"]["width"], .number(Double(image.width)))
+    XCTAssertEqual(payload["screenshot"]["height"], .number(Double(image.height)))
+    XCTAssertFalse(String(decoding: try payload.data(), as: UTF8.self).contains("fixture-secret"))
+    await service.close()
+  }
+
+  // Negotiate a generated tone and real video through Janus, with playback muted, into an actual HTTP webhook.
+  @MainActor func testNativeAudioTriggersScreenshotWebhookWhileMuted() async throws {
+    let service = api()
+    try await service.login(password: "test-password")
+    let sender = LocalWebRTCPeer(audioDevice: FixtureToneAudioDevice())
+    let offer = try await sender.offer(audio: true)
+    try await service.call("/test/offer", method: "POST",
+      body: JSONValue.object(["type": .string("offer"), "sdp": .string(offer)]).data(), contentType: "application/json")
+    var profile = ConnectionProfile(name: "Audio fixture", host: "127.0.0.1", port: port, scheme: "http")
+    profile.muted = true
+    profile.audioOutputDeviceUID = ProcessInfo.processInfo.environment["ASTEROID_TEST_AUDIO_OUTPUT_UID"]
+    profile.audioNotifications = AudioNotificationPreferences()
+    profile.audioNotifications?.enabled = true
+    profile.audioNotifications?.endpoint = "http://127.0.0.1:\(port)/test/webhook"
+    profile.audioNotifications?.alias = "Tone KVM"
+    let recordings = FileManager.default.temporaryDirectory.appendingPathComponent("AsteroidKVM-native-audio-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: recordings) }
+    let session = SessionController(profile: profile, password: "test-password", recordingsDirectory: recordings)
+    session.connect()
+    defer { sender.peer.close() }
+    do {
+      try await waitUntil { session.active }
+      session.toggleAudioRecording()
+      XCTAssertTrue(session.audioRecording.isRecording)
+      var answer: String?
+      let deadline = Date().addingTimeInterval(15)
+      while answer == nil && Date() < deadline {
+        answer = try await service.call("/test/state")["answer"]["sdp"].string
+        try await Task.sleep(for: .milliseconds(20))
+      }
+      try await sender.peer.setRemoteDescription(RTCSessionDescription(type: .answer, sdp: try XCTUnwrap(answer, "\(session.phase) / \(session.audioOutputMessage ?? "no audio message")")))
+      var number = 0
+      var candidatesAdded = 0
+      while session.audioNotifications.lastDelivery == nil && Date() < deadline {
+        if number % 5 == 0 {
+          let candidates = try await service.call("/test/state")["candidates"].array
+          for candidate in candidates.dropFirst(candidatesAdded) {
+            if let sdp = candidate["candidate"].string {
+              try await sender.peer.add(RTCIceCandidate(sdp: sdp,
+                sdpMLineIndex: Int32(candidate["sdpMLineIndex"].number ?? 0), sdpMid: candidate["sdpMid"].string))
+            }
+          }
+          candidatesAdded = candidates.count
+        }
+        try sender.frame(number)
+        number += 1
+        try await Task.sleep(for: .milliseconds(30))
+      }
+      XCTAssertNotNil(session.audioNotifications.lastDelivery, session.audioNotifications.lastError ?? session.audioNotifications.status)
+      let requests = try await service.call("/test/state")["webhooks"].array
+      XCTAssertEqual(requests.count, 1)
+      let payload = try XCTUnwrap(requests.first)["payload"]
+      XCTAssertEqual(payload["kvm"]["id"].string, profile.id.uuidString)
+      XCTAssertEqual(payload["kvm"]["alias"].string, "Tone KVM")
+      XCTAssertEqual(payload["screenshot"]["width"].number, 640)
+      XCTAssertEqual(payload["screenshot"]["height"].number, 360)
+      XCTAssertGreaterThan(payload["audioLevel"].number ?? 0, 0.01)
+      let connections = session.mediaConnectionsStarted
+      let hardwareUID = ProcessInfo.processInfo.environment["ASTEROID_TEST_AUDIO_OUTPUT_UID"]
+      if let uid = hardwareUID ?? AudioOutputDevices.shared.defaultDeviceUID {
+        session.updateProfile { $0.audioOutputDeviceUID = uid }
+        try await waitUntil { session.audioOutputMessage != "Switching audio output…" }
+        XCTAssertNil(session.audioOutputMessage)
+      }
+      session.updateProfile { $0.audioOutputDeviceUID = "missing-output" }
+      try await waitUntil { session.audioOutputMessage != "Switching audio output…" }
+      XCTAssertTrue(session.audioOutputMessage?.contains("unavailable") == true)
+      session.updateProfile { $0.audioOutputDeviceUID = nil }
+      try await waitUntil { session.audioOutputMessage != "Switching audio output…" }
+      XCTAssertNil(session.audioOutputMessage)
+      // Rapid changes are coalesced; the last choice must win without reconnecting.
+      if let uid = hardwareUID ?? AudioOutputDevices.shared.defaultDeviceUID {
+        for _ in 0..<10 {
+          session.updateProfile { $0.audioOutputDeviceUID = uid }
+          session.updateProfile { $0.audioOutputDeviceUID = nil }
+        }
+        try await waitUntil { session.audioOutputMessage != "Switching audio output…" }
+        XCTAssertNil(session.audioOutputMessage)
+        XCTAssertNil(session.profile.audioOutputDeviceUID)
+      }
+      XCTAssertEqual(session.mediaConnectionsStarted, connections)
+    } catch {
+      await session.disconnect()
+      await service.close()
+      throw error
+    }
+    await session.disconnect()
+    XCTAssertEqual(session.audioNotifications.status, "Waiting for connection")
+    XCTAssertFalse(session.audioRecording.isRecording)
+    XCTAssertFalse(session.audioRecording.isSaving)
+    XCTAssertNil(session.audioRecording.lastError)
+    let recording = try XCTUnwrap(session.audioRecording.lastSavedURL)
+    XCTAssertEqual(recording.lastPathComponent, AudioRecordingSink.filename(connectionName: profile.name,
+      startedAt: try XCTUnwrap(session.audioRecording.startedAt)))
+    let file = try AVAudioFile(forReading: recording)
+    XCTAssertGreaterThan(file.length, 4800)
+    let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: file.processingFormat,
+      frameCapacity: AVAudioFrameCount(file.length)))
+    try file.read(into: buffer)
+    XCTAssertTrue(UnsafeBufferPointer(start: buffer.floatChannelData![0], count: Int(buffer.frameLength))
+      .contains { abs($0) > 0.01 }, "Local mute must not silence the recording")
+    await service.close()
   }
 
   // Exercise authenticated multipart EDID uploads and byte-exact restoration through the production URLSession.
@@ -158,6 +402,60 @@ final class ProtocolE2ETests: XCTestCase {
     XCTAssertTrue(state["pastes"].array.isEmpty)
     await api.close()
   }
+  // A transient startup failure must recover without reopening the viewer or restarting the app.
+  @MainActor func testInitialNetworkFailureAutomaticallyRetries() async throws {
+    var attempts = 0
+    let session = SessionController(
+      profile: ConnectionProfile(name: "Retry", host: "127.0.0.1", port: port, scheme: "http"),
+      password: "test-password", mediaFactory: { _, _ in
+        attempts += 1
+        let media = FixtureMedia()
+        if attempts == 1 { media.startAction = { _ in throw URLError(.networkConnectionLost) } }
+        return media
+      })
+    session.connect()
+    do {
+      try await waitUntil { attempts == 2 && session.active }
+      XCTAssertEqual(attempts, 2)
+      await session.disconnect()
+    } catch { await session.disconnect(); throw error }
+  }
+
+  // Simulate Wi-Fi loss, another failure during reconnect, then network recovery.
+  @MainActor func testFailureDuringReconnectRetriesAndRejectsOldMediaCallbacks() async throws {
+    var connections: [FixtureMedia] = []
+    let session = SessionController(
+      profile: ConnectionProfile(name: "Retry", host: "127.0.0.1", port: port, scheme: "http"),
+      password: "test-password", mediaFactory: { _, _ in
+        let media = FixtureMedia()
+        connections.append(media)
+        if connections.count == 2 {
+          media.startAction = { $0.onError?(URLError(.networkConnectionLost)) }
+        }
+        return media
+      })
+    session.connect()
+    do {
+      try await waitUntil { session.active }
+      connections[0].onError?(URLError(.networkConnectionLost))
+      for _ in 0..<160 {
+        if connections.count >= 3 && session.active { break }
+        try await Task.sleep(for: .milliseconds(100))
+      }
+      XCTAssertEqual(connections.count, 3)
+      XCTAssertTrue(session.active)
+      // Native callbacks already in flight from the old connection must not tear down the new one.
+      connections[0].onError?(URLError(.networkConnectionLost))
+      XCTAssertTrue(session.active)
+      // Explicit disconnect cancels the next retry even after another network failure.
+      connections.last?.onError?(URLError(.networkConnectionLost))
+      await session.disconnect()
+      try await Task.sleep(for: .milliseconds(2200))
+      XCTAssertEqual(connections.count, 3)
+      XCTAssertEqual(session.phase, .disconnected)
+    } catch { await session.disconnect(); throw error }
+  }
+
   // Run two production session controllers against sockets and verify focus, sleep, and logout isolation.
   @MainActor func testSessionFocusSleepWakeAndLogoutLifecycle() async throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -533,12 +831,19 @@ final class ProtocolE2ETests: XCTestCase {
   var onError: ((Error) -> Void)?
   var onConnected: (() -> Void)?
   var onFeatures: ((JSONValue) -> Void)?
+  var onAudioLevel: ((Double) -> Void)?
+  var onAudioOutputMessage: ((String?) -> Void)?
   var starts = 0
+  var startAction: ((FixtureMedia) throws -> Void)?
   func start(microphone: Bool, muted: Bool) async throws {
     starts += 1
+    if let startAction { try startAction(self); return }
     onConnected?()
   }
   func setMuted(_ muted: Bool) {}
+  func setAudioOutputDevice(_ uid: String?) {}
+  func setTranscriptionSink(_ sink: ConnectionTranscriptionSink?) {}
+  func setAudioRecordingSink(_ sink: AudioRecordingSink?) {}
   func stop() {}
 }
 
