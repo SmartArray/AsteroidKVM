@@ -19,6 +19,7 @@ import CometMedia
     didSet {
       // Invalidate context on every identity mutation; endpoint sanitization happens before publishing the value.
       if profile.agentIdentity != oldValue.agentIdentity {
+        pastePreview = nil
         setMCPInputLocked(false)
         mcpServer.revokeAccess()
         transcription.clear()
@@ -34,6 +35,7 @@ import CometMedia
   @Published public var message: String?
   @Published public var captured = false
   @Published public var pasting = false
+  @Published public private(set) var pastePreview: PastePreview?
   @Published public var microphone = false
   @Published public var mediaFeatures: JSONValue = .null
   @Published public var ocrSelecting = false
@@ -64,7 +66,7 @@ import CometMedia
   public func setMCPInputLocked(_ locked: Bool) {
     guard locked != mcpInputLocked, !locked || canLockMCPInput else { return }
     mcpInputLocked = locked
-    if locked { releaseCapture() }
+    if locked { cancelPastePreview(); releaseCapture() }
   }
 
   public func interruptAutomation(manualInput: Bool = false) {
@@ -235,7 +237,7 @@ import CometMedia
       let output = HIDOutput(
         send: { event in
           try await ws.send(.string(String(decoding: event.json.data(), as: UTF8.self)))
-        }, paste: { text, keymap in try await api.paste(text, keymap: keymap) })
+        }, paste: { text, keymap, fast in try await api.paste(text, keymap: keymap, fast: fast) })
       output.nativeTypingIntervalMilliseconds = profile.nativeTypingIntervalMilliseconds
       output.onPasteChanged = { [weak self] busy in self?.pasting = busy }
       output.onError = { [weak self] error in
@@ -372,6 +374,7 @@ import CometMedia
 
   // Reconnection invalidates pending input and uses a cancellable bounded backoff, including wake recovery.
   private func connectionFailed(_ error: Error) {
+    cancelPastePreview()
     // The UI phase also covers an in-flight reconnect. Only coalesce failures while
     // cleanup/backoff is pending; a failed reconnect attempt must schedule another.
     guard shouldReconnect, !reconnectWaiting else { return }
@@ -410,6 +413,7 @@ import CometMedia
 
   // Invalidate queued work and release input before the Mac sleeps.
   public func suspend() {
+    cancelPastePreview()
     stopAudioRecording()
     audioNotifications.stop()
     transcription.stop(reason: "Stopped for sleep · restart transcription when connected")
@@ -447,7 +451,7 @@ import CometMedia
   public func capture() {
     guard !mcpInputLocked else { return }
     interruptAutomation(manualInput: true)
-    guard active, !pasting, !ocrSelecting, !ocrBusy else { return }
+    guard active, !pasting, pastePreview == nil, !ocrSelecting, !ocrBusy else { return }
     onCapture?(id)
     captured = true
     configureInput()
@@ -455,6 +459,7 @@ import CometMedia
 
   // Flush key releases before closing a socket; server disconnect cleanup is the final backstop.
   public func disconnect(logout: Bool = false) async {
+    cancelPastePreview()
     stopAudioRecording()
     audioNotifications.stop()
     setMCPInputLocked(false)
@@ -492,6 +497,7 @@ import CometMedia
 
   // Cancel owned tasks, media, sockets, and API transport before another connection is established.
   private func cleanConnections() async {
+    cancelPastePreview()
     stopAudioRecording()
     audioNotifications.stop()
     audioOutputMessage = nil
@@ -524,13 +530,43 @@ import CometMedia
     connect()
   }
 
-  // Native paste locks live input for the operation and never retains clipboard text after completion.
+  // Snapshot the clipboard once. Neither opening nor cancelling a preview transmits its text.
   public func paste() {
-    guard !mcpInputLocked else { return }
+    guard active, !pasting, !mcpInputLocked, pastePreview == nil,
+      let text = NSPasteboard.general.string(forType: .string) else { return }
+    previewPaste(text)
+  }
+
+  public func previewPaste(_ text: String) {
+    guard !mcpInputLocked, active, !pasting, pastePreview == nil, !text.isEmpty else { return }
     interruptAutomation(manualInput: true)
-    guard active, !pasting, let text = NSPasteboard.general.string(forType: .string) else { return }
-    _ = input.releaseAll()
-    output?.paste(text, keymap: profile.keymap)
+    releaseCapture()
+    pastePreview = PastePreview(text: text)
+  }
+
+  public func cancelPastePreview() { pastePreview = nil }
+
+  public var pastePreviewError: String? {
+    guard let preview = pastePreview else { return nil }
+    guard state.availableKeymaps.contains(profile.keymap) else { return "Select an available target keyboard layout." }
+    do {
+      _ = try PastePreparation.prepare(preview.text, keymap: profile.keymap,
+        options: profile.pasteOptions ?? PasteOptions())
+      return nil
+    } catch { return error.localizedDescription }
+  }
+
+  public func submitPastePreview(id: UUID) {
+    guard let preview = pastePreview, preview.id == id, active, !mcpInputLocked,
+      !pasting, let output, pastePreviewError == nil else { return }
+    let options = profile.pasteOptions ?? PasteOptions()
+    do {
+      let text = try PastePreparation.prepare(preview.text, keymap: profile.keymap, options: options)
+      pastePreview = nil // Invalidate the confirmation before any duplicate Return/button event.
+      interruptAutomation(manualInput: true)
+      releaseCapture()
+      output.paste(text, keymap: profile.keymap, fast: options.fastMode)
+    } catch { message = error.localizedDescription }
   }
 
   // Send balanced remote shortcut transitions through the session’s ordered input queue.

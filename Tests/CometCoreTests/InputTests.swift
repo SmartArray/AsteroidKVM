@@ -133,7 +133,7 @@ final class InputTests: XCTestCase {
 
   @MainActor func testTypingIntervalUpdatesActiveOutput() {
     let session = SessionController(profile: ConnectionProfile(name: "Typing", host: "fixture.invalid"))
-    let output = HIDOutput(send: { _ in }, paste: { _, _ in })
+    let output = HIDOutput(send: { _ in }, paste: { _, _, _ in })
     XCTAssertEqual(output.nativeTypingIntervalMilliseconds, 50)
     session.output = output
     session.updateProfile { $0.nativeTypingIntervalMilliseconds = 30 }
@@ -147,12 +147,12 @@ final class InputTests: XCTestCase {
     let second = EventRecorder()
     let a = HIDOutput(
       send: { await first.add($0.type + ":" + $0.payload["key"].text) },
-      paste: { _, _ in
+      paste: { _, _, _ in
         await first.add("paste-start")
         try await Task.sleep(for: .milliseconds(40))
         await first.add("paste-end")
       })
-    let b = HIDOutput(send: { await second.add($0.type) }, paste: { _, _ in })
+    let b = HIDOutput(send: { await second.add($0.type) }, paste: { _, _, _ in })
     a.enqueue([.key("KeyA", true)])
     await a.flush()
     a.paste("hello", keymap: "en-us")

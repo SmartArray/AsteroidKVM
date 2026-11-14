@@ -17,7 +17,7 @@ import XCTest
     XCTAssertFalse(WindowTabbing.enabled)
     let session = SessionController(profile: ConnectionProfile(name: "Tab test", host: "fixture.invalid"))
     let recorder = TabRecorder()
-    session.output = HIDOutput(send: { await recorder.add($0) }, paste: { _, _ in })
+    session.output = HIDOutput(send: { await recorder.add($0) }, paste: { _, _, _ in })
     let window = TabTestWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 400),
       styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false

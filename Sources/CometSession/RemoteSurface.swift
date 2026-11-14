@@ -215,7 +215,7 @@ import MetalKit
     guard !isTornDown, !session.mcpInputLocked, allowsAutomaticCapture, let window, window.isKeyWindow, NSApp.isActive,
       window.attachedSheet == nil, !window.isMiniaturized, session.active,
       session.pendingCertificate == nil, session.ocrText == nil,
-      !session.ocrSelecting, !session.ocrBusy, !session.pasting
+      !session.ocrSelecting, !session.ocrBusy, !session.pasting, session.pastePreview == nil
     else { return }
     if let editor = window.firstResponder as? NSTextView, editor.isFieldEditor { return }
     guard window.makeFirstResponder(self) else { return }
@@ -348,7 +348,7 @@ import MetalKit
   }
   private var canSend: Bool {
     !isTornDown && !session.mcpInputLocked && session.captured && window?.isKeyWindow == true
-      && window?.firstResponder === self && !session.pasting && !session.ocrSelecting
+      && window?.firstResponder === self && !session.pasting && session.pastePreview == nil && !session.ocrSelecting
   }
 
   // Convert AppKit window coordinates into the same local coordinates used by rendering.

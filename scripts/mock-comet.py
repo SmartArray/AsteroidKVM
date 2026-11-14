@@ -190,6 +190,7 @@ class Handler(BaseHTTPRequestHandler):
                     "text": body.decode(),
                     "keymap": query.get("keymap"),
                     "limit": query.get("limit"),
+                    "slow": query.get("slow"),
                     "token": self.token(),
                 }
             )

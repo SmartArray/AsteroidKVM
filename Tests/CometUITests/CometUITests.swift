@@ -4,6 +4,101 @@ import Carbon
 import XCTest
 
 final class CometUITests: XCTestCase {
+  @MainActor func testPastePreviewCancelLayoutOptionsAndReturnSubmission() async throws {
+    continueAfterFailure = false
+    // UI runners cannot bind a local server socket; scripts/test-paste-preview.py owns the fixture.
+    guard let port = ProcessInfo.processInfo.environment["ASTEROID_PASTE_FIXTURE_PORT"].flatMap(Int.init) else {
+      throw XCTSkip("Run python3 scripts/test-paste-preview.py to provide the local protocol fixture")
+    }
+    var login = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/api/auth/login")!)
+    login.httpMethod = "POST"
+    login.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+    login.httpBody = Data("user=admin&passwd=test-password".utf8)
+    let (data, _) = try await URLSession.shared.data(for: login)
+    let response = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let token = try XCTUnwrap((response["result"] as? [String: Any])?["token"] as? String)
+    let credentialsPath = try XCTUnwrap(ProcessInfo.processInfo.environment["ASTEROID_PASTE_SESSION_FILE"])
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-testing", "--session-file", credentialsPath, "-ApplePersistenceIgnoreState", "YES"]
+    app.launch()
+    defer { app.terminate() }
+    app.menuBars.menuBarItems["File"].click()
+    app.menuItems["Connections…"].click()
+    let window = app.windows["Comet Test Session"]
+    let clipboard = NSPasteboard.general
+    let originals: [NSPasteboardItem] = clipboard.pasteboardItems?.map { item in
+      let copy = NSPasteboardItem()
+      for type in item.types { if let data = item.data(forType: type) { copy.setData(data, forType: type) } }
+      return copy
+    } ?? []
+    defer { clipboard.clearContents(); clipboard.writeObjects(originals) }
+    clipboard.clearContents()
+    clipboard.setString("`error` ^ ´", forType: .string)
+    let display = window.descendants(matching: .any).matching(identifier: "remote-display").firstMatch
+    guard display.waitForExistence(timeout: 10) else {
+      XCTFail("Remote fixture window did not open: \(app.windows.debugDescription)")
+      return
+    }
+    let keyboard = window.buttons["keyboard-toolbar"].firstMatch
+    keyboard.click()
+    let paste = app.buttons["Paste Clipboard Text"].firstMatch
+    XCTAssertTrue(paste.waitForExistence(timeout: 5))
+    let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in paste.isEnabled }, object: paste)
+    XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+    // The toolbar entry opens the same confirmation and closes its own popover.
+    paste.click()
+    let submit = app.buttons["paste-preview-submit"].firstMatch
+    XCTAssertTrue(submit.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["paste-preview-text"].firstMatch.exists)
+    XCTAssertFalse(app.textViews["paste-preview-text"].exists)
+    app.buttons["paste-preview-cancel"].firstMatch.click()
+    XCTAssertTrue(submit.waitForNonExistence(timeout: 5))
+
+    func pastes() async throws -> [[String: Any]] {
+      var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/test/state")!)
+      request.setValue(token, forHTTPHeaderField: "Token")
+      let (data, _) = try await URLSession.shared.data(for: request)
+      let body = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+      return try XCTUnwrap((body["result"] as? [String: Any])?["pastes"] as? [[String: Any]])
+    }
+    let cancelled = try await pastes()
+    XCTAssertTrue(cancelled.isEmpty)
+    display.click()
+    app.typeKey("v", modifierFlags: .command)
+    XCTAssertTrue(submit.waitForExistence(timeout: 5))
+    let layout = app.popUpButtons["paste-preview-layout"].firstMatch
+    layout.click()
+    app.menuItems["DE"].firstMatch.click()
+    XCTAssertEqual(String(describing: app.checkBoxes["paste-preview-dead-keys"].firstMatch.value ?? ""), "1")
+    let fast = app.checkBoxes["paste-preview-fast-mode"].firstMatch
+    XCTAssertEqual(String(describing: fast.value ?? ""), "0")
+    fast.click()
+    let shot = XCTAttachment(screenshot: window.screenshot())
+    shot.name = "Read-only paste preview with target layout and safety options"
+    shot.lifetime = .keepAlways
+    add(shot)
+    app.typeKey(.return, modifierFlags: [])
+    XCTAssertTrue(submit.waitForNonExistence(timeout: 5))
+    var sent: [[String: Any]] = []
+    for _ in 0..<50 {
+      sent = try await pastes()
+      if !sent.isEmpty { break }
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    XCTAssertEqual(sent.count, 1)
+    XCTAssertEqual(sent.first?["text"] as? String, "` error`  ^  ´ ")
+    XCTAssertEqual(sent.first?["slow"] as? [String], ["false"])
+    XCTAssertEqual(clipboard.string(forType: .string), "`error` ^ ´")
+    // This protocol fixture has no video geometry for click-to-capture after a paste.
+    // Reopen from the toolbar to verify persisted choices independently of video rendering.
+    keyboard.click()
+    app.buttons["Paste Clipboard Text"].firstMatch.click()
+    XCTAssertTrue(submit.waitForExistence(timeout: 5))
+    XCTAssertEqual(String(describing: fast.value ?? ""), "1")
+    app.typeKey(.escape, modifierFlags: [])
+    XCTAssertTrue(submit.waitForNonExistence(timeout: 5))
+  }
+
   @MainActor func testAudioRecordingStartStopAndSavedFilename() async throws {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
       .deletingLastPathComponent().deletingLastPathComponent()

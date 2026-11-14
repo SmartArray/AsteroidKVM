@@ -131,3 +131,11 @@ System identity editing is intentionally reserved by the specification. HEVC, di
 ## Release artifact
 
 `./scripts/build.sh` builds `build/DerivedData/Build/Products/Release/AsteroidKVM.app`. The app executable and embedded WebRTC framework both contain `arm64` and `x86_64` architectures. The locally ad-hoc signed bundle passes `codesign --verify --deep --strict`. Upstream WebRTC notices are included in `Contents/Resources/ThirdPartyNotices.txt`. Developer ID signing and notarization are not part of this local build.
+
+## Paste preview — November 14, 2026
+
+Selected input, paste-preparation, input-lock, and local protocol tests passed (20 tests). They cover German accent compensation, unchanged standard US text, unsupported-layout rejection, original and expanded length limits, profile compatibility, cancellation before submission, duplicate/stale submission rejection, disconnect invalidation, and actual HTTP slow/fast parameters.
+
+The macOS UI test passed through both the toolbar and ⌘V: read-only text, Cancel, target-layout selection, default checkbox values, Fast mode selection, Enter submission, remembered options, unchanged clipboard, and Escape cancellation. Run it with `python3 scripts/test-paste-preview.py`. This wrapper hosts the local fixture and temporary session file outside the sandboxed UI runner and cleans them up afterward. It requires an unlocked Mac, Xcode, and Python 3. The fixture has no video frames; the final reopen uses the toolbar because click-to-capture requires video geometry.
+
+The protocol fixture verifies the emitted text and settings, not physical USB typing on a live KVM. Dead-key compensation currently has explicit rules for standard German and US layouts; variants and other layouts require disabling the handler.

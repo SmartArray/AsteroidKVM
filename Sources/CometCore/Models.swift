@@ -104,6 +104,7 @@ public struct ConnectionProfile: Codable, Identifiable, Equatable, Sendable {
     set { nativeTypingIntervalOverride = min(1000, max(0, newValue)) }
   }
   public var pasteEnabled = true
+  public var pasteOptions: PasteOptions?
   public var scaleMode = ScaleMode.fit
   public var rotation = 0
   public var muted = false

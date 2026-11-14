@@ -154,7 +154,7 @@ final class HardwareE2ETests: XCTestCase {
       let output = HIDOutput(
         send: { event in
           try await socket.send(.string(String(decoding: event.json.data(), as: UTF8.self)))
-        }, paste: { text, keymap in try await typingAPI.paste(text, keymap: keymap) })
+        }, paste: { text, keymap, fast in try await typingAPI.paste(text, keymap: keymap, fast: fast) })
       var inputError: Error?
       output.onError = { inputError = $0 }
       for scalar in sample.unicodeScalars {

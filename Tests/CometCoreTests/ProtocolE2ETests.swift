@@ -360,7 +360,7 @@ final class ProtocolE2ETests: XCTestCase {
     let output = HIDOutput(
       send: { event in
         try await socket.send(.string(String(decoding: event.json.data(), as: UTF8.self)))
-      }, paste: { text, keymap in try await api.paste(text, keymap: keymap) })
+      }, paste: { text, keymap, fast in try await api.paste(text, keymap: keymap, fast: fast) })
     var input = InputEngine()
     input.nativeLayout = true
     input.mappedTextSupported = true
@@ -385,6 +385,64 @@ final class ProtocolE2ETests: XCTestCase {
     await output.flush()
     socket.cancel(with: .normalClosure, reason: nil)
     await api.close()
+  }
+
+  @MainActor func testPastePreviewRequiresConfirmationAndUsesSelectedLayoutAndSpeed() async throws {
+    let session = SessionController(
+      profile: ConnectionProfile(name: "Preview", host: "127.0.0.1", port: port, scheme: "http"),
+      password: "test-password", mediaFactory: { _, _ in FixtureMedia() })
+    session.connect()
+    try await waitUntil { session.active }
+    let api = try XCTUnwrap(session.api)
+    session.previewPaste("`error`")
+    let cancelled = try XCTUnwrap(session.pastePreview)
+    XCTAssertEqual(cancelled.text, "`error`")
+    XCTAssertFalse(session.captured)
+    let before = try await api.call("/test/state")
+    XCTAssertTrue(before["pastes"].array.isEmpty)
+    session.cancelPastePreview()
+    session.submitPastePreview(id: cancelled.id)
+    let afterCancel = try await api.call("/test/state")
+    XCTAssertTrue(afterCancel["pastes"].array.isEmpty)
+
+    session.previewPaste("`error` ^ ´")
+    let preview = try XCTUnwrap(session.pastePreview)
+    // Preferences change while the preview is open; confirmation must use the displayed choices.
+    session.updateProfile {
+      $0.keymap = "de"
+      var options = PasteOptions()
+      options.fastMode = true
+      $0.pasteOptions = options
+    }
+    session.submitPastePreview(id: cancelled.id)
+    XCTAssertNotNil(session.pastePreview)
+    session.submitPastePreview(id: preview.id)
+    session.submitPastePreview(id: preview.id)
+    XCTAssertNil(session.pastePreview)
+    await session.output?.flush()
+    let submitted = try await api.call("/test/state")["pastes"].array
+    XCTAssertEqual(submitted.count, 1)
+    XCTAssertEqual(submitted[0]["text"].string, "` error`  ^  ´ ")
+    XCTAssertEqual(submitted[0]["keymap"].array.first?.string, "de")
+    XCTAssertEqual(submitted[0]["slow"].array.first?.string, "false")
+    XCTAssertEqual(submitted[0]["limit"].array.first?.string, "15")
+
+    session.previewPaste("`US` ~ ^")
+    let us = try XCTUnwrap(session.pastePreview)
+    session.updateProfile { $0.keymap = "en-us"; $0.pasteOptions = PasteOptions() }
+    session.submitPastePreview(id: us.id)
+    await session.output?.flush()
+    let normal = try await api.call("/test/state")["pastes"].array
+    XCTAssertEqual(normal.count, 2)
+    XCTAssertEqual(normal[1]["text"].string, "`US` ~ ^")
+    XCTAssertEqual(normal[1]["slow"].array.first?.string, "true")
+
+    session.previewPaste("Must not survive disconnect")
+    let stale = try XCTUnwrap(session.pastePreview)
+    await session.disconnect()
+    XCTAssertNil(session.pastePreview)
+    session.submitPastePreview(id: stale.id)
+    XCTAssertFalse(session.pasting)
   }
 
   func testFailedAuthenticationAndOversizePasteHaveNoSideEffects() async throws {
@@ -499,7 +557,7 @@ final class ProtocolE2ETests: XCTestCase {
     // A wedged outbound transport must still allow session closure, with the other connection unaffected.
     a.output?.stop()
     let stalled = HIDOutput(
-      send: { _ in try await Task.sleep(for: .seconds(60)) }, paste: { _, _ in })
+      send: { _ in try await Task.sleep(for: .seconds(60)) }, paste: { _, _, _ in })
     a.output = stalled
     stalled.enqueue([.key("KeyA", true)])
     try await Task.sleep(for: .milliseconds(20))

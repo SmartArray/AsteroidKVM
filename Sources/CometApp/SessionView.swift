@@ -24,7 +24,7 @@ struct SessionView: View {
       // Local controls keep focus while open; activating an unobstructed display grants remote input automatically.
       RemoteDisplayView(
         session: session,
-        allowsAutomaticCapture: !keyboardOpen && !displayOpen && !audioOpen && !transcriptionOpen && !diagnosticsOpen && !rebootConfirm)
+        allowsAutomaticCapture: !keyboardOpen && !displayOpen && !audioOpen && !transcriptionOpen && !diagnosticsOpen && !rebootConfirm && session.pastePreview == nil)
       if !session.active && !session.ocrSelecting {
         VStack(spacing: 16) {
           Image(systemName: "desktopcomputer").font(.system(size: 42)).foregroundStyle(.secondary)
@@ -192,6 +192,12 @@ struct SessionView: View {
       Text(
         "Verify this fingerprint for \(session.profile.host):\(session.profile.port) before continuing.\n\nSHA-256\n\(session.pendingCertificate ?? "")\n\nTrust applies only to this saved device and certificate."
       )
+    }
+    .sheet(item: Binding(get: { session.pastePreview }, set: { if $0 == nil { session.cancelPastePreview() } })) { preview in
+      PastePreviewView(session: session, preview: preview)
+    }
+    .onChange(of: session.pastePreview?.id) { _, id in
+      if id != nil { keyboardOpen = false }
     }
     .sheet(isPresented: $diagnosticsOpen) { DiagnosticsView(session: session) }
     .sheet(

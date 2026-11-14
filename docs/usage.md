@@ -176,3 +176,14 @@ Window tabs are disabled by default. While the remote display has captured input
 ### Audio notifications while away
 
 In **Settings → Notifications**, enable **Automatically enable when viewer loses focus**, then save. With audio notifications enabled, delivery pauses while that KVM window is focused and resumes when you switch to another window or app, or minimize the viewer. Each connection follows its own window. The status-bar control shows the automatic state and turns blue when armed; turn off the option to restore manual control. Focus changes preserve the cooldown and never enable a disabled webhook.
+
+### Preview clipboard paste
+
+With **Enable Paste with ⌘V** enabled, **⌘V** and **Keyboard → Paste Clipboard Text** open a read-only preview. Nothing is pasted until you click **Submit** or press **Enter**. **Cancel** or **Escape** discards the preview. It is a snapshot of the clipboard when opened; the clipboard itself is never modified. Disconnecting or restarting the connection discards an open preview.
+
+The preview includes **Target keyboard layout**, using the same per-connection setting as the Keyboard menu. Match it to the remote OS, not the Mac's layout. The two options are remembered per connection, even when cancelling:
+
+- **Dead-Key handler** starts enabled. For standard German (`de`), it adds a finishing Space after literal backticks, acute accents (`´`), and carets (`^`), including trailing accents. Standard US (`en-us`) text is unchanged. Existing spaces and composed letters such as `é` are preserved. Other/custom layouts require turning the handler off; the preview explains this instead of guessing. Layout variants or applications that do not treat these keys as dead keys should also use the handler off. Reference: [XKB German layout](https://cgit.freedesktop.org/xkeyboard-config/tree/symbols/de) and [Comet keymaps](https://github.com/gl-inet/glkvm/tree/main/contrib/keymaps).
+- **Fast mode** starts off and explicitly selects Comet's fast paste mode when checked. Its warning explains that many modifier transitions (Shift, Ctrl, Alt, etc.) can produce invalid key states.
+
+The 16,384-scalar limit also includes any finishing spaces. Oversized pastes are blocked before sending. A paste is sent once and is never automatically retried; input already queued on Comet may finish after disconnecting.

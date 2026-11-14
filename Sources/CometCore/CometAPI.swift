@@ -294,14 +294,14 @@ public actor CometAPI {
   }
 
   // Explicit scalar limits prevent the firmware's default 1024-character silent truncation.
-  public func paste(_ text: String, keymap: String) async throws {
+  public func paste(_ text: String, keymap: String, fast: Bool = false) async throws {
     let count = text.unicodeScalars.count
     guard count <= 16_384 else { throw CometError.pasteTooLong }
     guard count > 0 else { return }
     // The firmware's slow mode preserves modifier reports on hosts that lose transitions at its fast rate.
     try await call(
       "/api/hid/print", method: "POST",
-      query: ["keymap": keymap, "limit": String(count), "slow": "true"],
+      query: ["keymap": keymap, "limit": String(count), "slow": fast ? "false" : "true"],
       // Budget for modifier transitions at the daemon's 30 ms slow rate, without timing out valid long text.
       body: Data(text.utf8), contentType: "text/plain; charset=utf-8",
       timeout: max(60, Double(count) * 0.3 + 30))
