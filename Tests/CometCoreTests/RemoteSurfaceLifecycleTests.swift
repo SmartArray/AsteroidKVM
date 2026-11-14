@@ -100,7 +100,7 @@ import XCTest
     }
     XCTAssertEqual(server.status, "Listening")
     let recorder = EventRecorder()
-    session.output = HIDOutput(send: { await recorder.add($0.type) }, paste: { _, _ in
+    session.output = HIDOutput(send: { await recorder.add($0.type) }, paste: { _, _, _ in
       await recorder.add("paste")
     })
     let surface = RemoteSurface(session: session)

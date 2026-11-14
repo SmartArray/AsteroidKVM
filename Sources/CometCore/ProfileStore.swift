@@ -21,6 +21,8 @@ public struct ProfileStore {
     try FileManager.default.createDirectory(
       at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     try JSONEncoder().encode(profiles).write(to: url, options: .atomic)
+    // Webhook URLs can contain access tokens; restrict the saved connection file to its owner.
+    try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
   }
 
   // Decode the saved profile list without introducing credential fields.

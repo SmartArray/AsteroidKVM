@@ -82,7 +82,7 @@ import Foundation
     guard !busy, isCurrent, presets.contains(preset) else { return }
     let identity = (try? proposal().identity) ?? draft?.identity ?? .example
     do {
-      setDraft(try preset.document(identity: identity))
+      setDraft(try preset.document(identity: identity, displayName: draft?.displayName ?? "Display"))
       message = nil
     } catch { message = error.localizedDescription }
   }

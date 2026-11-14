@@ -17,7 +17,7 @@ import Foundation
   private var generation = UUID()
 
   // Inject both boundaries for deterministic streaming, clear, and cancellation tests.
-  public init(audioFactory: @escaping @MainActor () -> any TranscriptionAudioSource = { PlaybackAudioCapture() },
+  public init(audioFactory: @escaping @MainActor () -> any TranscriptionAudioSource,
     connectionFactory: @escaping @MainActor () -> any TranscriptionConnection = { RealtimeTranscription() }) {
     self.audioFactory = audioFactory
     self.connectionFactory = connectionFactory
@@ -96,6 +96,6 @@ import Foundation
   private func fail(_ error: Error, ticket: UUID) {
     guard generation == ticket else { return }
     stop(reason: (error as? TranscriptionError)?.message
-      ?? "Transcription stopped. Check the connection, API key, and macOS screen/audio recording permission.")
+      ?? "Transcription stopped. Check the connection, API key, and remote audio stream.")
   }
 }

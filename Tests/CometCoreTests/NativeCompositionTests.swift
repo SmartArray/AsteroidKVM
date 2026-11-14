@@ -32,7 +32,7 @@ import XCTest
     let recorder = CompositionRecorder()
     session.output = HIDOutput(
       send: { await recorder.add($0) },
-      paste: { _, _ in XCTFail("Composition must not use the clipboard") })
+      paste: { _, _, _ in XCTFail("Composition must not use the clipboard") })
     let surface = RemoteSurface(session: session)
     let window = CompositionWindow(
       contentRect: NSRect(x: 100, y: 100, width: 640, height: 400),

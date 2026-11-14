@@ -5,17 +5,21 @@ import WebRTC
 import XCTest
 
 @MainActor final class LocalWebRTCPeer: NSObject, RTCPeerConnectionDelegate {
-  let factory = RTCPeerConnectionFactory(
-    encoderFactory: RTCDefaultVideoEncoderFactory(), decoderFactory: RTCDefaultVideoDecoderFactory()
-  )
+  let factory: RTCPeerConnectionFactory
   var peer: RTCPeerConnection!
   var source: RTCVideoSource!
   var capturer: RTCVideoCapturer!
   var track: RTCVideoTrack!
   var gathered = false
 
+  init(audioDevice: (any RTCAudioDevice)? = nil) {
+    factory = RTCPeerConnectionFactory(encoderFactory: RTCDefaultVideoEncoderFactory(),
+      decoderFactory: RTCDefaultVideoDecoderFactory(), audioDevice: audioDevice)
+    super.init()
+  }
+
   // Prefer H.264 so the test observes the VideoToolbox decoder-to-Metal path used by Comet.
-  func offer() async throws -> String {
+  func offer(audio: Bool = false) async throws -> String {
     let configuration = RTCConfiguration()
     configuration.sdpSemantics = .unifiedPlan
     peer = factory.peerConnection(
@@ -27,6 +31,15 @@ import XCTest
     capturer = RTCVideoCapturer(delegate: source)
     track = factory.videoTrack(with: source, trackId: "fixture-video")
     let transceiver = peer.addTransceiver(with: track)
+    if audio {
+      let options = RTCRtpTransceiverInit()
+      options.direction = .sendOnly
+      let constraints = RTCMediaConstraints(mandatoryConstraints: [
+        "googEchoCancellation": "false", "googNoiseSuppression": "false", "googAutoGainControl": "false",
+      ], optionalConstraints: nil)
+      let audioTrack = factory.audioTrack(with: factory.audioSource(with: constraints), trackId: "fixture-tone")
+      peer.addTransceiver(with: audioTrack, init: options)
+    }
     let codecs = factory.rtpSenderCapabilities(forKind: kRTCMediaStreamTrackKindVideo).codecs.filter
     { $0.name == "H264" }
     if !codecs.isEmpty {
