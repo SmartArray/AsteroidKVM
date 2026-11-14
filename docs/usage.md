@@ -172,3 +172,7 @@ Applying EDID can briefly interrupt HDMI video. EDID advertises a preferred mode
 ### Window tabs and Tab keys
 
 Window tabs are disabled by default. While the remote display has captured input, **Tab** and **Shift+Tab** are forwarded to the KVM. Enable **Settings → General → Enable window tabs** to use native window tabs; in this mode, Tab and Shift+Tab remain local and are not forwarded. Turning the option off separates existing tabs into individual windows. Local settings fields keep normal Tab navigation.
+
+### Audio notifications while away
+
+In **Settings → Notifications**, enable **Automatically enable when viewer loses focus**, then save. With audio notifications enabled, delivery pauses while that KVM window is focused and resumes when you switch to another window or app, or minimize the viewer. Each connection follows its own window. The status-bar control shows the automatic state and turns blue when armed; turn off the option to restore manual control. Focus changes preserve the cooldown and never enable a disabled webhook.

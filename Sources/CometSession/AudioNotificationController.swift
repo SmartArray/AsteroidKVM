@@ -14,6 +14,8 @@ import UniformTypeIdentifiers
   @Published public private(set) var isPaused = false
   private var profile: ConnectionProfile?
   private var connected = false
+  private var viewerFocused = false
+  public var followsViewerFocus: Bool { profile?.audioNotifications?.onlyWhenViewerUnfocused == true }
   private var gate = AudioNotificationGate()
   private var generation = UUID()
   private var delivery: Task<Void, Never>?
@@ -41,6 +43,7 @@ import UniformTypeIdentifiers
   }
 
   public func configure(profile: ConnectionProfile, connected: Bool) {
+    let wasAutomatic = followsViewerFocus
     let identityChanged = self.profile?.agentIdentity != profile.agentIdentity || self.profile?.id != profile.id
     let justEnabled = self.profile?.audioNotifications?.enabled != true && profile.audioNotifications?.enabled == true
     let changed = self.profile?.audioNotifications != profile.audioNotifications
@@ -56,10 +59,22 @@ import UniformTypeIdentifiers
     if identityChanged || justEnabled { isPaused = false }
     self.profile = profile
     self.connected = connected
+    if followsViewerFocus { applyPaused(viewerFocused) }
+    else if wasAutomatic { applyPaused(false) }
     updateStatus()
   }
 
+  public func setViewerFocused(_ focused: Bool) {
+    viewerFocused = focused
+    if followsViewerFocus { applyPaused(focused) }
+  }
+
   public func setPaused(_ paused: Bool) {
+    guard !followsViewerFocus else { return }
+    applyPaused(paused)
+  }
+
+  private func applyPaused(_ paused: Bool) {
     guard paused != isPaused else { return }
     isPaused = paused
     if paused { cancelDelivery() }
@@ -122,7 +137,7 @@ import UniformTypeIdentifiers
       return
     }
     if preferences.endpointURL == nil { status = "Enter a valid webhook URL" }
-    else if isPaused { status = "Paused from status bar" }
+    else if isPaused { status = followsViewerFocus ? "Paused while viewer is focused" : "Paused from status bar" }
     else if !connected { status = "Waiting for connection" }
     else if !sending { status = "Listening for audio" }
   }

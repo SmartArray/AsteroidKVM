@@ -125,7 +125,20 @@ import MetalKit
     if let tabEventMonitor { NSEvent.removeMonitor(tabEventMonitor) }
     tabEventMonitor = nil
     cancelComposition()
+    Task { @MainActor [weak self] in self?.updateNotificationFocus() }
     guard let window else { return }
+    for (name, object) in [
+      (NSWindow.didBecomeKeyNotification, window as AnyObject?),
+      (NSWindow.didResignKeyNotification, window as AnyObject?),
+      (NSWindow.didMiniaturizeNotification, window as AnyObject?),
+      (NSWindow.didDeminiaturizeNotification, window as AnyObject?),
+      (NSApplication.didBecomeActiveNotification, nil),
+      (NSApplication.didResignActiveNotification, nil),
+    ] {
+      observers.append(NotificationCenter.default.addObserver(forName: name, object: object, queue: .main) {
+        [weak self] _ in Task { @MainActor in self?.updateNotificationFocus() }
+      })
+    }
     WindowTabbing.configure(window)
     // Capture Tab before AppKit/SwiftUI key-view navigation can consume it.
     tabEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
@@ -188,6 +201,13 @@ import MetalKit
           self?.cancelSelection()
         }
       })
+  }
+
+  // Viewer focus is independent of keyboard capture, so releasing input does not arm notifications.
+  private func updateNotificationFocus() {
+    guard !isTornDown else { return }
+    session.audioNotifications.setViewerFocused(
+      NSApp.isActive && window?.isKeyWindow == true && window?.isMiniaturized == false)
   }
 
   // Give the active display keyboard focus and use the session registry to release input on other connections.

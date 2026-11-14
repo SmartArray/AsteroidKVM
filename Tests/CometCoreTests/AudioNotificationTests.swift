@@ -18,6 +18,11 @@ final class AudioNotificationTests: XCTestCase {
     XCTAssertEqual(AudioNotificationPreferences().cooldown, 30)
     profile.audioOutputDeviceUID = "aggregate-output-uid"
     profile.audioNotifications = preferences()
+    let oldPreferences = try JSONDecoder().decode(AudioNotificationPreferences.self,
+      from: Data(#"{"enabled":true,"endpoint":"https://example.com/hook","alias":"","cooldownSeconds":30,"thresholdDecibels":-40}"#.utf8))
+    XCTAssertFalse(oldPreferences.onlyWhenViewerUnfocused)
+    XCTAssertTrue(oldPreferences.enabled)
+    profile.audioNotifications?.onlyWhenViewerUnfocused = true
     profile.audioNotifications?.alias = "Build Mac"
     XCTAssertEqual(try JSONDecoder().decode(ConnectionProfile.self, from: JSONEncoder().encode(profile)), profile)
   }
@@ -140,7 +145,7 @@ final class AudioNotificationTests: XCTestCase {
   }
 
   @MainActor func testDisableStopOrPauseDuringCaptureNeverSends() async throws {
-    for action in ["disable", "stop", "pause"] {
+    for action in ["disable", "stop", "pause", "focus"] {
       var count = 0
       var resume: CheckedContinuation<AudioWebhookPayload.Screenshot, Error>?
       let controller = AudioNotificationController(send: { _, _ in count += 1 }, capture: { _ in
@@ -148,6 +153,7 @@ final class AudioNotificationTests: XCTestCase {
       })
       var profile = ConnectionProfile(name: "Desk", host: "desk.local")
       profile.audioNotifications = preferences()
+      if action == "focus" { profile.audioNotifications?.onlyWhenViewerUnfocused = true }
       controller.configure(profile: profile, connected: true)
       controller.receive(level: 0.2, mailbox: try mailbox())
       try await waitUntil { resume != nil }
@@ -156,7 +162,8 @@ final class AudioNotificationTests: XCTestCase {
         controller.configure(profile: profile, connected: true)
       } else if action == "pause" {
         controller.setPaused(true)
-      } else { controller.stop() }
+      } else if action == "focus" { controller.setViewerFocused(true) }
+      else { controller.stop() }
       resume?.resume(returning: .init(jpeg: Data([1]), width: 1, height: 1))
       try await Task.sleep(for: .milliseconds(50))
       XCTAssertFalse(controller.sending)
@@ -215,6 +222,57 @@ final class AudioNotificationTests: XCTestCase {
     XCTAssertTrue(controller.isArmed, "Explicitly enabling notifications activates delivery")
     controller.receive(level: 0.2, mailbox: mailbox)
     XCTAssertFalse(controller.sending, "Re-enabling must also preserve the cooldown")
+  }
+
+  @MainActor func testAutomaticFocusPausesResumesAndPreservesCooldownAndIsolation() async throws {
+    var count = 0
+    var now = 0.0
+    let controller = AudioNotificationController(send: { _, _ in count += 1 }, clock: { now })
+    let other = AudioNotificationController(send: { _, _ in XCTFail("Unrelated session sent audio") })
+    var profile = ConnectionProfile(name: "Focus", host: "focus.local")
+    profile.audioNotifications = preferences()
+    profile.audioNotifications?.onlyWhenViewerUnfocused = true
+    // Applying the option must respect focus that was recorded before settings were saved.
+    controller.setViewerFocused(true)
+    controller.configure(profile: profile, connected: true)
+    other.configure(profile: profile, connected: true)
+    XCTAssertTrue(controller.isPaused)
+    XCTAssertEqual(controller.status, "Paused while viewer is focused")
+    XCTAssertTrue(other.isArmed)
+    controller.setPaused(false)
+    XCTAssertTrue(controller.isPaused, "Automatic mode owns the status-bar state")
+    let mailbox = try mailbox()
+    controller.receive(level: 0.2, mailbox: mailbox)
+    XCTAssertFalse(controller.sending)
+    controller.setViewerFocused(false)
+    XCTAssertTrue(controller.isArmed)
+    controller.receive(level: 0.2, mailbox: mailbox)
+    try await waitUntil { !controller.sending }
+    XCTAssertEqual(count, 1)
+    controller.setViewerFocused(true)
+    controller.stop()
+    controller.configure(profile: profile, connected: true)
+    XCTAssertTrue(controller.isPaused, "Reconnect must retain the viewer's focus")
+    controller.setViewerFocused(false)
+    now = 29
+    controller.receive(level: 0.2, mailbox: mailbox)
+    XCTAssertFalse(controller.sending)
+    now = 30
+    controller.receive(level: 0.2, mailbox: mailbox)
+    try await waitUntil { !controller.sending }
+    XCTAssertEqual(count, 2)
+    profile.audioNotifications?.enabled = false
+    controller.configure(profile: profile, connected: true)
+    controller.setViewerFocused(true)
+    controller.setViewerFocused(false)
+    XCTAssertFalse(controller.isArmed, "Focus changes must not enable a disabled webhook")
+    profile.audioNotifications?.enabled = true
+    profile.audioNotifications?.onlyWhenViewerUnfocused = false
+    controller.configure(profile: profile, connected: true)
+    controller.setPaused(true)
+    controller.setViewerFocused(true)
+    controller.setViewerFocused(false)
+    XCTAssertTrue(controller.isPaused, "Manual mode must ignore focus changes")
   }
 
   @MainActor func testFailureCooldownAndConnectionIsolation() async throws {

@@ -298,8 +298,10 @@ private struct AudioWebhookStatusControl: View {
       .buttonStyle(.plain)
       .font(.caption)
       .foregroundStyle(controller.isArmed ? Color.blue : Color.secondary)
-      .disabled(session.profile.audioNotifications?.endpointURL == nil)
-      .help(controller.isPaused
+      .disabled(session.profile.audioNotifications?.endpointURL == nil || controller.followsViewerFocus)
+      .help(controller.followsViewerFocus
+        ? "Automatic: enabled when this KVM viewer is unfocused; paused while focused"
+        : controller.isPaused
         ? "Resume audio notifications to the configured webhook"
         : "Pause audio notifications to the configured webhook")
       .accessibilityValue(controller.isArmed ? "Active" : controller.isPaused ? "Paused" : "Unavailable")

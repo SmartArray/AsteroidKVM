@@ -2,11 +2,27 @@ import Foundation
 
 public struct AudioNotificationPreferences: Codable, Equatable, Sendable {
   public var enabled = false
+  public var onlyWhenViewerUnfocused = false
   public var endpoint = ""
   public var alias = ""
   public var cooldownSeconds = 30.0
   public var thresholdDecibels = -40.0
   public init() {}
+
+  private enum CodingKeys: String, CodingKey {
+    case enabled, onlyWhenViewerUnfocused, endpoint, alias, cooldownSeconds, thresholdDecibels
+  }
+
+  public init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    enabled = try values.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+    onlyWhenViewerUnfocused = try values.decodeIfPresent(Bool.self, forKey: .onlyWhenViewerUnfocused) ?? false
+    endpoint = try values.decodeIfPresent(String.self, forKey: .endpoint) ?? ""
+    alias = try values.decodeIfPresent(String.self, forKey: .alias) ?? ""
+    cooldownSeconds = try values.decodeIfPresent(Double.self, forKey: .cooldownSeconds) ?? 30
+    thresholdDecibels = try values.decodeIfPresent(Double.self, forKey: .thresholdDecibels) ?? -40
+  }
+
 
   public var cooldown: TimeInterval {
     cooldownSeconds.isFinite ? min(86400, max(1, cooldownSeconds)) : 30

@@ -50,8 +50,13 @@ struct AudioNotificationSettingsView: View {
     VStack(alignment: .leading, spacing: 16) {
       Toggle("Notify when audio is detected", isOn: $draft.enabled)
         .accessibilityIdentifier("audio-notifications-enabled")
-      Text("Send a notification and a screenshot of this KVM to your webhook, including while playback is muted. The KVM must be connected with live video. Use the blue Audio Notification Webhook button in the status bar to pause or resume delivery.")
+      Text("Send a notification and a screenshot of this KVM to your webhook, including while playback is muted. The KVM must be connected with live video. When automatic mode is off, use the Audio Notification Webhook button in the status bar to pause or resume delivery.")
         .foregroundStyle(.secondary)
+      Toggle("Automatically enable when viewer loses focus", isOn: $draft.onlyWhenViewerUnfocused)
+        .disabled(!draft.enabled)
+        .accessibilityIdentifier("audio-notifications-unfocused")
+      Text("Automatically pause while this KVM window is focused and resume when you switch to another window or app, or minimize it. The status-bar button shows the automatic state. Notifications must be enabled above.")
+        .font(.caption).foregroundStyle(.secondary)
       VStack(alignment: .leading, spacing: 6) {
         Text("Webhook URL")
         TextField("Webhook URL", text: $draft.endpoint, prompt: Text("https://example.com/webhook"))
