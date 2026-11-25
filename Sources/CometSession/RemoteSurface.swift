@@ -23,11 +23,12 @@ import MetalKit
   private var selectionStart: CGPoint?
   private var selectionGeometry: DisplayGeometry?
   private var observers: [NSObjectProtocol] = []
-  private var tabEventMonitor: Any?
+  private var keyboardEventMonitor: Any?
 
-  // Native popovers and sheets retain local focus; automatic capture occurs only on activation or connection.
+  // Native popovers and sheets retain local focus until dismissed; paste completion restores remote input.
   public var allowsAutomaticCapture = true
   private var wasSessionActive = false
+  private var wasPasting = false
 
   // A dismantled surface must reject queued focus work and input while deferred session cleanup runs.
   private var isTornDown = false
@@ -122,8 +123,8 @@ import MetalKit
     super.viewDidMoveToWindow()
     observers.forEach(NotificationCenter.default.removeObserver)
     observers.removeAll()
-    if let tabEventMonitor { NSEvent.removeMonitor(tabEventMonitor) }
-    tabEventMonitor = nil
+    if let keyboardEventMonitor { NSEvent.removeMonitor(keyboardEventMonitor) }
+    keyboardEventMonitor = nil
     cancelComposition()
     Task { @MainActor [weak self] in self?.updateNotificationFocus() }
     guard let window else { return }
@@ -140,10 +141,10 @@ import MetalKit
       })
     }
     WindowTabbing.configure(window)
-    // Capture Tab before AppKit/SwiftUI key-view navigation can consume it.
-    tabEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
+    // Route captured keys before AppKit dispatches shortcuts and navigates between controls.
+    keyboardEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
       guard let self else { return event }
-      return routeTabEvent(event)
+      return routeKeyboardEvent(event)
     }
     window.acceptsMouseMovedEvents = true
     window.collectionBehavior.insert(.fullScreenPrimary)
@@ -156,9 +157,10 @@ import MetalKit
       window.delegate = delegate
     }
 
-    // React to both window switching and returning to the app with its display window already selected.
+    // A short paste can finish before its preview sheet closes; retry focus after dismissal too.
     for (name, object) in [
       (NSWindow.didBecomeKeyNotification, window as AnyObject?),
+      (NSWindow.didEndSheetNotification, window as AnyObject?),
       (NSApplication.didBecomeActiveNotification, nil),
     ] {
       observers.append(
@@ -276,8 +278,8 @@ import MetalKit
     metalView?.delegate = nil
     observers.forEach(NotificationCenter.default.removeObserver)
     observers.removeAll()
-    if let tabEventMonitor { NSEvent.removeMonitor(tabEventMonitor) }
-    tabEventMonitor = nil
+    if let keyboardEventMonitor { NSEvent.removeMonitor(keyboardEventMonitor) }
+    keyboardEventMonitor = nil
 
     // Retain the session, not the disappearing view, until capture and OCR can publish outside graph destruction.
     Task { @MainActor [session] in
@@ -289,8 +291,12 @@ import MetalKit
   public func synchronize() {
     // Defer capture until SwiftUI finishes updating; repeated video/state updates must not undo an explicit release.
     let becameActive = session.active && !wasSessionActive
+    let finishedPaste = wasPasting && !session.pasting
     wasSessionActive = session.active
-    if becameActive { Task { @MainActor [weak self] in self?.focusRemoteDisplay() } }
+    wasPasting = session.pasting
+    if becameActive || finishedPaste {
+      Task { @MainActor [weak self] in self?.focusRemoteDisplay() }
+    }
 
     // Clear unfinished composition whenever the active input mode no longer accepts it.
     if !canSend || !session.input.nativeLayout || !session.input.mappedTextSupported {
@@ -483,10 +489,14 @@ import MetalKit
     ])
   }
 
-  // Return nil only after forwarding a captured Tab; all other windows and local editors keep their events.
-  func routeTabEvent(_ event: NSEvent) -> NSEvent? {
-    guard event.keyCode == 48, !WindowTabbing.enabled,
-      event.window === window, canSend, session.profile.keyboardEnabled else { return event }
+  // AppKit can skip responder keyUp for Command shortcuts. Balance forwarded presses before window dispatch.
+  func routeKeyboardEvent(_ event: NSEvent) -> NSEvent? {
+    guard event.window === window, canSend, session.profile.keyboardEnabled else { return event }
+    if event.type == .keyUp, let code = PhysicalKey.codes[event.keyCode], session.input.isHeld(code) {
+      keyUp(with: event)
+      return nil
+    }
+    guard event.keyCode == 48, !WindowTabbing.enabled else { return event }
     if event.type == .keyDown { keyDown(with: event) }
     else if event.type == .keyUp { keyUp(with: event) }
     else { return event }

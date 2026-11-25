@@ -6,6 +6,7 @@ from email.policy import default
 import hashlib
 import itertools
 import json
+import os
 import struct
 import threading
 import time
@@ -194,7 +195,8 @@ class Handler(BaseHTTPRequestHandler):
                     "token": self.token(),
                 }
             )
-            time.sleep(0.04)
+            # UI tests exercise completion both before and after the preview's dismissal animation.
+            time.sleep(float(os.environ.get("ASTEROID_TEST_PASTE_DELAY", "0.04")))
             return self.reply({})
         if path in ["/api/ws", "/janus/ws"]:
             return self.websocket(janus=path == "/janus/ws")

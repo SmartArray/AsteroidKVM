@@ -89,10 +89,16 @@ final class CometUITests: XCTestCase {
     XCTAssertEqual(sent.first?["text"] as? String, "` error`  ^  ´ ")
     XCTAssertEqual(sent.first?["slow"] as? [String], ["false"])
     XCTAssertEqual(clipboard.string(forType: .string), "`error` ^ ´")
-    // This protocol fixture has no video geometry for click-to-capture after a paste.
-    // Reopen from the toolbar to verify persisted choices independently of video rendering.
-    keyboard.click()
-    app.buttons["Paste Clipboard Text"].firstMatch.click()
+    // Paste completion must restore keyboard capture without a click or window activation.
+    let capture = window.staticTexts["capture-status"].firstMatch
+    let captured = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+      capture.exists && (capture.value as? String ?? capture.label).hasPrefix("Remote input")
+    }, object: capture)
+    guard XCTWaiter.wait(for: [captured], timeout: 10) == .completed else {
+      XCTFail("Remote input was not restored after pasting")
+      return
+    }
+    app.typeKey("v", modifierFlags: .command)
     XCTAssertTrue(submit.waitForExistence(timeout: 5))
     XCTAssertEqual(String(describing: fast.value ?? ""), "1")
     app.typeKey(.escape, modifierFlags: [])

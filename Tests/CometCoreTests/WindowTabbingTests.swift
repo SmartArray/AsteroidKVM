@@ -29,17 +29,17 @@ import XCTest
     defer { surface.teardown(); window.close() }
     XCTAssertEqual(window.tabbingMode, .disallowed)
 
-    func event(_ type: NSEvent.EventType, flags: NSEvent.ModifierFlags = []) throws -> NSEvent {
+    func event(_ type: NSEvent.EventType, flags: NSEvent.ModifierFlags = [], keyCode: UInt16 = 48) throws -> NSEvent {
       try XCTUnwrap(NSEvent.keyEvent(with: type, location: .zero, modifierFlags: flags,
         timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "\t",
-        charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: 48))
+        charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: keyCode))
     }
     for native in [false, true] {
       session.input.nativeLayout = native
       session.input.mappedTextSupported = native
       for flags: NSEvent.ModifierFlags in [[], .shift] {
-        XCTAssertNil(surface.routeTabEvent(try event(.keyDown, flags: flags)))
-        XCTAssertNil(surface.routeTabEvent(try event(.keyUp, flags: flags)))
+        XCTAssertNil(surface.routeKeyboardEvent(try event(.keyDown, flags: flags)))
+        XCTAssertNil(surface.routeKeyboardEvent(try event(.keyUp, flags: flags)))
         surface.flagsChanged(with: try event(.flagsChanged))
       }
     }
@@ -51,12 +51,12 @@ import XCTest
 
     // Local editors and released surfaces must never lose their Tab events.
     session.captured = false
-    XCTAssertNotNil(surface.routeTabEvent(try event(.keyDown)))
+    XCTAssertNotNil(surface.routeKeyboardEvent(try event(.keyDown)))
     session.captured = true
     let field = NSTextView(frame: .zero)
     surface.addSubview(field)
     window.makeFirstResponder(field)
-    XCTAssertNotNil(surface.routeTabEvent(try event(.keyDown)))
+    XCTAssertNotNil(surface.routeKeyboardEvent(try event(.keyDown)))
     window.makeFirstResponder(surface)
     session.captured = true
 
@@ -67,13 +67,29 @@ import XCTest
       window.makeFirstResponder(surface)
       session.captured = true
       let down = try event(.keyDown, flags: flags)
-      XCTAssertNotNil(surface.routeTabEvent(down))
+      XCTAssertNotNil(surface.routeKeyboardEvent(down))
       surface.keyDown(with: down)
       surface.keyUp(with: try event(.keyUp, flags: flags))
     }
     await session.output?.flush()
     let afterLocalTabs = await recorder.events
     XCTAssertEqual(afterLocalTabs, forwarded)
+
+    // macOS may dispatch a Command shortcut through performKeyEquivalent and skip responder keyUp.
+    window.makeFirstResponder(surface)
+    session.captured = true
+    for releaseCommandFirst in [false, true] {
+      XCTAssertTrue(surface.performKeyEquivalent(with: try event(.keyDown, flags: .command, keyCode: 0)))
+      if releaseCommandFirst { surface.flagsChanged(with: try event(.flagsChanged, keyCode: 55)) }
+      XCTAssertNil(surface.routeKeyboardEvent(try event(.keyUp, flags: releaseCommandFirst ? [] : .command, keyCode: 0)))
+      if !releaseCommandFirst { surface.flagsChanged(with: try event(.flagsChanged, keyCode: 55)) }
+    }
+    await session.output?.flush()
+    let shortcuts = await recorder.events.dropFirst(forwarded.count)
+    XCTAssertEqual(Array(shortcuts), [
+      .key("MetaLeft", true), .key("KeyA", true), .key("KeyA", false), .key("MetaLeft", false),
+      .key("MetaLeft", true), .key("KeyA", true), .key("MetaLeft", false), .key("KeyA", false)
+    ])
 
     defaults.set(false, forKey: WindowTabbing.preferenceKey)
     WindowTabbing.applyToOpenWindows()

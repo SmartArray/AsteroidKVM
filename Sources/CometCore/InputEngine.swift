@@ -134,6 +134,8 @@ public struct InputEngine: Sendable {
     return result
   }
 
+  public func isHeld(_ code: String) -> Bool { held.contains(code) }
+
   // Consume translated releases and balance only keys whose physical presses were forwarded.
   public mutating func keyUp(code: String) -> [HIDEvent] {
     if translated.remove(code) != nil { return [] }
