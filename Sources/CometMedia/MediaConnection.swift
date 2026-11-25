@@ -6,12 +6,17 @@ import Foundation
   var onError: ((Error) -> Void)? { get set }
   var onConnected: (() -> Void)? { get set }
   var onFeatures: ((JSONValue) -> Void)? { get set }
+  var onAudioLevel: ((Double) -> Void)? { get set }
+  var onAudioOutputMessage: ((String?) -> Void)? { get set }
 
   // Start this media connection using explicit microphone and playback preferences.
   func start(microphone: Bool, muted: Bool) async throws
 
   // Change local playback without altering the appliance’s remote USB audio function.
   func setMuted(_ muted: Bool)
+  func setAudioOutputDevice(_ uid: String?)
+  func setTranscriptionSink(_ sink: ConnectionTranscriptionSink?)
+  func setAudioRecordingSink(_ sink: AudioRecordingSink?)
 
   // Cancel owned asynchronous work and release resources without affecting another session.
   func stop()

@@ -4,6 +4,247 @@ import Carbon
 import XCTest
 
 final class CometUITests: XCTestCase {
+  @MainActor func testPastePreviewCancelLayoutOptionsAndReturnSubmission() async throws {
+    continueAfterFailure = false
+    // UI runners cannot bind a local server socket; scripts/test-paste-preview.py owns the fixture.
+    guard let port = ProcessInfo.processInfo.environment["ASTEROID_PASTE_FIXTURE_PORT"].flatMap(Int.init) else {
+      throw XCTSkip("Run python3 scripts/test-paste-preview.py to provide the local protocol fixture")
+    }
+    var login = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/api/auth/login")!)
+    login.httpMethod = "POST"
+    login.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+    login.httpBody = Data("user=admin&passwd=test-password".utf8)
+    let (data, _) = try await URLSession.shared.data(for: login)
+    let response = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let token = try XCTUnwrap((response["result"] as? [String: Any])?["token"] as? String)
+    let credentialsPath = try XCTUnwrap(ProcessInfo.processInfo.environment["ASTEROID_PASTE_SESSION_FILE"])
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-testing", "--session-file", credentialsPath, "-ApplePersistenceIgnoreState", "YES"]
+    app.launch()
+    defer { app.terminate() }
+    app.menuBars.menuBarItems["File"].click()
+    app.menuItems["Connections…"].click()
+    let window = app.windows["Comet Test Session"]
+    let clipboard = NSPasteboard.general
+    let originals: [NSPasteboardItem] = clipboard.pasteboardItems?.map { item in
+      let copy = NSPasteboardItem()
+      for type in item.types { if let data = item.data(forType: type) { copy.setData(data, forType: type) } }
+      return copy
+    } ?? []
+    defer { clipboard.clearContents(); clipboard.writeObjects(originals) }
+    clipboard.clearContents()
+    clipboard.setString("`error` ^ ´", forType: .string)
+    let display = window.descendants(matching: .any).matching(identifier: "remote-display").firstMatch
+    guard display.waitForExistence(timeout: 10) else {
+      XCTFail("Remote fixture window did not open: \(app.windows.debugDescription)")
+      return
+    }
+    let keyboard = window.buttons["keyboard-toolbar"].firstMatch
+    keyboard.click()
+    let paste = app.buttons["Paste Clipboard Text"].firstMatch
+    XCTAssertTrue(paste.waitForExistence(timeout: 5))
+    let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in paste.isEnabled }, object: paste)
+    XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+    // The toolbar entry opens the same confirmation and closes its own popover.
+    paste.click()
+    let submit = app.buttons["paste-preview-submit"].firstMatch
+    XCTAssertTrue(submit.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["paste-preview-text"].firstMatch.exists)
+    XCTAssertFalse(app.textViews["paste-preview-text"].exists)
+    app.buttons["paste-preview-cancel"].firstMatch.click()
+    XCTAssertTrue(submit.waitForNonExistence(timeout: 5))
+
+    func pastes() async throws -> [[String: Any]] {
+      var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/test/state")!)
+      request.setValue(token, forHTTPHeaderField: "Token")
+      let (data, _) = try await URLSession.shared.data(for: request)
+      let body = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+      return try XCTUnwrap((body["result"] as? [String: Any])?["pastes"] as? [[String: Any]])
+    }
+    let cancelled = try await pastes()
+    XCTAssertTrue(cancelled.isEmpty)
+    display.click()
+    app.typeKey("v", modifierFlags: .command)
+    XCTAssertTrue(submit.waitForExistence(timeout: 5))
+    let layout = app.popUpButtons["paste-preview-layout"].firstMatch
+    layout.click()
+    app.menuItems["DE"].firstMatch.click()
+    XCTAssertEqual(String(describing: app.checkBoxes["paste-preview-dead-keys"].firstMatch.value ?? ""), "1")
+    let fast = app.checkBoxes["paste-preview-fast-mode"].firstMatch
+    XCTAssertEqual(String(describing: fast.value ?? ""), "0")
+    fast.click()
+    let shot = XCTAttachment(screenshot: window.screenshot())
+    shot.name = "Read-only paste preview with target layout and safety options"
+    shot.lifetime = .keepAlways
+    add(shot)
+    app.typeKey(.return, modifierFlags: [])
+    XCTAssertTrue(submit.waitForNonExistence(timeout: 5))
+    var sent: [[String: Any]] = []
+    for _ in 0..<50 {
+      sent = try await pastes()
+      if !sent.isEmpty { break }
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    XCTAssertEqual(sent.count, 1)
+    XCTAssertEqual(sent.first?["text"] as? String, "` error`  ^  ´ ")
+    XCTAssertEqual(sent.first?["slow"] as? [String], ["false"])
+    XCTAssertEqual(clipboard.string(forType: .string), "`error` ^ ´")
+    // Paste completion must restore keyboard capture without a click or window activation.
+    let capture = window.staticTexts["capture-status"].firstMatch
+    let captured = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+      capture.exists && (capture.value as? String ?? capture.label).hasPrefix("Remote input")
+    }, object: capture)
+    guard XCTWaiter.wait(for: [captured], timeout: 10) == .completed else {
+      XCTFail("Remote input was not restored after pasting")
+      return
+    }
+    app.typeKey("v", modifierFlags: .command)
+    XCTAssertTrue(submit.waitForExistence(timeout: 5))
+    XCTAssertEqual(String(describing: fast.value ?? ""), "1")
+    app.typeKey(.escape, modifierFlags: [])
+    XCTAssertTrue(submit.waitForNonExistence(timeout: 5))
+  }
+
+  @MainActor func testAudioRecordingStartStopAndSavedFilename() async throws {
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent()
+    let server = Process()
+    server.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    server.arguments = ["python3", root.appendingPathComponent("scripts/mock-comet.py").path]
+    let pipe = Pipe()
+    server.standardOutput = pipe
+    server.standardError = FileHandle.nullDevice
+    try server.run()
+    defer { server.terminate(); server.waitUntilExit() }
+    let port = try XCTUnwrap(Int(String(decoding: pipe.fileHandleForReading.availableData, as: UTF8.self)
+      .trimmingCharacters(in: .whitespacesAndNewlines)))
+    var login = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/api/auth/login")!)
+    login.httpMethod = "POST"
+    login.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+    login.httpBody = Data("user=admin&passwd=test-password".utf8)
+    let (data, _) = try await URLSession.shared.data(for: login)
+    let response = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let token = try XCTUnwrap((response["result"] as? [String: Any])?["token"] as? String)
+    let credentials = FileManager.default.temporaryDirectory.appendingPathComponent("recording-ui-\(UUID()).json")
+    try JSONSerialization.data(withJSONObject: ["host": "http://127.0.0.1:\(port)", "username": "admin", "token": token])
+      .write(to: credentials)
+    defer { try? FileManager.default.removeItem(at: credentials) }
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-testing", "--session-file", credentials.path, "-ApplePersistenceIgnoreState", "YES"]
+    app.launch()
+    defer { app.terminate() }
+    let window = app.windows["Comet Test Session"]
+    let record = window.buttons["audio-recording-toggle"].firstMatch
+    XCTAssertTrue(record.waitForExistence(timeout: 10))
+    let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in record.isEnabled }, object: record)
+    XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+    XCTAssertEqual(record.value as? String, "Stopped")
+    record.click()
+    XCTAssertEqual(record.value as? String, "Recording")
+    XCTAssertEqual(record.label, "Stop Recording")
+    XCTAssertTrue(window.buttons["audio-recording-status"].waitForExistence(timeout: 5))
+    let attachment = XCTAttachment(screenshot: window.screenshot())
+    attachment.name = "Audio recording toolbar and elapsed-time status"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    record.click()
+    XCTAssertTrue(window.buttons["audio-recording-status"].waitForNonExistence(timeout: 5))
+    window.buttons["audio-toolbar"].firstMatch.click()
+    let filename = app.staticTexts["audio-recording-filename"].firstMatch
+    XCTAssertTrue(filename.waitForExistence(timeout: 5))
+    let name = filename.value as? String ?? filename.label
+    XCTAssertTrue(name.hasPrefix("Comet Test Session-"))
+    XCTAssertTrue(name.hasSuffix(".wav"))
+    XCTAssertTrue(app.buttons["audio-recording-reveal"].firstMatch.exists)
+    XCTAssertFalse(app.staticTexts["audio-recording-error"].exists)
+    // This fixture receives no PCM; native audio content is covered by the generated-tone protocol test.
+    let saved = FileManager.default.temporaryDirectory.appendingPathComponent("AsteroidKVM-UITests/Recordings")
+      .appendingPathComponent(name)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: saved.path))
+    try FileManager.default.removeItem(at: saved)
+  }
+
+  @MainActor func testAudioToolbarAndNotificationSettings() throws {
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-testing", "-ApplePersistenceIgnoreState", "YES"]
+    app.launch()
+    defer { app.terminate() }
+    app.menuBars.menuBarItems["File"].click()
+    app.menuItems["Connections…"].click()
+    XCTAssertTrue(app.buttons["add-connection"].waitForExistence(timeout: 10))
+    app.buttons["add-connection"].click()
+    app.textFields["profile-name"].click()
+    app.textFields["profile-name"].typeText("Audio UI Fixture")
+    app.textFields["profile-host"].click()
+    app.textFields["profile-host"].typeText("127.0.0.1")
+    app.buttons["Save"].click()
+    app.buttons["connect-Audio UI Fixture"].click()
+    let session = app.windows["Audio UI Fixture"]
+    let webhook = session.buttons["audio-webhook-toggle"]
+    let audio = app.buttons["audio-toolbar"].firstMatch
+    XCTAssertTrue(audio.waitForExistence(timeout: 10))
+    XCTAssertFalse(webhook.exists, "Webhook controls stay hidden until notifications are enabled")
+    audio.click()
+    let picker = app.popUpButtons["audio-output-device"].firstMatch
+    XCTAssertTrue(picker.waitForExistence(timeout: 5))
+    XCTAssertEqual(picker.value as? String, "System Default")
+    app.buttons["Notifications…"].click()
+    let cooldown = app.textFields["audio-webhook-cooldown"]
+    XCTAssertTrue(cooldown.waitForExistence(timeout: 5))
+    XCTAssertEqual(cooldown.value as? String, "30")
+    app.checkBoxes["audio-notifications-enabled"].click()
+    let save = app.buttons["audio-notifications-save"]
+    XCTAssertFalse(save.isEnabled)
+    let url = app.textFields["audio-webhook-url"]
+    url.click()
+    url.typeText("https://example.invalid/webhook")
+    let alias = app.textFields["audio-webhook-alias"]
+    alias.click()
+    alias.typeText("Build Mac")
+    cooldown.click()
+    cooldown.typeKey("a", modifierFlags: .command)
+    cooldown.typeText("45")
+    alias.click()
+    XCTAssertTrue(save.isEnabled)
+    save.click()
+    XCTAssertTrue(app.staticTexts["Waiting for connection"].waitForExistence(timeout: 5))
+    XCTAssertTrue(webhook.waitForExistence(timeout: 5))
+    XCTAssertEqual(webhook.value as? String, "Active")
+    let attachment = XCTAttachment(screenshot: app.windows["AsteroidKVM Settings"].screenshot())
+    attachment.name = "Audio webhook notification settings"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    app.staticTexts["Audio"].firstMatch.click()
+    XCTAssertTrue(picker.waitForExistence(timeout: 5))
+    app.staticTexts["Notifications"].firstMatch.click()
+    XCTAssertTrue(cooldown.waitForExistence(timeout: 5))
+    XCTAssertEqual(cooldown.value as? String, "45")
+    XCTAssertEqual(alias.value as? String, "Build Mac")
+    XCTAssertEqual(url.value as? String, "https://example.invalid/webhook")
+
+    app.typeKey("w", modifierFlags: .command)
+    webhook.click()
+    XCTAssertEqual(webhook.value as? String, "Paused")
+    XCTAssertEqual(webhook.label, "Audio Notification Webhook paused")
+    webhook.click()
+    XCTAssertEqual(webhook.value as? String, "Active")
+    let statusAttachment = XCTAttachment(screenshot: session.screenshot())
+    statusAttachment.name = "Blue webhook control in the bottom status bar"
+    statusAttachment.lifetime = .keepAlways
+    add(statusAttachment)
+    webhook.click()
+    app.typeKey(",", modifierFlags: .command)
+    XCTAssertTrue(app.staticTexts["Paused from status bar"].waitForExistence(timeout: 5))
+    XCTAssertEqual(url.value as? String, "https://example.invalid/webhook")
+    app.checkBoxes["audio-notifications-enabled"].click()
+    save.click()
+    XCTAssertTrue(webhook.waitForNonExistence(timeout: 5))
+    app.checkBoxes["audio-notifications-enabled"].click()
+    save.click()
+    XCTAssertTrue(webhook.waitForExistence(timeout: 5))
+    XCTAssertEqual(webhook.value as? String, "Active")
+  }
+
   // Verify local authentication submission and the complete MCP setup flow without a real KVM.
   @MainActor func testPasswordReturnAndMCPSettingsFlow() throws {
     let app = XCUIApplication()
@@ -456,8 +697,9 @@ final class CometUITests: XCTestCase {
     XCTAssertFalse(preview.exists, "Losing display focus must discard the unfinished accent")
   }
 
-  // Drive the shipped chat against live Comet video and a deterministic read-only Codex protocol fixture.
+  // Historical coverage of the obsolete built-in agent; MCP is the supported automation interface.
   @MainActor func testAgentChatPauseResumeWithLiveScreen() throws {
+    try XCTSkipIf(true, "The Experimental Coding Agent is obsolete and hidden; use the MCP server.")
     guard let path = ProcessInfo.processInfo.environment["COMET_UI_SESSION_FILE"] else {
       throw XCTSkip(
         "Enable the hardware UI suite to verify agent screen observation and native controls.")
@@ -660,6 +902,8 @@ final class CometUITests: XCTestCase {
     XCTAssertTrue(transcription.waitForExistence(timeout: 5))
     transcription.click()
     XCTAssertTrue(app.staticTexts["Connect the remote display before transcribing"].waitForExistence(timeout: 5))
+    XCTAssertTrue(transcription.exists, "Startup feedback must stay visible in the popover")
+    XCTAssertTrue(transcription.isHittable, "The checkbox must remain interactive after a failed start")
     app.buttons["transcription-history-link"].firstMatch.click()
     XCTAssertTrue(app.staticTexts["transcript-empty"].waitForExistence(timeout: 5))
     app.buttons["transcript-clear"].firstMatch.click()

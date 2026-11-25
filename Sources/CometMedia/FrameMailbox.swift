@@ -157,7 +157,7 @@ public final class FrameMailbox: NSObject, RTCVideoRenderer, @unchecked Sendable
       defer { self.lock.unlock() }
       self.metrics.copied += 1
       self.metrics.texturePath = "I420 → NV12 CPU copy → Metal"
-      if self.latest?.timestamp == frame.timestamp {
+      if self.latest?.id == frame.id {
         self.latest = copy
         self.consumedID = nil
       }

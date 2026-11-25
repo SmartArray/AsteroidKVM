@@ -132,7 +132,7 @@ final class MCPTests: XCTestCase {
     defer { server.disable() }
     try await waitForListener(server)
     let events = EventRecorder()
-    session.output = HIDOutput(send: { await events.add($0.type) }, paste: { _, _ in })
+    session.output = HIDOutput(send: { await events.add($0.type) }, paste: { _, _, _ in })
     let client = try await initialize(server, token)
     let result = try await call(server, token, client, "screen.elements")
     XCTAssertFalse(result["content"].array.contains { $0["type"].string == "image" })
@@ -169,7 +169,7 @@ final class MCPTests: XCTestCase {
     defer { server.disable() }
     let events = EventRecorder()
     session.output = HIDOutput(
-      send: { await events.add($0.type + ":" + $0.payload["text"].text) }, paste: { _, _ in })
+      send: { await events.add($0.type + ":" + $0.payload["text"].text) }, paste: { _, _, _ in })
     session.output?.nativeTypingIntervalMilliseconds = 0
     let client = try await initialize(server, token)
     for (name, extra) in [
@@ -290,7 +290,7 @@ final class MCPTests: XCTestCase {
       send: {
         await events.add(
           $0.type + ":" + $0.payload["key"].text + ":" + String($0.payload["state"].bool ?? false))
-      }, paste: { _, _ in })
+      }, paste: { _, _, _ in })
     let client = try await initialize(server, token)
     let other = try await initialize(server, token)
     let id = try await screen(server, token, client)
@@ -336,7 +336,7 @@ final class MCPTests: XCTestCase {
     let events = EventRecorder()
     session.output = HIDOutput(
       send: { await events.add($0.type + ":" + String($0.payload["state"].bool ?? false)) },
-      paste: { _, _ in })
+      paste: { _, _, _ in })
     let client = try await initialize(server, token)
     let id = try await screen(server, token, client)
     let args: [String: JSONValue] = [
@@ -364,7 +364,7 @@ final class MCPTests: XCTestCase {
   @MainActor func testStaleGeometryManualTakeoverAndIdentityRevocation() async throws {
     let (session, server, token) = fixture()
     defer { server.disable() }
-    session.output = HIDOutput(send: { _ in }, paste: { _, _ in })
+    session.output = HIDOutput(send: { _ in }, paste: { _, _, _ in })
     let client = try await initialize(server, token)
     let id = try await screen(server, token, client)
     frame(session, width: 640)
@@ -390,7 +390,7 @@ final class MCPTests: XCTestCase {
   @MainActor func testManualInputPauseCanResumeWithoutClearingOtherStopReasons() async throws {
     let (session, server, token) = fixture()
     defer { server.disable() }
-    session.output = HIDOutput(send: { _ in }, paste: { _, _ in })
+    session.output = HIDOutput(send: { _ in }, paste: { _, _, _ in })
     let client = try await initialize(server, token)
 
     session.capture()
@@ -515,7 +515,7 @@ final class MCPTests: XCTestCase {
     let (session, server, token) = fixture(automaticLock: true)
     defer { server.disable() }
     try await waitForListener(server)
-    session.output = HIDOutput(send: { _ in }, paste: { _, _ in })
+    session.output = HIDOutput(send: { _ in }, paste: { _, _, _ in })
     let client = try await initialize(server, token)
     let id = try await screen(server, token, client)
     XCTAssertFalse(session.mcpInputLocked, "Observation alone does not lock input")
@@ -574,7 +574,7 @@ final class MCPTests: XCTestCase {
     let (session, server, token) = fixture(automaticLock: false)
     defer { server.disable() }
     try await waitForListener(server)
-    session.output = HIDOutput(send: { _ in }, paste: { _, _ in })
+    session.output = HIDOutput(send: { _ in }, paste: { _, _, _ in })
     let client = try await initialize(server, token)
     let id = try await screen(server, token, client)
     _ = try await call(server, token, client, "click", [
@@ -598,7 +598,7 @@ final class MCPTests: XCTestCase {
     defer { server.disable() }
     try await waitForListener(server)
     let events = EventRecorder()
-    session.output = HIDOutput(send: { await events.add($0.type) }, paste: { _, _ in
+    session.output = HIDOutput(send: { await events.add($0.type) }, paste: { _, _, _ in
       await events.add("paste")
     })
     let client = try await initialize(server, token)
@@ -655,7 +655,7 @@ final class MCPTests: XCTestCase {
     let events = EventRecorder()
     session.output = HIDOutput(send: {
       await events.add($0.type + ":" + String($0.payload["state"].bool ?? false))
-    }, paste: { _, _ in })
+    }, paste: { _, _, _ in })
     let client = try await initialize(server, token)
     let id = try await screen(server, token, client)
     let task = Task {
@@ -690,7 +690,7 @@ final class MCPTests: XCTestCase {
     let events = EventRecorder()
     session.output = HIDOutput(send: {
       await events.add($0.type + ":" + String($0.payload["state"].bool ?? false))
-    }, paste: { _, _ in })
+    }, paste: { _, _, _ in })
     session.pasting = true
     session.setMCPInputLocked(true)
     XCTAssertFalse(session.mcpInputLocked)

@@ -9,7 +9,7 @@ case "${1:-local}" in
   --unit)
     python3 -m unittest discover -s Tests/LayoutTypingPatchTests
     # Keep hosted CI deterministic: these suites use local fixtures and never require GPU, UI, or account access.
-    swift test --filter 'CometCoreTests\.(ParserInstallerTests|PerceptionTests|MCPTests|InputTests|GeometryAndStorageTests|AgentTests|SecurityTests|AgentSecurityTests|TransportSecurityTests|EDIDTests|TranscriptionTests)/' \
+    swift test --filter 'CometCoreTests\.(AudioNotificationTests|AudioRecordingTests|ParserInstallerTests|PerceptionTests|MCPTests|InputTests|GeometryAndStorageTests|AgentTests|SecurityTests|AgentSecurityTests|TransportSecurityTests|EDIDTests|TranscriptionTests)/' \
       --skip 'AgentTests/testInstalledCodexVisionAndDynamicToolEndToEnd'
     ;;
   --perception)

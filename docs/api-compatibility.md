@@ -50,7 +50,7 @@ H.264 is supported by the pinned native decoder. H.265 is visibly unavailable be
 - [GLKVM encoder validators](https://github.com/gl-inet/glkvm/blob/3e8dd23c4bd638a4650433664cc3b0f3b4d29395/kvmd/validators/kvm.py)
 - [GLKVM HID timing implementation](https://github.com/gl-inet/glkvm/blob/3e8dd23c4bd638a4650433664cc3b0f3b4d29395/kvmd/plugins/hid/__init__.py)
 - [GLKVM appliance reboot implementation](https://github.com/gl-inet/glkvm/blob/3e8dd23c4bd638a4650433664cc3b0f3b4d29395/kvmd/apps/kvmd/api/upgrade.py)
-- [Native WebRTC distribution](https://github.com/stasel/WebRTC/tree/153.0.0)
+- [Native WebRTC distribution](https://github.com/webrtc-sdk/Specs/releases/tag/150.7871.01)
 
 The companion mapped-text extension is specified in [spec.md](spec.md); it is absent from the inspected public HID source and was confirmed separately through the live capability and acknowledgment contract. No device credentials, private configuration dump, or public frontend bundle is included in this repository.
 

@@ -111,15 +111,10 @@ import CometMedia
     profile: ConnectionProfile, password: String? = nil, token: String? = nil
   ) -> SessionController {
     let session = SessionController(
-      profile: profile, password: password, token: token, mediaFactory: mediaFactory)
-    // App-audio capture cannot separate two WebRTC playbacks; close transcription before any new media starts.
-    session.onMediaStarting = { [weak self] in
-      self?.sessions.values.forEach {
-        if $0.transcription.active {
-          $0.transcription.stop(reason: "Stopped because a remote connection started or reconnected")
-        }
-      }
-    }
+      profile: profile, password: password, token: token,
+      recordingsDirectory: testing ? FileManager.default.temporaryDirectory
+        .appendingPathComponent("AsteroidKVM-UITests/Recordings", isDirectory: true) : nil,
+      mediaFactory: mediaFactory)
     session.onCapture = { [weak self] focused in
       for (id, session) in self?.sessions ?? [:] where id != focused { session.releaseCapture() }
       self?.selectedDevice = focused
@@ -134,21 +129,11 @@ import CometMedia
     return session
   }
 
-  // Gate app-audio capture to one remote session and retrieve the provider key only on explicit activation.
+  // Retrieve the provider key only on explicit activation of this connection’s audio stream.
   public func setTranscription(_ enabled: Bool, for session: SessionController) {
     guard enabled else { session.transcription.stop(); return }
     guard session.active else {
       session.transcription.stop(reason: "Connect the remote display before transcribing")
-      return
-    }
-    guard !session.profile.muted else {
-      session.transcription.stop(reason: "Turn off Mute remote playback in Devices settings before transcribing")
-      return
-    }
-    guard !sessions.values.contains(where: {
-      $0.id != session.id && $0.phase != .disconnected && $0.phase != .authenticating
-    }) else {
-      session.transcription.stop(reason: "Disconnect other remote sessions before transcribing")
       return
     }
     do {

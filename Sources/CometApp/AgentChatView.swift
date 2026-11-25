@@ -1,4 +1,5 @@
-// Present a native, streaming conversation with persistent local controls and a compact action timeline.
+// Obsolete: the Experimental Coding Agent is hidden because the MCP server is already sufficient.
+// Retained for reference; no toolbar entry or window scene exposes this view.
 import CometAgent
 import CometSession
 import SwiftUI

@@ -134,6 +134,8 @@ public struct InputEngine: Sendable {
     return result
   }
 
+  public func isHeld(_ code: String) -> Bool { held.contains(code) }
+
   // Consume translated releases and balance only keys whose physical presses were forwarded.
   public mutating func keyUp(code: String) -> [HIDEvent] {
     if translated.remove(code) != nil { return [] }
@@ -161,10 +163,10 @@ public struct InputEngine: Sendable {
 // A single main-actor producer and draining task preserve arrival order across transport awaits.
 @MainActor public final class HIDOutput {
   public typealias Send = @Sendable (HIDEvent) async throws -> Void
-  public typealias Paste = @Sendable (String, String) async throws -> Void
+  public typealias Paste = @Sendable (String, String, Bool) async throws -> Void
   private enum Command {
     case event(HIDEvent)
-    case paste(String, String)
+    case paste(String, String, Bool)
     case barrier(CheckedContinuation<Void, Never>)
   }
   private var pending: [Command] = []
@@ -249,12 +251,12 @@ public struct InputEngine: Sendable {
   }
 
   // Paste locks out live input synchronously, then waits behind releases in the same FIFO.
-  public func paste(_ text: String, keymap: String) {
+  public func paste(_ text: String, keymap: String, fast: Bool = false) {
     guard !pasting else { return }
     releaseAll()
     pasting = true
     onPasteChanged?(true)
-    pending.append(.paste(text, keymap))
+    pending.append(.paste(text, keymap, fast))
     drain()
   }
 
@@ -298,10 +300,10 @@ public struct InputEngine: Sendable {
               let interval = min(1000, max(0, nativeTypingIntervalMilliseconds))
               if interval > 0 { try await Task.sleep(for: .milliseconds(interval)) }
             }
-          case .paste(let text, let keymap):
+          case .paste(let text, let keymap, let fast):
             pasteRunning = true
             defer { pasteRunning = false }
-            try await printText(text, keymap)
+            try await printText(text, keymap, fast)
             pasting = false
             onPasteChanged?(false)
           case .barrier(let continuation): continuation.resume()
